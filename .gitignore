@@ -1,0 +1,31 @@
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Logs
+*.log
+
+# Databases & SQLite
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+
+# Telegram session files
+*.session
+*.session-journal
+
+# Secrets & Environment variables
+.env
+.env.*
+
+# Backups & Archives
+*.zip
+*.tar.gz
+*.rar
+
+# OS specific
+.DS_Store
+Thumbs.db
+
