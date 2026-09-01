@@ -773,6 +773,8 @@ def api_get_inventory_records():
         ORDER BY total_qty DESC
         LIMIT 6
     """)
+    top_products = [dict(r) for r in cursor.fetchall()]
+
     # Danh sách các ngày có dữ liệu
     cursor.execute("SELECT DISTINCT date FROM store_inventory_records WHERE date != '' ORDER BY date DESC")
     available_dates = [r[0] for r in cursor.fetchall()]
