@@ -27,11 +27,12 @@ if sys.platform == 'win32':
 
 import re
 import io
+import csv
 import sqlite3
 import time
 from datetime import datetime
 
-from flask import Flask, render_template, jsonify, request, send_file
+from flask import Flask, render_template, jsonify, request, send_file, Response
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment
 from config import DB_PATH
@@ -705,11 +706,9 @@ def api_get_inventory_records():
     if end_date:
         query += " AND date <= ?"
         params.append(end_date)
-    if min_qty is not None:
-        query += " AND stocktake_in_qty >= ?"
-        params.append(min_qty)
-
-    query += " ORDER BY date DESC, store_id ASC, sku ASC LIMIT 500"
+    limit = request.args.get('limit', type=int) or 2000
+    query += " ORDER BY date DESC, store_id ASC, sku ASC LIMIT ?"
+    params.append(limit)
     cursor.execute(query, params)
     rows = cursor.fetchall()
 
@@ -826,8 +825,9 @@ def api_get_negative_stock_records():
     if end_date:
         query += " AND date <= ?"
         params.append(end_date)
-
-    query += " ORDER BY date DESC, store_id ASC, sku ASC"
+    limit = request.args.get('limit', type=int) or 2000
+    query += " ORDER BY date DESC, store_id ASC, sku ASC LIMIT ?"
+    params.append(limit)
     cursor.execute(query, params)
     rows = cursor.fetchall()
 
@@ -875,6 +875,84 @@ def api_get_negative_stock_records():
             'affected_stores_count': len(affected_stores)
         }
     })
+
+
+@app.route('/api/inventory/export')
+def api_inventory_export():
+    mode = request.args.get('mode', 'increase').strip()
+    search = request.args.get('search', '').strip().lower()
+    store_id = request.args.get('store_id', '').strip()
+    category = request.args.get('category', '').strip()
+    start_date = request.args.get('start_date', '').strip()
+    end_date = request.args.get('end_date', '').strip()
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    if mode == 'negative':
+        query = "SELECT date, store_id, store_name, barcode, product_name, category_name, negative_qty, negative_value, closing_stock, reason FROM store_negative_stock_records WHERE 1=1"
+        params = []
+        if search:
+            query += " AND (LOWER(product_name) LIKE ? OR barcode LIKE ? OR sku LIKE ? OR LOWER(store_name) LIKE ? OR LOWER(store_id) LIKE ?)"
+            params.extend([f"%{search}%", f"%{search}%", f"%{search}%", f"%{search}%", f"%{search}%"])
+        if store_id:
+            query += " AND (store_id = ? OR LOWER(store_name) LIKE ?)"
+            params.extend([store_id, f"%{store_id.lower()}%"])
+        if category and category != 'all':
+            query += " AND category_name = ?"
+            params.append(category)
+        if start_date:
+            query += " AND date >= ?"
+            params.append(start_date)
+        if end_date:
+            query += " AND date <= ?"
+            params.append(end_date)
+        query += " ORDER BY date DESC, store_id ASC"
+        cursor.execute(query, params)
+        rows = cursor.fetchall()
+        conn.close()
+
+        output = io.StringIO()
+        output.write('\ufeff') # UTF-8 BOM for Excel
+        writer = csv.writer(output)
+        writer.writerow(['Ngày', 'Mã ST', 'Tên Siêu Thị', 'Mã Barcode/SKU', 'Tên Sản Phẩm', 'Ngành Hàng', 'SL Âm Tồn (-)', 'Giá Trị Âm (VNĐ)', 'Tồn Sổ Sách', 'Lý Do / Ghi Chú'])
+        for r in rows:
+            writer.writerow([r['date'], r['store_id'], r['store_name'], r['barcode'], r['product_name'], r['category_name'], r['negative_qty'], r['negative_value'], r['closing_stock'], r['reason']])
+
+        filename = f"Danh_Sach_Ma_Am_Ton_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+        return Response(output.getvalue(), mimetype="text/csv", headers={"Content-Disposition": f"attachment;filename={filename}"})
+    else:
+        query = "SELECT date, store_id, store_name, barcode, product_name, category_name, opening_stock, stocktake_in_qty, stocktake_in_value, closing_stock, audit_note, status FROM store_inventory_records WHERE 1=1"
+        params = []
+        if search:
+            query += " AND (LOWER(product_name) LIKE ? OR barcode LIKE ? OR sku LIKE ? OR LOWER(store_name) LIKE ? OR LOWER(store_id) LIKE ?)"
+            params.extend([f"%{search}%", f"%{search}%", f"%{search}%", f"%{search}%", f"%{search}%"])
+        if store_id:
+            query += " AND (store_id = ? OR LOWER(store_name) LIKE ?)"
+            params.extend([store_id, f"%{store_id.lower()}%"])
+        if category and category != 'all':
+            query += " AND category_name = ?"
+            params.append(category)
+        if start_date:
+            query += " AND date >= ?"
+            params.append(start_date)
+        if end_date:
+            query += " AND date <= ?"
+            params.append(end_date)
+        query += " ORDER BY date DESC, store_id ASC"
+        cursor.execute(query, params)
+        rows = cursor.fetchall()
+        conn.close()
+
+        output = io.StringIO()
+        output.write('\ufeff') # UTF-8 BOM for Excel
+        writer = csv.writer(output)
+        writer.writerow(['Ngày', 'Mã ST', 'Tên Siêu Thị', 'Mã Barcode/SKU', 'Tên Sản Phẩm Nâng Tồn', 'Ngành Hàng', 'Tồn Đầu', 'SL Nâng Tồn (+)', 'Giá Trị Tăng (VNĐ)', 'Tồn Sau KK', 'Ghi Chú Phiếu', 'Trạng Thái'])
+        for r in rows:
+            writer.writerow([r['date'], r['store_id'], r['store_name'], r['barcode'], r['product_name'], r['category_name'], r['opening_stock'], r['stocktake_in_qty'], r['stocktake_in_value'], r['closing_stock'], r['audit_note'], r['status']])
+
+        filename = f"Danh_Sach_KK_Nang_Ton_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+        return Response(output.getvalue(), mimetype="text/csv", headers={"Content-Disposition": f"attachment;filename={filename}"})
 
 
 # --- MODULE TẠO & XUẤT CHỨNG TỪ TRUY THU (DOCX) ---

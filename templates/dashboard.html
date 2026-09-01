@@ -3563,13 +3563,23 @@
         }
 
         function exportInventoryExcel() {
-            const mode = currentInventorySubtab === 'increase' ? 'Nâng Tồn' : 'Âm Tồn';
-            alert(`📥 Đang kết xuất danh sách SKU ${mode} Tháng 08.2026 sang file Excel...`);
-            if (currentInventorySubtab === 'increase') {
-                window.location.href = '/api/inventory/records';
-            } else {
-                window.location.href = '/api/inventory/negative_stock';
+            const mode = currentInventorySubtab === 'increase' ? 'increase' : 'negative';
+            const dateVal = document.getElementById('inv-filter-date') ? document.getElementById('inv-filter-date').value : '';
+            const storeVal = document.getElementById('inv-filter-store') ? document.getElementById('inv-filter-store').value : '';
+            const catVal = document.getElementById('inv-filter-cat') ? document.getElementById('inv-filter-cat').value : 'all';
+            const searchVal = document.getElementById('inv-search') ? document.getElementById('inv-search').value.trim() : '';
+
+            const params = new URLSearchParams();
+            params.append('mode', mode);
+            if (dateVal) {
+                params.append('start_date', dateVal);
+                params.append('end_date', dateVal);
             }
+            if (storeVal) params.append('store_id', storeVal);
+            if (catVal !== 'all') params.append('category', catVal);
+            if (searchVal) params.append('search', searchVal);
+
+            window.location.href = `/api/inventory/export?${params.toString()}`;
         }
 
 
