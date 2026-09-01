@@ -882,13 +882,21 @@
         <!-- MỤC 3: QUẢN LÝ TỒN KHO & KIỂM KÊ NÂNG TỒN SIÊU THỊ -->
         <div id="section-inventory" style="display: none;">
             <!-- THANH CHUYỂN ĐỔI 2 PHẦN: KK NÂNG TỒN & DANH SÁCH MÃ ÂM TỒN -->
-            <div class="d-flex align-items-center gap-2 mb-3">
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
                 <div class="btn-group" role="group">
                     <button type="button" class="btn btn-black fw-bold px-3 py-2" id="btn-inv-subtab-increase" onclick="switchInventorySubtab('increase')">
                         KK NÂNG TỒN
                     </button>
                     <button type="button" class="btn btn-outline-danger fw-bold px-3 py-2" id="btn-inv-subtab-negative" onclick="switchInventorySubtab('negative')">
                         DANH SÁCH MÃ ÂM TỒN
+                    </button>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <button class="btn btn-sm btn-outline-dark fw-semibold px-3 py-2" onclick="openKingfoodTokenModal()">
+                        <i class="fa-solid fa-key me-1"></i> Cập Nhật Token (KDB)
+                    </button>
+                    <button class="btn btn-sm btn-black fw-semibold px-3 py-2" onclick="syncInventoryLive()">
+                        <i class="fa-solid fa-cloud-arrow-down me-1"></i> Đồng Bộ Lại Dữ Liệu
                     </button>
                 </div>
             </div>
@@ -1224,6 +1232,33 @@
                             <button type="button" class="btn btn-sm btn-outline-dark" data-bs-dismiss="modal">Đóng</button>
                             <button type="button" class="btn btn-sm btn-black fw-bold px-3" id="btn-save-sheet-url" onclick="saveSheetConfig()">
                                 <i class="fa-solid fa-cloud-arrow-down me-1"></i> Lưu & Đồng Bộ Ngay
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MODAL CÀI ĐẶT TOKEN KINGFOOD ERP (KDB) -->
+            <div class="modal fade" id="kingfoodTokenModal" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content border-0 shadow">
+                        <div class="modal-header bg-black text-white py-2 px-3">
+                            <h6 class="modal-title font-monospace"><i class="fa-solid fa-key me-2"></i>Cài Đặt Token Đăng Nhập Kingfood (KDB)</h6>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body p-4 bg-white">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold text-dark small text-uppercase">Mã Token (Bearer Token / x-access-token):</label>
+                                <textarea class="form-control font-monospace" id="input-kingfood-token" rows="4" placeholder="Dán mã Token lấy từ https://next.kingfood.co/ vào đây..."></textarea>
+                                <div class="form-text text-muted mt-2" style="font-size: 0.8rem;">
+                                    <i class="fa-solid fa-circle-info me-1"></i> Khi token hết hạn, bạn đăng nhập vào <strong>https://next.kingfood.co/</strong>, mở F12 $\rightarrow$ Application $\rightarrow$ Local Storage $\rightarrow$ copy giá trị của <strong>token</strong> và dán vào đây.
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer bg-light py-2 px-3">
+                            <button type="button" class="btn btn-sm btn-outline-dark" data-bs-dismiss="modal">Đóng</button>
+                            <button type="button" class="btn btn-sm btn-black fw-bold px-3" id="btn-save-kf-token" onclick="saveKingfoodToken()">
+                                <i class="fa-solid fa-floppy-disk me-1"></i> Lưu & Đồng Bộ Ngay
                             </button>
                         </div>
                     </div>
@@ -3282,17 +3317,26 @@
                     return;
                 }
 
-                // Cập nhật bộ chọn Ngày nếu chưa có
+                // Cập nhật bộ chọn Ngày linh hoạt theo danh sách ngày có trong database
                 const dateSelect = document.getElementById('inv-filter-date');
-                if (dateSelect && dateSelect.options.length <= 1) {
-                    const days = Array.from({length: 31}, (_, i) => 31 - i);
-                    days.forEach(d => {
-                        const dStr = `2026-08-${d.toString().padStart(2, '0')}`;
-                        const opt = document.createElement('option');
-                        opt.value = dStr;
-                        opt.text = `${d.toString().padStart(2, '0')}/08/2026`;
-                        dateSelect.appendChild(opt);
-                    });
+                if (dateSelect && data.available_dates && data.available_dates.length > 0) {
+                    const curVal = dateSelect.value;
+                    const prevCount = dateSelect.options.length;
+                    if (prevCount <= 1 || prevCount !== data.available_dates.length + 1) {
+                        dateSelect.innerHTML = '<option value="">Tất cả các ngày</option>';
+                        data.available_dates.forEach(dStr => {
+                            let textDisplay = dStr;
+                            if (dStr.includes('-')) {
+                                const p = dStr.split('-');
+                                textDisplay = `${p[2]}/${p[1]}/${p[0]}`;
+                            }
+                            const opt = document.createElement('option');
+                            opt.value = dStr;
+                            opt.text = textDisplay;
+                            if (dStr === curVal) opt.selected = true;
+                            dateSelect.appendChild(opt);
+                        });
+                    }
                 }
 
                 // Cập nhật bộ chọn Siêu Thị nếu chưa có
@@ -3381,6 +3425,28 @@
                     return;
                 }
 
+                // Cập nhật bộ chọn Ngày linh hoạt theo available_dates
+                const dateSelect = document.getElementById('inv-filter-date');
+                if (dateSelect && data.available_dates && data.available_dates.length > 0) {
+                    const curVal = dateSelect.value;
+                    const prevCount = dateSelect.options.length;
+                    if (prevCount <= 1 || prevCount !== data.available_dates.length + 1) {
+                        dateSelect.innerHTML = '<option value="">Tất cả các ngày</option>';
+                        data.available_dates.forEach(dStr => {
+                            let textDisplay = dStr;
+                            if (dStr.includes('-')) {
+                                const p = dStr.split('-');
+                                textDisplay = `${p[2]}/${p[1]}/${p[0]}`;
+                            }
+                            const opt = document.createElement('option');
+                            opt.value = dStr;
+                            opt.text = textDisplay;
+                            if (dStr === curVal) opt.selected = true;
+                            dateSelect.appendChild(opt);
+                        });
+                    }
+                }
+
                 const s = data.summary || {};
                 const records = data.records || [];
 
@@ -3423,6 +3489,76 @@
             } catch (e) {
                 console.error("Lỗi loadNegativeStockRecords:", e);
                 if (tbody) tbody.innerHTML = `<tr><td colspan="7" class="text-center py-4 text-danger">Lỗi kết nối máy chủ: ${e.message}</td></tr>`;
+            }
+        }
+
+        async function openKingfoodTokenModal() {
+            try {
+                const res = await fetch('/api/kingfood/token');
+                const data = await res.json();
+                document.getElementById('input-kingfood-token').value = data.token || '';
+                new bootstrap.Modal(document.getElementById('kingfoodTokenModal')).show();
+            } catch (e) {
+                alert('Lỗi: ' + e.message);
+            }
+        }
+
+        async function saveKingfoodToken() {
+            const token = document.getElementById('input-kingfood-token').value.trim();
+            if (!token) {
+                alert('Vui lòng dán mã Token!');
+                return;
+            }
+            const btn = document.getElementById('btn-save-kf-token');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Đang cập nhật & đồng bộ tồn kho...';
+
+            try {
+                const res = await fetch('/api/kingfood/token', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token: token })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    const modalEl = document.getElementById('kingfoodTokenModal');
+                    const modalInstance = bootstrap.Modal.getInstance(modalEl);
+                    if (modalInstance) modalInstance.hide();
+                    
+                    if (currentInventorySubtab === 'increase') {
+                        await loadStoreInventory();
+                    } else {
+                        await loadNegativeStockRecords();
+                    }
+                    const syncInfo = data.sync || {};
+                    alert(`✅ Đã lưu token mới và đồng bộ thành công! (+${syncInfo.increase_count || 0} mã nâng tồn, -${syncInfo.negative_count || 0} mã âm tồn)`);
+                } else {
+                    alert('❌ Lỗi: ' + (data.error || 'Thất bại'));
+                }
+            } catch (e) {
+                alert('Lỗi kết nối máy chủ: ' + e.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-floppy-disk me-1"></i> Lưu & Đồng Bộ Ngay';
+            }
+        }
+
+        async function syncInventoryLive() {
+            try {
+                const res = await fetch('/api/inventory/sync', { method: 'POST' });
+                const data = await res.json();
+                if (data.success) {
+                    if (currentInventorySubtab === 'increase') {
+                        await loadStoreInventory();
+                    } else {
+                        await loadNegativeStockRecords();
+                    }
+                    alert(`✅ Đồng bộ thành công: ${data.increase_count || 0} mã nâng tồn, ${data.negative_count || 0} mã âm tồn!`);
+                } else {
+                    alert(`⚠️ Lỗi đồng bộ: ${data.error || 'Vui lòng kiểm tra lại token đăng nhập Kingfood'}`);
+                }
+            } catch (e) {
+                alert('Lỗi: ' + e.message);
             }
         }
 

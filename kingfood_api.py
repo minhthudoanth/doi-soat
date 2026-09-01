@@ -2,8 +2,40 @@ import urllib.request
 import json
 import re
 from datetime import datetime, timedelta
+import sqlite3
+import os
+from config import DB_PATH
 
-KINGFOOD_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjp7ImlkIjoiNjk4MTYwYzkzMzljOTkwMDA3MTFjMTE3IiwiZnVsbF9uYW1lIjoixJBvw6BuIFRo4buLIE1pbmggVGjGsCIsImVtYWlsIjoidGh1LmRvYW50aGltaW5oQGtpbmdmb29kbWFydC5jb20iLCJlbXBsb3llZV9jb2RlIjoiU0MwMTcwODQiLCJsYXN0X2xvZ2luIjoxNzg3NDUyOTg4NTU5LCJleHRlbmRfcm9sZXMiOnt9LCJ1dWlkIjoiYzJhZmQ4YWVjY2NkMWY4MjI0YmFkNWY1YTQ1YmFhNzUiLCJyYmFjIjpudWxsfSwiaWF0IjoxNzg3NDUyOTg4LCJleHAiOjE3ODgwNTc3ODh9.77Oy3_jr2aJ9J3wrO6giYWHih6l90p89VFmW0dr3sNw'
+DEFAULT_KINGFOOD_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjp7ImlkIjoiNjk4MTYwYzkzMzljOTkwMDA3MTFjMTE3IiwiZnVsbF9uYW1lIjoixJBvw6BuIFRo4buLIE1pbmggVGjGsCIsImVtYWlsIjoidGh1LmRvYW50aGltaW5oQGtpbmdmb29kbWFydC5jb20iLCJlbXBsb3llZV9jb2RlIjoiU0MwMTcwODQiLCJsYXN0X2xvZ2luIjoxNzg3NDUyOTg4NTU5LCJleHRlbmRfcm9sZXMiOnt9LCJ1dWlkIjoiYzJhZmQ4YWVjY2NkMWY4MjI0YmFkNWY1YTQ1YmFhNzUiLCJyYmFjIjpudWxsfSwiaWF0IjoxNzg3NDUyOTg4LCJleHAiOjE3ODgwNTc3ODh9.77Oy3_jr2aJ9J3wrO6giYWHih6l90p89VFmW0dr3sNw'
+
+def get_kingfood_token():
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute("CREATE TABLE IF NOT EXISTS app_settings (key TEXT PRIMARY KEY, value TEXT)")
+        cursor.execute("SELECT value FROM app_settings WHERE key = 'kingfood_token'")
+        row = cursor.fetchone()
+        conn.close()
+        if row and row[0] and row[0].strip():
+            return row[0].strip()
+    except Exception:
+        pass
+    return DEFAULT_KINGFOOD_TOKEN
+
+def set_kingfood_token(token):
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute("CREATE TABLE IF NOT EXISTS app_settings (key TEXT PRIMARY KEY, value TEXT)")
+        cursor.execute("INSERT OR REPLACE INTO app_settings (key, value) VALUES ('kingfood_token', ?)", (token.strip(),))
+        conn.commit()
+        conn.close()
+        return True
+    except Exception as e:
+        print(f"Lỗi set_kingfood_token: {e}")
+        return False
+
+KINGFOOD_TOKEN = get_kingfood_token()
 
 
 # ID CHUẨN CỦA KHO RAU CỦ (KRC)
@@ -134,8 +166,10 @@ def lookup_product_name_by_barcode(barcode):
     return ''
 
 def get_headers():
+    token = get_kingfood_token()
     return {
-        'Authorization': f'Bearer {KINGFOOD_TOKEN}',
+        'Authorization': f'Bearer {token}',
+        'x-access-token': token,
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
         'Accept': 'application/json, text/plain, */*',
         'Referer': 'https://next.kingfood.co/'

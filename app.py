@@ -645,6 +645,21 @@ def api_sheet_sync_ds_st():
     res = sync_ds_st_data()
     return jsonify(res)
 
+@app.route('/api/kingfood/token', methods=['GET', 'POST'])
+def api_kingfood_token():
+    from kingfood_api import get_kingfood_token, set_kingfood_token
+    if request.method == 'POST':
+        data = request.json or {}
+        new_token = data.get('token', '').strip()
+        if not new_token:
+            return jsonify({'success': False, 'error': 'Vui lòng cung cấp mã Token'}), 400
+        set_kingfood_token(new_token)
+        from sheet_sync import sync_inventory_from_sheet
+        sync_res = sync_inventory_from_sheet()
+        return jsonify({'success': True, 'sync': sync_res})
+    else:
+        return jsonify({'token': get_kingfood_token()})
+
 @app.route('/api/inventory/sync', methods=['GET', 'POST'])
 def api_inventory_sync():
     from sheet_sync import sync_inventory_from_sheet
@@ -758,13 +773,16 @@ def api_get_inventory_records():
         ORDER BY total_qty DESC
         LIMIT 6
     """)
-    top_products = [dict(r) for r in cursor.fetchall()]
+    # Danh sách các ngày có dữ liệu
+    cursor.execute("SELECT DISTINCT date FROM store_inventory_records WHERE date != '' ORDER BY date DESC")
+    available_dates = [r[0] for r in cursor.fetchall()]
 
     conn.close()
 
     return jsonify({
         'success': True,
         'records': records,
+        'available_dates': available_dates,
         'summary': {
             'total_records': len(records),
             'total_in_qty': round(total_in_qty, 1),
@@ -839,11 +857,15 @@ def api_get_negative_stock_records():
             'status': r['status']
         })
 
+    cursor.execute("SELECT DISTINCT date FROM store_negative_stock_records WHERE date != '' ORDER BY date DESC")
+    neg_available_dates = [r[0] for r in cursor.fetchall()]
+
     conn.close()
 
     return jsonify({
         'success': True,
         'records': records,
+        'available_dates': neg_available_dates,
         'summary': {
             'total_records': len(records),
             'total_negative_qty': round(total_neg_qty, 1),

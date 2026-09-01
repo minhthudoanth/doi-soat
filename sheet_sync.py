@@ -3,8 +3,9 @@ import sys
 import urllib.request
 import csv
 import io
+import json
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timedelta
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 if BASE_DIR not in sys.path:
@@ -447,27 +448,27 @@ def sync_inventory_from_sheet():
             except Exception as e:
                 pass
                 
-        cursor.execute("DELETE FROM store_inventory_records")
-        cursor.execute("DELETE FROM store_negative_stock_records")
-        
-        if nang_ton_rows:
-            cursor.executemany("""
-                INSERT INTO store_inventory_records (
-                    date, store_id, store_name, barcode, sku, product_name, category_name,
-                    opening_stock, stocktake_in_qty, stocktake_in_value, stocktake_out_qty, stocktake_out_value, damage_qty, closing_stock,
-                    audit_note, status
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, nang_ton_rows)
+        if nang_ton_rows or am_ton_rows:
+            cursor.execute("DELETE FROM store_inventory_records")
+            cursor.execute("DELETE FROM store_negative_stock_records")
             
-        if am_ton_rows:
-            cursor.executemany("""
-                INSERT INTO store_negative_stock_records (
-                    date, store_id, store_name, barcode, sku, product_name, category_name,
-                    negative_qty, negative_value, closing_stock, reason, status
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, am_ton_rows)
-            
-        conn.commit()
+            if nang_ton_rows:
+                cursor.executemany("""
+                    INSERT INTO store_inventory_records (
+                        date, store_id, store_name, barcode, sku, product_name, category_name,
+                        opening_stock, stocktake_in_qty, stocktake_in_value, stocktake_out_qty, stocktake_out_value, damage_qty, closing_stock,
+                        audit_note, status
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, nang_ton_rows)
+                
+            if am_ton_rows:
+                cursor.executemany("""
+                    INSERT INTO store_negative_stock_records (
+                        date, store_id, store_name, barcode, sku, product_name, category_name,
+                        negative_qty, negative_value, closing_stock, reason, status
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, am_ton_rows)
+            conn.commit()
         conn.close()
         print(f"[*] Đồng bộ hoàn tất: {len(nang_ton_rows)} mã KK Nâng Tồn (+), {len(am_ton_rows)} mã Âm Tồn (-).", flush=True)
         return {"success": True, "increase_count": len(nang_ton_rows), "negative_count": len(am_ton_rows)}
