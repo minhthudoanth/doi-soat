@@ -362,18 +362,55 @@ def sync_ds_st_data():
         print(f"[!] Lỗi đồng bộ DS ST: {e}", flush=True)
         return {"success": False, "error": str(e)}
 
+def is_target_produce_or_bakery(cates, pname):
+    cate_names = [str(c.get('name', '')).upper() for c in cates]
+    combined = " ".join(cate_names)
+    p_lower = pname.lower()
+    
+    # Exclude non-target categories
+    non_targets = [
+        'DAIRY', 'SỮA', 'YOGURT', 'FMCG', 'BEVERAGE', 'NƯỚC NGỌT', 'BIA', 'RƯỢU', 'LIQUOR',
+        'CANNED', 'INSTANT', 'MÌ', 'PHỞ', 'BÚN', 'HỦ TIẾU', 'PERSONAL CARE', 'HOUSEHOLD',
+        'SEASONING', 'GIA VỊ', 'CONFECTIONERY', 'BÁNH KẸO GÓI', 'SNACK', 'KEM', 'ICE CREAM',
+        'COSMETIC', 'DRY FOOD', 'TOBACCO', 'FROZEN', 'MEAT', 'THỊT', 'HEO', 'BÒ', 'GÀ',
+        'VỊT', 'POULTRY', 'PORK', 'BEEF', 'FISH', 'CÁ', 'SEAFOOD', 'HẢI SẢN', 'TÔM', 'MỰC',
+        'READY TO EAT', 'READY TO COOK', 'RTC', 'RTE'
+    ]
+    for nt in non_targets:
+        if nt in combined:
+            return False, None
+            
+    if '2.FRUITS' in combined or 'TRÁI CÂY' in combined or 'FRUIT' in combined:
+        return True, 'Trái Cây'
+    if '2.VEGETABLES' in combined or 'RAU' in combined or 'CỦ' in combined or 'NẤM' in combined:
+        return True, 'Rau Củ Quả'
+    if '2.BAKERY' in combined or 'BÁNH TƯƠI' in combined:
+        return True, 'Bánh Tươi / Bakery'
+        
+    fruit_kw = ['dưa', 'chuối', 'sầu riêng', 'bưởi', 'bơ', 'cam', 'táo', 'nho', 'xoài', 'mận', 'ổi', 'thanh long', 'chanh', 'quýt', 'mít', 'kiwi', 'lê', 'dâu', 'đu đủ', 'chôm chôm', 'măng cụt', 'nhãn', 'vải', 'lựu', 'cóc']
+    if any(k in p_lower for k in fruit_kw):
+        return True, 'Trái Cây'
+        
+    veg_kw = ['cải', 'rau', 'xà lách', 'khoai', 'cà rốt', 'cà chua', 'ớt', 'hành', 'tỏi', 'nấm', 'ngò', 'bầu', 'bí', 'mướp', 'khổ qua', 'đậu que', 'đậu bắp', 'bắp cải', 'súp lơ', 'bông cải', 'dưa leo', 'cà tím', 'gừng', 'sả', 'tía tô', 'kinh giới']
+    if any(k in p_lower for k in veg_kw):
+        return True, 'Rau Củ Quả'
+        
+    bake_kw = ['bánh mì', 'bánh tươi', 'sandwich', 'croissant', 'danish', 'baguette', 'muffin', 'toast']
+    if any(k in p_lower for k in bake_kw) and not any(k in p_lower for k in ['snack', 'bánh quy', 'chocopie', 'oreo', 'custas']):
+        return True, 'Bánh Tươi / Bakery'
+
+    return False, None
+
 def sync_inventory_from_sheet():
     """
     Đồng bộ dữ liệu Kiểm kê Nâng tồn (KK NÂNG TỒN) và Mã Âm tồn (DANH SÁCH MÃ ÂM TỒN)
-    từ ngày 25/08 đến nay cho các mặt hàng Rau Củ Quả, Trái Cây, Bánh Tươi / Bakery, Thực Phẩm Tươi.
-    Kết hợp dữ liệu từ Kingfood API KDB, Google Sheet đối soát và Telegram.
+    từ ngày 01/08 đến nay cho các mặt hàng Rau Củ Quả, Trái Cây, Bánh Tươi / Bakery.
     """
     try:
         from kingfood_api import get_headers
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         
-        # Đảm bảo bảng tồn kho đã được khởi tạo
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS store_inventory_records (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -415,100 +452,120 @@ def sync_inventory_from_sheet():
             )
         """)
         
-        # Lấy danh sách siêu thị
+        cursor.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_inv_unique ON store_inventory_records (date, store_id, barcode)")
+        cursor.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_neg_unique ON store_negative_stock_records (date, store_id, barcode)")
+
         cursor.execute("SELECT store_id, store_name FROM sheet_store_list")
         store_map = {r[0]: r[1] for r in cursor.fetchall()}
-        
-        CAT_MAP = {
-            '2.VEGETABLES': 'Rau Củ Quả',
-            '2.FRUITS': 'Trái Cây',
-            '2.BAKERY': 'Bánh Tươi / Bakery',
-            '2.DELICA': 'Bánh Tươi / Bakery',
-            '2.EGGS': 'Thực Phẩm Tươi',
-            '2.FLOWERS': 'Rau Củ Quả'
-        }
         
         nang_ton_rows = []
         am_ton_rows = []
         seen_keys = set()
-        
+
         # 1. Thử lấy từ Kingfood API nếu có token hợp lệ
         try:
-            print("[*] Đang thử kiểm tra dữ liệu Kiểm Kê từ Kingfood API...", flush=True)
-            url = 'https://api.kingfood.co/v1/stocktakes?status=5&limit=100'
-            req = urllib.request.Request(url, headers=get_headers())
-            with urllib.request.urlopen(req, timeout=8) as resp:
-                data = json.loads(resp.read().decode('utf-8'))
-                st_items = data.get('items', [])
-                for st in st_items:
-                    st_id = st.get('id')
-                    st_code = st.get('code', '')
-                    created_at_str = st.get('created_at') or st.get('completed_at') or ''
-                    date_iso = datetime.now().strftime('%Y-%m-%d')
-                    if created_at_str:
-                        try:
-                            dt = datetime.fromisoformat(created_at_str.replace('Z', '+00:00')) + timedelta(hours=7)
-                            date_iso = dt.strftime('%Y-%m-%d')
-                        except Exception:
-                            pass
-                    store_code = ''
-                    m = re.search(r'^\d{6}-([A-Za-z0-9]+)-', st_code)
-                    if m:
-                        store_code = m.group(1)
-                    else:
-                        store_code = st.get('branch_id', '')[:8]
-                    store_name = store_map.get(store_code, f"KFM_{store_code}")
-                    
-                    lines_url = f'https://api.kingfood.co/v1/stocktakes/lines?stocktake_id={st_id}&limit=100'
+            print("[*] Đang đồng bộ dữ liệu Kiểm Kê (Rau, Củ, Quả, Bánh, Trái Cây) từ 01/08/2026 đến nay...", flush=True)
+            from concurrent.futures import ThreadPoolExecutor, as_completed
+            
+            target_stocktakes = []
+            skip = 0
+            limit = 200
+            reach_end = False
+
+            while skip < 3000 and not reach_end:
+                url = f'https://api.kingfood.co/v1/stocktakes?status=5&sort_by=created_at&sort_type=-1&limit={limit}&skip={skip}'
+                try:
+                    req = urllib.request.Request(url, headers=get_headers())
+                    with urllib.request.urlopen(req, timeout=12) as resp:
+                        st_data = json.loads(resp.read().decode('utf-8'))
+                        st_list = st_data.get('items', [])
+                        if not st_list:
+                            break
+                        for st in st_list:
+                            dt = (st.get('created_at') or st.get('completed_at') or '')[:10]
+                            if dt and dt < '2026-08-01':
+                                reach_end = True
+                                break
+                            if st.get('total_sku', 0) > 0:
+                                target_stocktakes.append(st)
+                        if reach_end:
+                            break
+                    skip += limit
+                except Exception as e:
+                    print(f"[*] Lỗi duyệt trang phiếu kiểm kê skip={skip}: {e}", flush=True)
+                    break
+
+            def process_st(st):
+                st_id = st.get('id')
+                st_code = st.get('code', '')
+                created_at_str = st.get('created_at') or st.get('completed_at') or ''
+                date_iso = datetime.now().strftime('%Y-%m-%d')
+                if created_at_str:
+                    try:
+                        dt = datetime.fromisoformat(created_at_str.replace('Z', '+00:00')) + timedelta(hours=7)
+                        date_iso = dt.strftime('%Y-%m-%d')
+                    except Exception:
+                        pass
+                store_code = ''
+                m = re.search(r'^\d{6}-([A-Za-z0-9]+)-', st_code)
+                if m:
+                    store_code = m.group(1)
+                else:
+                    store_code = st.get('branch_id', '')[:8]
+                store_name = store_map.get(store_code, f"KFM_{store_code}")
+
+                lines_url = f'https://api.kingfood.co/v1/stocktakes/lines?stocktake_id={st_id}&limit=100'
+                res_items = []
+                try:
                     r_lines = urllib.request.Request(lines_url, headers=get_headers())
                     with urllib.request.urlopen(r_lines, timeout=8) as res_l:
                         l_data = json.loads(res_l.read().decode('utf-8'))
                         for line in l_data.get('items', []):
+                            bcode = str(line.get('barcode') or '').strip()
+                            pname = str(line.get('name') or '').strip()
+                            if not bcode or not pname:
+                                continue
+                            cates = line.get('cates', [])
+                            is_tgt, cat_name = is_target_produce_or_bakery(cates, pname)
+                            if not is_tgt:
+                                continue
                             diff_q = float(line.get('diff_quantity') or 0.0)
                             stock_q = float(line.get('stock_quantity') or 0.0)
                             actual_q = float(line.get('actual_stock_quantity') or 0.0)
                             diff_v = float(line.get('diff_value') or 0.0)
                             cost = float(line.get('cost') or 0.0)
                             price = float(line.get('price') or 0.0)
-                            bcode = str(line.get('barcode') or '').strip()
-                            pname = str(line.get('name') or '').strip()
-                            if not bcode or not pname:
-                                continue
-                            cates = line.get('cates', [])
-                            cat_name = "Rau Củ Quả"
-                            for c in cates:
-                                c_n = c.get('name', '').upper()
-                                if 'BAKERY' in c_n or 'BÁNH' in c_n:
-                                    cat_name = "Bánh Tươi / Bakery"; break
-                                elif 'THỊT' in c_n or 'CÁ' in c_n or 'MEAT' in c_n or 'FISH' in c_n:
-                                    cat_name = "Đông Mát Thịt Cá"; break
-                                elif 'TRÁI CÂY' in c_n or 'FRUIT' in c_n:
-                                    cat_name = "Trái Cây"; break
-                                elif 'RAU' in c_n or 'VEGETABLE' in c_n:
-                                    cat_name = "Rau Củ Quả"; break
-                            
-                            key = (date_iso, store_code, bcode)
-                            if key in seen_keys:
-                                continue
-                            seen_keys.add(key)
-                            
-                            if diff_v <= 0 and diff_q > 0:
-                                diff_v = diff_q * (cost if cost > 0 else price)
-                            if diff_q > 0:
-                                audit_note = f"Phiếu KK {st_code} (Sổ sách: {stock_q} -> Thực tế: {actual_q})"
-                                status_lbl = "Bất thường" if diff_v > 200000 else ("Cần lưu ý" if diff_v > 50000 else "Đã kiểm kê")
-                                nang_ton_rows.append((
-                                    date_iso, store_code, store_name, bcode, bcode, pname, cat_name,
-                                    stock_q, diff_q, round(diff_v, 0), 0.0, 0.0, 0.0, actual_q,
-                                    audit_note, status_lbl
-                                ))
-                            if stock_q < 0:
-                                neg_val = abs(stock_q) * (cost if cost > 0 else price)
-                                neg_note = f"Tồn sổ sách bị âm ({stock_q}) trước khi kiểm kê {st_code}"
-                                am_ton_rows.append((
-                                    date_iso, store_code, store_name, bcode, bcode, pname, cat_name,
-                                    abs(stock_q), round(neg_val, 0), stock_q, neg_note, "Cần bù tồn"
-                                ))
+                            res_items.append((date_iso, store_code, store_name, st_code, bcode, pname, cat_name, stock_q, diff_q, diff_v, cost, price, actual_q))
+                except Exception:
+                    pass
+                return res_items
+
+            with ThreadPoolExecutor(max_workers=8) as executor:
+                futures = [executor.submit(process_st, st) for st in target_stocktakes]
+                for f in as_completed(futures):
+                    items = f.result()
+                    for (date_iso, store_code, store_name, st_code, bcode, pname, cat_name, stock_q, diff_q, diff_v, cost, price, actual_q) in items:
+                        key = (date_iso, store_code, bcode)
+                        if key in seen_keys:
+                            continue
+                        seen_keys.add(key)
+                        if diff_v <= 0 and diff_q > 0:
+                            diff_v = diff_q * (cost if cost > 0 else price)
+                        if diff_q > 0:
+                            audit_note = f"Phiếu KK {st_code} (Sổ sách: {stock_q} -> Thực tế: {actual_q})"
+                            status_lbl = "Bất thường" if diff_v > 200000 else ("Cần lưu ý" if diff_v > 50000 else "Đã kiểm kê")
+                            nang_ton_rows.append((
+                                date_iso, store_code, store_name, bcode, bcode, pname, cat_name,
+                                stock_q, diff_q, round(diff_v, 0), 0.0, 0.0, 0.0, actual_q,
+                                audit_note, status_lbl
+                            ))
+                        if stock_q < 0:
+                            neg_val = abs(stock_q) * (cost if cost > 0 else price)
+                            neg_note = f"Tồn sổ sách bị âm ({stock_q}) trước khi kiểm kê {st_code}"
+                            am_ton_rows.append((
+                                date_iso, store_code, store_name, bcode, bcode, pname, cat_name,
+                                abs(stock_q), round(neg_val, 0), stock_q, neg_note, "Cần bù tồn"
+                            ))
         except Exception as api_err:
             print(f"[*] Kingfood API Stocktakes: {api_err}", flush=True)
 
@@ -534,7 +591,7 @@ def sync_inventory_from_sheet():
             """, am_ton_rows)
         conn.commit()
         conn.close()
-        print(f"[*] Đồng bộ tồn kho hoàn tất từ 25/08 đến nay: {len(nang_ton_rows)} mã KK Nâng Tồn (+), {len(am_ton_rows)} mã Âm Tồn (-).", flush=True)
+        print(f"[*] Đồng bộ tồn kho hoàn tất từ 01/08/2026 đến nay: {len(nang_ton_rows)} mã KK Nâng Tồn (+), {len(am_ton_rows)} mã Âm Tồn (-) thuộc Rau, Củ, Quả, Bánh, Trái Cây.", flush=True)
         return {"success": True, "increase_count": len(nang_ton_rows), "negative_count": len(am_ton_rows)}
     except Exception as e:
         print(f"[!] Lỗi sync_inventory_from_sheet: {e}", flush=True)
