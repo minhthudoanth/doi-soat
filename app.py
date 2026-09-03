@@ -1793,25 +1793,29 @@ def api_git_push():
     if os.path.exists(os.path.join(current_dir, '..', 'git', 'cmd', 'git.exe')):
         git_exe = os.path.join(current_dir, '..', 'git', 'cmd', 'git.exe')
         
+    git_env = os.environ.copy()
+    git_env["GIT_TERMINAL_PROMPT"] = "0"
+    git_env["GCM_INTERACTIVE"] = "never"
+
     logs = []
     try:
-        r1 = subprocess.run([git_exe, 'add', '.'], cwd=current_dir, capture_output=True, text=True, timeout=15)
+        r1 = subprocess.run([git_exe, 'add', '.'], cwd=current_dir, env=git_env, capture_output=True, text=True, timeout=15)
         logs.append(r1.stdout + r1.stderr)
         
-        r2 = subprocess.run([git_exe, 'commit', '-m', commit_msg], cwd=current_dir, capture_output=True, text=True, timeout=15)
+        r2 = subprocess.run([git_exe, 'commit', '-m', commit_msg], cwd=current_dir, env=git_env, capture_output=True, text=True, timeout=15)
         logs.append(r2.stdout + r2.stderr)
         
         token = data.get('token', '').strip()
         if token:
-            subprocess.run([git_exe, 'remote', 'set-url', 'origin', f'https://{token}@github.com/minhthudoanth/doi-soat.git'], cwd=current_dir, timeout=10)
-            subprocess.run([git_exe, 'remote', 'set-url', 'github', f'https://{token}@github.com/minhthudoanth/doi-soat.git'], cwd=current_dir, timeout=10)
+            subprocess.run([git_exe, 'remote', 'set-url', 'origin', f'https://{token}@github.com/minhthudoanth/doi-soat.git'], cwd=current_dir, env=git_env, timeout=10)
+            subprocess.run([git_exe, 'remote', 'set-url', 'github', f'https://{token}@github.com/minhthudoanth/doi-soat.git'], cwd=current_dir, env=git_env, timeout=10)
 
         # 3. Đẩy code lên GitHub
-        r3 = subprocess.run([git_exe, 'push', 'origin', 'main'], cwd=current_dir, capture_output=True, text=True, timeout=20)
+        r3 = subprocess.run([git_exe, 'push', 'origin', 'main'], cwd=current_dir, env=git_env, capture_output=True, text=True, timeout=15)
         logs.append(f"[GitHub]: {r3.stdout} {r3.stderr}")
         
         # 4. Đẩy dự phòng lên GitLab
-        r4 = subprocess.run([git_exe, 'push', 'gitlab', 'main'], cwd=current_dir, capture_output=True, text=True, timeout=20)
+        r4 = subprocess.run([git_exe, 'push', 'gitlab', 'main'], cwd=current_dir, env=git_env, capture_output=True, text=True, timeout=15)
         logs.append(f"[GitLab]: {r4.stdout} {r4.stderr}")
         
         out_combined = "\n".join(logs)
