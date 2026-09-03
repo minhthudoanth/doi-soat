@@ -1677,6 +1677,43 @@ def api_cases_dismiss():
     conn.close()
     return jsonify({'success': True})
 
+@app.route('/api/cases/dismiss_all', methods=['POST'])
+def api_cases_dismiss_all():
+    data = request.get_json() or {}
+    item_type = data.get('type', 'priority') # 'priority', 'tagged', 'audit', 'all'
+    department = data.get('department', '').strip()
+    category = data.get('category', '').strip()
+    
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    if item_type == 'priority':
+        query = "UPDATE priority_cases SET is_dismissed = 1, is_read = 1 WHERE (is_dismissed = 0 OR is_dismissed IS NULL)"
+        params = []
+        if department:
+            query += " AND category = ?"
+            params.append(department)
+        if category:
+            query += " AND issue_type LIKE ?"
+            params.append(f"%{category}%")
+        cursor.execute(query, params)
+    elif item_type == 'tagged':
+        cursor.execute("UPDATE raw_messages SET is_dismissed = 1, is_read = 1 WHERE (is_dismissed = 0 OR is_dismissed IS NULL)")
+    elif item_type == 'audit':
+        cursor.execute("""
+            INSERT INTO audit_case_status (msg_id, is_checked, process_status)
+            SELECT msg_id, 1, 'Hoàn Thành' FROM raw_messages 
+            WHERE chat_title = 'SCM - KRC (Đối soát)'
+            ON CONFLICT(msg_id) DO UPDATE SET is_checked = 1, process_status = 'Hoàn Thành'
+        """)
+    elif item_type == 'all':
+        cursor.execute("UPDATE priority_cases SET is_dismissed = 1, is_read = 1")
+        cursor.execute("UPDATE raw_messages SET is_dismissed = 1, is_read = 1")
+        
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True, 'message': 'Đã đánh dấu đã đọc tất cả thành công!'})
+
 @app.route('/api/stores')
 def api_get_stores():
     try:

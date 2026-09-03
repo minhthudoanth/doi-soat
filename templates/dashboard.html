@@ -296,6 +296,9 @@
                                 </button>
                             </div>
                             <div class="d-flex align-items-center gap-2">
+                                <button class="btn btn-sm btn-outline-success fw-bold px-3 shadow-sm" onclick="dismissAllItems('tagged')" title="Đánh dấu đã đọc toàn bộ tin nhắn tag">
+                                    <i class="fa-solid fa-check-double me-1"></i> Đã đọc tất cả
+                                </button>
                                 <input type="text" id="search-tagged" class="form-control form-control-sm" style="width: 220px;" placeholder="Tìm theo tên ST, người tag..." onkeyup="filterTaggedMessages()">
                             </div>
                         </div>
@@ -365,6 +368,11 @@
                                     Vận hành (<span id="cnt-vanhanh">0</span>)
                                 </button>
                             </div>
+                            <div>
+                                <button class="btn btn-sm btn-success fw-bold px-3 shadow-sm" onclick="dismissAllItems('priority')" title="Đánh dấu đã đọc toàn bộ danh sách sự cố chênh lệch">
+                                    <i class="fa-solid fa-check-double me-1"></i> Đánh dấu đã đọc tất cả
+                                </button>
+                            </div>
                         </div>
 
                         <div class="table-responsive">
@@ -399,6 +407,9 @@
                                 </button>
                             </div>
                             <div class="d-flex align-items-center gap-2">
+                                <button class="btn btn-sm btn-outline-success fw-bold px-3 shadow-sm" onclick="dismissAllItems('audit')" title="Đánh dấu đã check tất cả">
+                                    <i class="fa-solid fa-check-double me-1"></i> Đã check tất cả
+                                </button>
                                 <button class="btn btn-outline-dark btn-sm fw-semibold" onclick="openDsStModal()">
                                     <i class="fa-solid fa-table-list me-1"></i>DS Siêu Thị (Tab DS ST)
                                 </button>
@@ -2095,6 +2106,55 @@
                 });
             } catch (e) {
                 console.error("Lỗi dismissItem:", e);
+            }
+        }
+
+        async function dismissAllItems(type) {
+            let label = 'toàn bộ danh sách này';
+            if (type === 'priority') label = 'toàn bộ các sự cố chênh lệch';
+            else if (type === 'tagged') label = 'toàn bộ tin nhắn tag bạn';
+            else if (type === 'audit') label = 'toàn bộ các case đối soát';
+
+            if (!confirm(`Bạn có chắc chắn muốn đánh dấu ĐÃ ĐỌC / HOÀN THÀNH ${label} không?`)) {
+                return;
+            }
+
+            try {
+                const payload = { type: type };
+                if (type === 'priority') {
+                    payload.department = currentWarehouseDept || '';
+                    payload.category = currentSelectedCategory || '';
+                }
+
+                const res = await fetch('/api/cases/dismiss_all', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const d = await res.json();
+                if (d.success) {
+                    if (type === 'priority') {
+                        allStoreIssuesList = [];
+                        renderStoreIssuesTable([]);
+                        if (document.getElementById('badge-store-issues-count')) document.getElementById('badge-store-issues-count').innerText = '0';
+                        if (document.getElementById('cnt-all')) document.getElementById('cnt-all').innerText = '0';
+                        if (document.getElementById('wh-cnt-all')) document.getElementById('wh-cnt-all').innerText = '0';
+                        await fetchStoreIssues();
+                    } else if (type === 'tagged') {
+                        allTaggedMessages = [];
+                        renderTaggedTable([]);
+                        if (document.getElementById('badge-tagged-count')) document.getElementById('badge-tagged-count').innerText = '0';
+                        await fetchTaggedMessages();
+                    } else if (type === 'audit') {
+                        await loadAuditGroupMessages();
+                    }
+                    alert('✅ Đã đánh dấu đã đọc tất cả thành công!');
+                } else {
+                    alert('⚠️ ' + (d.error || 'Không thể cập nhật!'));
+                }
+            } catch (e) {
+                console.error("Lỗi dismissAllItems:", e);
+                alert('❌ Lỗi kết nối máy chủ khi cập nhật!');
             }
         }
 
