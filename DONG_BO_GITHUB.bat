@@ -14,8 +14,8 @@ if exist "..\git\cmd\git.exe" set GIT_EXE=..\git\cmd\git.exe
 :: Kiem tra remote github da co chua
 "%GIT_EXE%" remote get-url github >nul 2>&1
 if %ERRORLEVEL% neq 0 (
-    echo [*] Dang tao remote github: https://github.com/minhthudoanth/d-i-soat-krc.git
-    "%GIT_EXE%" remote add github https://github.com/minhthudoanth/d-i-soat-krc.git
+    echo [*] Dang tao remote github: https://github.com/minhthudoanth/doi-soat-krc.git
+    "%GIT_EXE%" remote add github https://github.com/minhthudoanth/doi-soat-krc.git
 )
 
 echo [*] Kiem tra trang thai thay doi...
@@ -32,21 +32,21 @@ echo [*] Dang tao Commit tu dong...
 "%GIT_EXE%" commit -m "auto: cap nhat ma nguon luc %DATE% %TIME%"
 
 echo.
-echo [*] Dang day (push) code len GitHub (minhthudoanth)...
-"%GIT_EXE%" push -u github main
+echo [*] Dang day (push) code len GitHub: https://github.com/minhthudoanth/doi-soat-krc ...
+"%GIT_EXE%" push -u origin main
 
 if %ERRORLEVEL% equ 0 (
     echo.
     echo ================================================================
     echo   [OK] DONG BO VA DAY CODE LEN GITHUB THANH CONG!
-    echo   Link Repo: https://github.com/minhthudoanth
+    echo   Link Repo: https://github.com/minhthudoanth/doi-soat-krc
     echo ================================================================
 ) else (
     echo.
     echo ================================================================
     echo   [!] LUU Y: Neu GitHub bao loi 403 / 404 / Authentication failed:
-    echo   1. Hay dam bao ban da tao Repository 'd-i-soat-krc' tren GitHub:
-    echo      https://github.com/new
+    echo   1. Hay dam bao ban da bam tao Repository 'doi-soat-krc' tren GitHub:
+    echo      https://github.com/new?name=doi-soat-krc
     echo   2. Hoac ban can nhap Personal Access Token (PAT) khi Git yeu cau.
     echo ================================================================
 )
