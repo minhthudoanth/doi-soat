@@ -6,7 +6,7 @@ import sqlite3
 import os
 from config import DB_PATH
 
-DEFAULT_KINGFOOD_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjp7ImlkIjoiNjk4MTYwYzkzMzljOTkwMDA3MTFjMTE3IiwiZnVsbF9uYW1lIjoixJBvw6BuIFRo4buLIE1pbmggVGjGsCIsImVtYWlsIjoidGh1LmRvYW50aGltaW5oQGtpbmdmb29kbWFydC5jb20iLCJlbXBsb3llZV9jb2RlIjoiU0MwMTcwODQiLCJsYXN0X2xvZ2luIjoxNzg3NDUyOTg4NTU5LCJleHRlbmRfcm9sZXMiOnt9LCJ1dWlkIjoiYzJhZmQ4YWVjY2NkMWY4MjI0YmFkNWY1YTQ1YmFhNzUiLCJyYmFjIjpudWxsfSwiaWF0IjoxNzg3NDUyOTg4LCJleHAiOjE3ODgwNTc3ODh9.77Oy3_jr2aJ9J3wrO6giYWHih6l90p89VFmW0dr3sNw'
+DEFAULT_KINGFOOD_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjp7ImlkIjoiNjk4MTYwYzkzMzljOTkwMDA3MTFjMTE3IiwiZnVsbF9uYW1lIjoixJBvw6BuIFRo4buLIE1pbmggVGjGsCIsImVtYWlsIjoidGh1LmRvYW50aGltaW5oQGtpbmdmb29kbWFydC5jb20iLCJlbXBsb3llZV9jb2RlIjoiU0MwMTcwODQiLCJsYXN0X2xvZ2luIjoxNzg4MDYzMjE3ODc1LCJleHRlbmRfcm9sZXMiOnt9LCJ1dWlkIjoiZDUwOThhNDBlNWQ0ODhkOTZlZTZjNmYxODQ3ZWNhNjgiLCJyYmFjIjpudWxsfSwiaWF0IjoxNzg4MDYzMjE3LCJleHAiOjE3ODg2NjgwMTd9.C49GIJ5ykwTuRnqkv-5doXbhVUrvL8qsJjOWclw9Wj4'
 
 def get_kingfood_token():
     try:
@@ -172,7 +172,7 @@ def get_headers():
         'x-access-token': token,
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
         'Accept': 'application/json, text/plain, */*',
-        'Referer': 'https://next.kingfood.co/'
+        'Referer': 'https://kdb.kingfood.co/'
     }
 
 
