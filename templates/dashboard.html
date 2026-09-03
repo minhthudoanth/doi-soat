@@ -477,37 +477,46 @@
                             <!-- Cột phải: Soạn Nội Dung & Gửi -->
                             <div class="col-lg-7">
                                 <div class="p-3 border rounded bg-light h-100 d-flex flex-column justify-content-between">
-                                    <div>
-                                        <h6 class="fw-bold mb-2 text-dark"><i class="fa-solid fa-pen-to-square me-1"></i> Soạn Nội Dung Tin Nhắn</h6>
-                                        
-                                            <label class="form-label small text-muted fw-semibold mb-1">Mẫu tin soạn nhanh:</label>
-                                            <div class="d-flex flex-wrap gap-1">
-                                                <button class="btn btn-sm btn-outline-dark py-1 px-2 small fw-semibold" onclick="applyTemplate(1)">Remind Done phiếu hậu kiểm</button>
-                                                <button class="btn btn-sm btn-outline-dark py-1 px-2 small fw-semibold" onclick="applyTemplate(2)">Đối soát chênh lệch</button>
-                                                <button class="btn btn-sm btn-outline-dark py-1 px-2 small fw-semibold" onclick="applyTemplate(3)">Tùy chỉnh</button>
-                                            </div>
-
-
-                                        <!-- Message Textarea -->
-                                        <div class="mb-3">
-                                            <label class="form-label small text-muted fw-semibold mb-1">Nội dung tin nhắn (gửi trực tiếp qua Telegram):</label>
-                                            <textarea id="broadcast-message-text" class="form-control font-monospace" rows="7" placeholder="Nhập nội dung cần gửi đến các Siêu thị được chọn tại đây..." oninput="updateMessagePreview()"></textarea>
-                                        </div>
-
-                                        <!-- Preview Box -->
-                                        <div class="mb-3 p-3 border rounded bg-white">
-                                            <div class="small text-muted fw-bold mb-1"><i class="fa-solid fa-eye me-1"></i> Xem trước tin nhắn (Preview):</div>
-                                            <div id="broadcast-preview-content" class="small text-dark font-monospace text-wrap" style="white-space: pre-wrap; min-height: 40px;">(Chưa có nội dung soạn thảo)</div>
-                                        </div>
+                                <div>
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <h6 class="fw-bold mb-0 text-dark"><i class="fa-solid fa-pen-to-square me-1"></i> Soạn Nội Dung Tin Nhắn</h6>
+                                        <button class="btn btn-sm btn-outline-secondary py-1 px-2" style="font-size: 0.8rem;" onclick="openRecallHistoryModal()" title="Xem lịch sử các đợt tin đã gửi và thu hồi tin">
+                                            <i class="fa-solid fa-clock-rotate-left me-1"></i> Lịch Sử & Thu Hồi
+                                        </button>
+                                    </div>
+                                    
+                                    <label class="form-label small text-muted fw-semibold mb-1">Mẫu tin soạn nhanh:</label>
+                                    <div class="d-flex flex-wrap gap-1">
+                                        <button class="btn btn-sm btn-outline-dark py-1 px-2 small fw-semibold" onclick="applyTemplate(1)">Remind Done phiếu hậu kiểm</button>
+                                        <button class="btn btn-sm btn-outline-dark py-1 px-2 small fw-semibold" onclick="applyTemplate(2)">Đối soát chênh lệch</button>
+                                        <button class="btn btn-sm btn-outline-dark py-1 px-2 small fw-semibold" onclick="applyTemplate(3)">Tùy chỉnh</button>
                                     </div>
 
-                                    <!-- Send Button & Status -->
-                                    <div class="d-flex justify-content-between align-items-center pt-2 border-top">
-                                        <div id="broadcast-status-msg" class="small fw-semibold"></div>
+                                    <!-- Message Textarea -->
+                                    <div class="mb-3 mt-2">
+                                        <label class="form-label small text-muted fw-semibold mb-1">Nội dung tin nhắn (gửi trực tiếp qua Telegram):</label>
+                                        <textarea id="broadcast-message-text" class="form-control font-monospace" rows="7" placeholder="Nhập nội dung cần gửi đến các Siêu thị được chọn tại đây..." oninput="updateMessagePreview()"></textarea>
+                                    </div>
+
+                                    <!-- Preview Box -->
+                                    <div class="mb-3 p-3 border rounded bg-white">
+                                        <div class="small text-muted fw-bold mb-1"><i class="fa-solid fa-eye me-1"></i> Xem trước tin nhắn (Preview):</div>
+                                        <div id="broadcast-preview-content" class="small text-dark font-monospace text-wrap" style="white-space: pre-wrap; min-height: 40px;">(Chưa có nội dung soạn thảo)</div>
+                                    </div>
+                                </div>
+
+                                <!-- Send Button & Status & Recall Button -->
+                                <div class="d-flex justify-content-between align-items-center pt-2 border-top">
+                                    <div id="broadcast-status-msg" class="small fw-semibold"></div>
+                                    <div class="d-flex gap-2">
+                                        <button class="btn btn-outline-danger fw-bold px-3 py-2" id="btn-recall-broadcast" onclick="recallLastBroadcast()" title="Thu hồi toàn bộ tin nhắn của đợt vừa gửi gần nhất đối với tất cả các group ST">
+                                            <i class="fa-solid fa-rotate-left me-1"></i> THU HỒI TIN VỪA GỬI
+                                        </button>
                                         <button class="btn btn-black px-4 py-2" id="btn-send-broadcast" onclick="sendBroadcastMessage()">
                                             <i class="fa-solid fa-paper-plane me-1"></i> GỬI TIN NHẮN TỨC THÌ
                                         </button>
                                     </div>
+                                </div>
                                 </div>
                             </div>
                         </div>
@@ -1219,7 +1228,39 @@
                     </table>
                 </div>
             </div>
+        <!-- MODAL LỊCH SỬ GỬI & THU HỒI TIN NHẮN -->
+        <div class="modal fade" id="recallHistoryModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-lg modal-dialog-centered">
+                <div class="modal-content border-0 shadow">
+                    <div class="modal-header bg-black text-white py-2 px-3">
+                        <h6 class="modal-title"><i class="fa-solid fa-clock-rotate-left me-2"></i> Lịch Sử Gửi & Thu Hồi Tin Nhắn</h6>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body p-3 bg-white">
+                        <p class="small text-muted mb-2">Dưới đây là các đợt tin nhắn đã phát sóng đến các group Siêu thị. Bạn có thể nhấn <strong>Thu Hồi</strong> để xóa tin nhắn đối với tất cả thành viên trong group.</p>
+                        <div class="table-responsive" style="max-height: 380px; overflow-y: auto;">
+                            <table class="table table-hover table-custom mb-0">
+                                <thead class="sticky-top bg-white">
+                                    <tr>
+                                        <th style="width: 140px;">Thời Gian</th>
+                                        <th style="width: 100px; text-align: center;">Số ST Nhận</th>
+                                        <th>Nội Dung Tin Nhắn</th>
+                                        <th style="width: 130px; text-align: center;">Hành Động</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="recall-history-tbody">
+                                    <tr><td colspan="4" class="text-center py-4 text-muted">Đang tải lịch sử...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="modal-footer py-2">
+                        <button type="button" class="btn btn-sm btn-outline-dark" data-bs-dismiss="modal">Đóng</button>
+                    </div>
+                </div>
+            </div>
         </div>
+
         <div class="modal fade" id="sheetConfigModal" tabindex="-1" aria-hidden="true">
 
                 <div class="modal-dialog modal-lg">
@@ -2411,6 +2452,7 @@
                 btn.innerHTML = '<i class="fa-solid fa-paper-plane me-1"></i> Gửi Tin Nhắn Hàng Loạt';
 
                 if (data.success) {
+                    lastBroadcastBatchId = data.batch_id;
                     statusMsg.innerHTML = `<span class="text-success fw-bold">✅ Đã gửi thành công đến ${data.sent_count} Siêu thị!</span>`;
                     alert(`✅ Đã gửi thành công tin nhắn đến ${data.sent_count} Siêu thị!`);
                 } else {
@@ -2421,6 +2463,101 @@
                 btn.disabled = false;
                 btn.innerHTML = '<i class="fa-solid fa-paper-plane me-1"></i> GỬI TIN NHẮN TỨC THÌ';
                 console.error("Lỗi sendBroadcastMessage:", e);
+                alert("Lỗi kết nối máy chủ: " + e.message);
+            }
+        }
+
+        let lastBroadcastBatchId = null;
+
+        async function recallLastBroadcast() {
+            if (!confirm("⚠️ Bạn có chắc chắn muốn THU HỒI toàn bộ tin nhắn của đợt vừa gửi gần nhất khỏi tất cả các group Siêu Thị không?")) {
+                return;
+            }
+            const btn = document.getElementById('btn-recall-broadcast');
+            const originalText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Đang thu hồi...';
+            
+            try {
+                const res = await fetch('/api/messages/recall', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ batch_id: lastBroadcastBatchId })
+                });
+                const data = await res.json();
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+                if (data.success) {
+                    alert(`✅ ${data.message || 'Đã thu hồi tin nhắn thành công!'}`);
+                    const statusMsg = document.getElementById('broadcast-status-msg');
+                    if (statusMsg) statusMsg.innerHTML = `<span class="text-danger fw-bold">↩️ Đã thu hồi ${data.recalled_count} tin nhắn thành công!</span>`;
+                } else {
+                    alert(`⚠️ ${data.error || 'Không thể thu hồi tin nhắn!'}`);
+                }
+            } catch (e) {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+                alert("Lỗi kết nối máy chủ: " + e.message);
+            }
+        }
+
+        function openRecallHistoryModal() {
+            const modalEl = document.getElementById('recallHistoryModal');
+            if (modalEl) {
+                const modal = new bootstrap.Modal(modalEl);
+                modal.show();
+                loadRecallHistory();
+            }
+        }
+
+        async function loadRecallHistory() {
+            const tbody = document.getElementById('recall-history-tbody');
+            if (!tbody) return;
+            tbody.innerHTML = '<tr><td colspan="4" class="text-center py-3 text-muted"><span class="spinner-border spinner-border-sm me-2"></span>Đang tải lịch sử gửi tin...</td></tr>';
+            try {
+                const res = await fetch('/api/messages/history');
+                const list = await res.json();
+                if (!list || list.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-muted">Chưa có lịch sử gửi tin nào.</td></tr>';
+                    return;
+                }
+                let html = '';
+                list.forEach(b => {
+                    const isRecalled = b.is_fully_recalled;
+                    const statusBadge = isRecalled 
+                        ? '<span class="badge bg-secondary">Đã thu hồi</span>'
+                        : `<button class="btn btn-sm btn-outline-danger py-0 px-2 fw-bold" onclick="recallSpecificBatch('${b.batch_id}')"><i class="fa-solid fa-rotate-left me-1"></i>Thu Hồi</button>`;
+                    html += `
+                        <tr>
+                            <td class="small font-monospace text-muted">${b.sent_at}</td>
+                            <td class="text-center"><span class="badge bg-light text-dark border">${b.total_stores} ST</span></td>
+                            <td class="small text-truncate" style="max-width: 320px;" title="${(b.message_text || '').replace(/"/g, '&quot;')}">${b.message_text}</td>
+                            <td class="text-center">${statusBadge}</td>
+                        </tr>
+                    `;
+                });
+                tbody.innerHTML = html;
+            } catch (e) {
+                tbody.innerHTML = '<tr><td colspan="4" class="text-center py-3 text-danger">Lỗi khi tải lịch sử gửi tin.</td></tr>';
+            }
+        }
+
+        async function recallSpecificBatch(batchId) {
+            if (!confirm(`Bạn có chắc chắn muốn thu hồi đợt gửi tin nhắn này khỏi tất cả các group Siêu Thị không?`)) return;
+            try {
+                const res = await fetch('/api/messages/recall', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ batch_id: batchId })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    alert(`✅ ${data.message || 'Đã thu hồi thành công!'}`);
+                    loadRecallHistory();
+                } else {
+                    alert(`⚠️ ${data.error || 'Không thể thu hồi!'}`);
+                }
+            } catch (e) {
                 alert("Lỗi kết nối máy chủ: " + e.message);
             }
         }

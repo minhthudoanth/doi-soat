@@ -1737,6 +1737,25 @@ def api_send_messages():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@app.route('/api/messages/recall', methods=['POST'])
+def api_recall_messages():
+    data = request.get_json(silent=True) or {}
+    batch_id = data.get('batch_id')
+    try:
+        from telegram_sender import recall_telegram_batch
+        res = asyncio.run(recall_telegram_batch(batch_id))
+        return jsonify(res)
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/messages/history')
+def api_messages_history():
+    try:
+        from telegram_sender import get_recent_sent_batches
+        return jsonify(get_recent_sent_batches())
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/sheet/config', methods=['GET', 'POST'])
 def api_sheet_config():
     from sheet_sync import get_sheet_url, set_sheet_url, sync_sheet_data

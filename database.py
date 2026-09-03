@@ -69,6 +69,21 @@ def init_db():
         )
     """)
 
+    # Bảng lưu lịch sử các tin nhắn gửi tự động đến ST để hỗ trợ thu hồi tin nhắn
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS sent_broadcast_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            batch_id TEXT,
+            chat_id INTEGER,
+            chat_title TEXT,
+            msg_id INTEGER,
+            message_text TEXT,
+            is_recalled INTEGER DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_broadcast_batch ON sent_broadcast_history (batch_id, is_recalled);")
+
     # Indexes tối ưu hóa tốc độ truy vấn
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_raw_chat_title ON raw_messages (chat_title);")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_raw_created_at ON raw_messages (created_at);")
