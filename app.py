@@ -1801,16 +1801,35 @@ def api_git_push():
         r2 = subprocess.run([git_exe, 'commit', '-m', commit_msg], cwd=current_dir, capture_output=True, text=True, timeout=15)
         logs.append(r2.stdout + r2.stderr)
         
-        remote_name = 'github' if target == 'github' else 'origin'
-        r3 = subprocess.run([git_exe, 'push', remote_name, 'main'], cwd=current_dir, capture_output=True, text=True, timeout=30)
-        logs.append(r3.stdout + r3.stderr)
+        token = data.get('token', '').strip()
+        if token:
+            subprocess.run([git_exe, 'remote', 'set-url', 'origin', f'https://{token}@github.com/minhthudoanth/doi-soat.git'], cwd=current_dir, timeout=10)
+            subprocess.run([git_exe, 'remote', 'set-url', 'github', f'https://{token}@github.com/minhthudoanth/doi-soat.git'], cwd=current_dir, timeout=10)
+
+        # 3. Đẩy code lên GitHub
+        r3 = subprocess.run([git_exe, 'push', 'origin', 'main'], cwd=current_dir, capture_output=True, text=True, timeout=20)
+        logs.append(f"[GitHub]: {r3.stdout} {r3.stderr}")
+        
+        # 4. Đẩy dự phòng lên GitLab
+        r4 = subprocess.run([git_exe, 'push', 'gitlab', 'main'], cwd=current_dir, capture_output=True, text=True, timeout=20)
+        logs.append(f"[GitLab]: {r4.stdout} {r4.stderr}")
         
         out_combined = "\n".join(logs)
-        success = (r3.returncode == 0) or ('Everything up-to-date' in out_combined) or ('up to date' in out_combined.lower())
+        gh_success = (r3.returncode == 0) or ('Everything up-to-date' in r3.stdout) or ('up to date' in r3.stdout.lower())
+        gl_success = (r4.returncode == 0) or ('Everything up-to-date' in r4.stdout) or ('up to date' in r4.stdout.lower())
+        
+        if gh_success:
+            msg = 'Đã đẩy mã nguồn lên GitHub (và GitLab dự phòng) thành công!'
+        elif gl_success:
+            msg = 'Đã lưu mã nguồn thành công lên GitLab dự phòng! (GitHub yêu cầu xác thực Token hoặc chạy DONG_BO_GITHUB.bat)'
+        else:
+            msg = 'Không thể đẩy code lên Git. Vui lòng kiểm tra lại kết nối mạng hoặc xác thực.'
+
         return jsonify({
-            'success': success,
-            'target': target,
-            'message': 'Đã đẩy mã nguồn lên GitHub thành công!' if success else 'Không thể đẩy code lên GitHub. Hãy kiểm tra Repository đã được tạo hoặc xác thực Token.',
+            'success': gh_success or gl_success,
+            'github_success': gh_success,
+            'gitlab_success': gl_success,
+            'message': msg,
             'output': out_combined
         })
     except Exception as e:
