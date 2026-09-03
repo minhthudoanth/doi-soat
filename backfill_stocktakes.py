@@ -16,7 +16,7 @@ def backfill_to_aug_01():
     cursor.execute("SELECT store_id, store_name FROM sheet_store_list")
     store_map = {r[0]: r[1] for r in cursor.fetchall()}
 
-    skip = 5000
+    skip = 7400
     limit = 200
     reach_end = False
 
