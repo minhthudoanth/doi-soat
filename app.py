@@ -1679,7 +1679,7 @@ def api_cases_dismiss():
 
 @app.route('/api/cases/dismiss_all', methods=['POST'])
 def api_cases_dismiss_all():
-    data = request.get_json() or {}
+    data = request.get_json(silent=True) or {}
     item_type = data.get('type', 'priority') # 'priority', 'tagged', 'audit', 'all'
     department = data.get('department', '').strip()
     category = data.get('category', '').strip()
