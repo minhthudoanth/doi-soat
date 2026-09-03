@@ -510,141 +510,29 @@ def sync_inventory_from_sheet():
                                     abs(stock_q), round(neg_val, 0), stock_q, neg_note, "Cần bù tồn"
                                 ))
         except Exception as api_err:
-            print(f"[*] Kingfood API fallback sang dữ liệu đối soát Google Sheet: {api_err}", flush=True)
-            
-        # 2. Đồng bộ toàn bộ dữ liệu đối soát Sheet từ 26/08 đến 01/09
-        cursor.execute("""
-            SELECT transfer_date, store_id, branch_name, sku_code, item_name, item_type,
-                   qty_transfer, qty_receive, qty_diff, unit_price, total_amount, error_type, pt_transfer, note
-            FROM sheet_audit_records
-            WHERE item_type IN ('2.VEGETABLES', '2.FRUITS', '2.BAKERY', '2.DELICA', '2.EGGS', '2.FLOWERS')
-            ORDER BY transfer_date DESC, store_id ASC
-        """)
-        sheet_rows = cursor.fetchall()
-        for r in sheet_rows:
-            raw_date = r[0]
-            dp = raw_date.split('/')
-            if len(dp) == 3:
-                iso_date = f"{dp[2]}-{dp[0].zfill(2)}-{dp[1].zfill(2)}"
-            else:
-                iso_date = raw_date
-            st_id = r[1]
-            st_name = r[2] or store_map.get(st_id, f"KFM_{st_id}")
-            sku = str(r[3] or '').strip()
-            pname = str(r[4] or '').strip()
-            cat_name = CAT_MAP.get(r[5], 'Rau Củ Quả')
-            qty_diff = abs(float(r[8] or 0))
-            unit_p = float(r[9] or 0)
-            tot_amt = float(r[10] or 0)
-            if tot_amt <= 0 and qty_diff > 0 and unit_p > 0:
-                tot_amt = qty_diff * unit_p
-            err = r[11] or 'Chênh lệch đối soát'
-            pt = r[12] or ''
-            note = r[13] or ''
-            
-            key = (iso_date, st_id, sku)
-            if key in seen_keys:
-                continue
-            seen_keys.add(key)
-            
-            status_lbl = "Bất thường" if tot_amt > 200000 else ("Cần lưu ý" if tot_amt > 50000 else "Đã kiểm kê")
-            audit_note = f"Phiếu PT {pt} ({err} - SL: {qty_diff})" if pt else f"{err} - SL: {qty_diff}"
-            if note:
-                audit_note += f" | {note}"
+            print(f"[*] Kingfood API Stocktakes: {api_err}", flush=True)
 
-            nang_ton_rows.append((
-                iso_date, st_id, st_name, sku, sku, pname, cat_name,
-                0.0, qty_diff, round(tot_amt, 0), 0.0, 0.0, 0.0, qty_diff,
-                audit_note, status_lbl
-            ))
+        # Lưu vào Database: chỉ lưu khi có dữ liệu kiểm kê thực tế, KHÔNG lấy từ phiếu chuyển
+        cursor.execute("DELETE FROM store_inventory_records")
+        cursor.execute("DELETE FROM store_negative_stock_records")
+        
+        if nang_ton_rows:
+            cursor.executemany("""
+                INSERT INTO store_inventory_records (
+                    date, store_id, store_name, barcode, sku, product_name, category_name,
+                    opening_stock, stocktake_in_qty, stocktake_in_value, stocktake_out_qty, stocktake_out_value, damage_qty, closing_stock,
+                    audit_note, status
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, nang_ton_rows)
             
-            reason_note = f"Lệch tồn do {err} ({pt}) - Cần kiểm kê tăng bù tồn" if pt else f"Lệch tồn do {err} - Cần bù tồn"
-            am_ton_rows.append((
-                iso_date, st_id, st_name, sku, sku, pname, cat_name,
-                qty_diff, round(tot_amt, 0), -qty_diff,
-                reason_note, "Cần bù tồn"
-            ))
-
-        # 3. Bổ sung các bản ghi ngày 25/08 từ tin nhắn đối soát
-        cursor.execute("""
-            SELECT chat_title, sender_name, message_text, created_at
-            FROM raw_messages
-            WHERE created_at LIKE '2026-08-25%'
-            ORDER BY id
-        """)
-        seen_25 = set()
-        for m in cursor.fetchall():
-            text = m[2]
-            chat = m[0]
-            st_id = ''
-            m_st = re.search(r'([A-Z0-9]{3,5})', chat)
-            if m_st:
-                st_id = m_st.group(1)
-            for line in text.split('\n'):
-                if any(w in line.lower() for w in ['dưa', 'chuối', 'sầu riêng', 'bưởi', 'cải', 'rau', 'củ', 'bánh', 'trái cây', 'thịt', 'cá', 'nấm', 'ớt', 'hành', 'chanh', 'cam', 'táo', 'nho', 'bơ', 'mận']):
-                    pname = line.strip()
-                    if len(pname) > 60:
-                        pname = pname[:60]
-                    if (st_id, pname) in seen_25:
-                        continue
-                    seen_25.add((st_id, pname))
-                    
-                    sku_m = re.search(r'\b(11\d{5}|SP\d{6}|893\d{10})\b', line)
-                    sku = sku_m.group(1) if sku_m else '110' + str(abs(hash(pname)) % 10000).zfill(4)
-                    qty_m = re.search(r'\b(?:sl|lệch|cl|thiếu|thừa|tn|tn:)?\s*([\d,\.]+)\s*(?:kg|g|hộp|gói|khay|trái|bó|túi|thùng|cây|bịch)?\b', line, re.IGNORECASE)
-                    qty = 1.0
-                    if qty_m:
-                        try:
-                            parsed_q = float(qty_m.group(1).replace(',', '.'))
-                            if 0.01 <= parsed_q <= 100.0:
-                                qty = parsed_q
-                        except Exception:
-                            qty = 1.0
-                    cat_name = 'Rau Củ Quả'
-                    if any(w in line.lower() for w in ['dưa', 'chuối', 'sầu riêng', 'bưởi', 'bơ', 'cam', 'táo', 'nho', 'xoài', 'mận', 'ổi']):
-                        cat_name = 'Trái Cây'
-                    elif any(w in line.lower() for w in ['bánh', 'sandwich', 'chè']):
-                        cat_name = 'Bánh Tươi / Bakery'
-                    elif any(w in line.lower() for w in ['thịt', 'cá', 'nạc', 'ba rọi', 'sườn', 'gà', 'vịt', 'tôm', 'mực']):
-                        cat_name = 'Đông Mát Thịt Cá'
-                    val = round(qty * 35000, 0)
-                    status_lbl = "Bất thường" if val > 200000 else ("Cần lưu ý" if val > 50000 else "Đã kiểm kê")
-                    
-                    nang_ton_rows.append((
-                        '2026-08-25', st_id or 'KFM', store_map.get(st_id, f"KFM_{st_id}"),
-                        sku, sku, pname, cat_name,
-                        0.0, qty, val, 0.0, 0.0, 0.0, qty,
-                        f"Đối soát tin nhắn Telegram: {chat}", status_lbl
-                    ))
-                    am_ton_rows.append((
-                        '2026-08-25', st_id or 'KFM', store_map.get(st_id, f"KFM_{st_id}"),
-                        sku, sku, pname, cat_name,
-                        qty, val, -qty,
-                        f"Lệch tồn ghi nhận qua Telegram ({chat})", "Cần bù tồn"
-                    ))
-                    
-        # Lưu vào Database
-        if nang_ton_rows or am_ton_rows:
-            cursor.execute("DELETE FROM store_inventory_records")
-            cursor.execute("DELETE FROM store_negative_stock_records")
-            
-            if nang_ton_rows:
-                cursor.executemany("""
-                    INSERT INTO store_inventory_records (
-                        date, store_id, store_name, barcode, sku, product_name, category_name,
-                        opening_stock, stocktake_in_qty, stocktake_in_value, stocktake_out_qty, stocktake_out_value, damage_qty, closing_stock,
-                        audit_note, status
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """, nang_ton_rows)
-                
-            if am_ton_rows:
-                cursor.executemany("""
-                    INSERT INTO store_negative_stock_records (
-                        date, store_id, store_name, barcode, sku, product_name, category_name,
-                        negative_qty, negative_value, closing_stock, reason, status
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """, am_ton_rows)
-            conn.commit()
+        if am_ton_rows:
+            cursor.executemany("""
+                INSERT INTO store_negative_stock_records (
+                    date, store_id, store_name, barcode, sku, product_name, category_name,
+                    negative_qty, negative_value, closing_stock, reason, status
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, am_ton_rows)
+        conn.commit()
         conn.close()
         print(f"[*] Đồng bộ tồn kho hoàn tất từ 25/08 đến nay: {len(nang_ton_rows)} mã KK Nâng Tồn (+), {len(am_ton_rows)} mã Âm Tồn (-).", flush=True)
         return {"success": True, "increase_count": len(nang_ton_rows), "negative_count": len(am_ton_rows)}
