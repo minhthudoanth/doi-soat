@@ -2697,9 +2697,27 @@ def open_browser_when_ready(port=5000):
         except OSError:
             pass
     try:
-        webbrowser.open(f"http://127.0.0.1:{port}")
+        url = f"http://localhost:{port}"
+        try:
+            socket.gethostbyname("doi-soat.local")
+            url = f"http://doi-soat.local:{port}"
+        except Exception:
+            pass
+        webbrowser.open(url)
     except Exception:
         pass
+
+def background_github_push_loop():
+    while True:
+        time.sleep(3600)  # Tu dong push dinh ky moi 1 gio
+        try:
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            bat_path = os.path.join(current_dir, 'DONG_BO_GITHUB.bat')
+            if os.path.exists(bat_path):
+                import subprocess
+                subprocess.run([bat_path, '/silent'], cwd=current_dir, timeout=60)
+        except Exception as e:
+            print(f"[!] Auto git push error: {e}", flush=True)
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
@@ -2714,13 +2732,15 @@ if __name__ == '__main__':
 
     init_db()
     start_background_sheet_sync()
+    import threading
+    threading.Thread(target=background_github_push_loop, daemon=True).start()
+
     print("================================================================")
     print(" >>> KINGFOOD SCM WEB DASHBOARD DANG CHAY TAI:")
-    print(f" >>> http://127.0.0.1:{port}")
+    print(f" >>> http://localhost:{port}  (hoac http://doi-soat.local:{port})")
     print("================================================================")
     
     if os.environ.get("AUTO_OPEN_BROWSER", "1") == "1":
-        import threading
         threading.Thread(target=open_browser_when_ready, args=(port,), daemon=True).start()
 
     try:

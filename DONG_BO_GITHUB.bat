@@ -1,54 +1,57 @@
 @echo off
 title DONG BO CODE LEN GITHUB (minhthudoanth)
 color 0B
-echo ================================================================
-echo       DANG TU DONG DONG BO VA DAY CODE LEN GITHUB...
-echo       Account: https://github.com/minhthudoanth
-echo ================================================================
-echo.
 
 cd /d "%~dp0"
 set GIT_EXE=git
 if exist "..\git\cmd\git.exe" set GIT_EXE=..\git\cmd\git.exe
 
-:: Kiem tra remote github da co chua
-"%GIT_EXE%" remote get-url github >nul 2>&1
-if %ERRORLEVEL% neq 0 (
-    echo [*] Dang tao remote github: https://github.com/minhthudoanth/doi-soat.git
-    "%GIT_EXE%" remote add github https://github.com/minhthudoanth/doi-soat.git
+:: Kiem tra neu chay o che do im lang (silent)
+set SILENT_MODE=0
+if "%1"=="/silent" set SILENT_MODE=1
+if "%1"=="--silent" set SILENT_MODE=1
+
+if %SILENT_MODE% equ 0 (
+    echo ================================================================
+    echo       DANG TU DONG DONG BO VA DAY CODE LEN GITHUB...
+    echo       Account: https://github.com/minhthudoanth/doi-soat
+    echo ================================================================
+    echo.
 )
 
-echo [*] Kiem tra trang thai thay doi...
-"%GIT_EXE%" status --short
+:: Dam bao remote origin tro ve GitHub
+"%GIT_EXE%" remote set-url origin https://github.com/minhthudoanth/doi-soat.git >nul 2>&1
 
-echo.
-echo [*] Dang gom toan bo thay doi (git add .)...
+:: 1. Gom toan bo thay doi
 "%GIT_EXE%" add .
 
-for /f "tokens=1-4 delims=/ " %%a in ('date /t') do (set mydate=%%c-%%b-%%a)
-for /f "tokens=1-2 delims=: " %%a in ('time /t') do (set mytime=%%a:%%b)
+:: 2. Kiem tra co thay doi nao de commit khong
+"%GIT_EXE%" diff --cached --quiet
+if %ERRORLEVEL% neq 0 (
+    for /f "tokens=1-4 delims=/ " %%a in ('date /t') do (set mydate=%%c-%%b-%%a)
+    for /f "tokens=1-2 delims=: " %%a in ('time /t') do (set mytime=%%a:%%b)
+    if %SILENT_MODE% equ 0 echo [*] Dang tao commit moi...
+    "%GIT_EXE%" commit -m "auto: cap nhat ma nguon luc %DATE% %TIME%" >nul 2>&1
+)
 
-echo [*] Dang tao Commit tu dong...
-"%GIT_EXE%" commit -m "auto: cap nhat ma nguon luc %DATE% %TIME%"
+:: 3. Day code len GitHub (origin main)
+if %SILENT_MODE% equ 0 echo [*] Dang day (push) code len GitHub...
+"%GIT_EXE%" push -u origin main >nul 2>&1
+if %ERRORLEVEL% neq 0 (
+    if %SILENT_MODE% equ 0 echo [*] Dang dong bo conflict va thu lai...
+    "%GIT_EXE%" pull --rebase origin main >nul 2>&1
+    "%GIT_EXE%" push -u origin main
+)
 
-echo.
-echo [*] Dang day (push) code len GitHub: https://github.com/minhthudoanth/doi-soat ...
-"%GIT_EXE%" push -u origin main
+:: 4. Day du phong len GitLab (backup)
+"%GIT_EXE%" push gitlab main >nul 2>&1
 
-if %ERRORLEVEL% equ 0 (
+if %SILENT_MODE% equ 0 (
     echo.
     echo ================================================================
     echo   [OK] DONG BO VA DAY CODE LEN GITHUB THANH CONG!
     echo   Link Repo: https://github.com/minhthudoanth/doi-soat
     echo ================================================================
-) else (
     echo.
-    echo ================================================================
-    echo   [!] Dang thu dong bo lai voi GitHub...
-    "%GIT_EXE%" pull --rebase origin main
-    "%GIT_EXE%" push -u origin main
-    echo ================================================================
+    pause
 )
-
-echo.
-pause
