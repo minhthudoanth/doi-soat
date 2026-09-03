@@ -10,7 +10,6 @@ echo.
 cd /d "%~dp0"
 set GIT_EXE=git
 if exist "..\git\cmd\git.exe" set GIT_EXE=..\git\cmd\git.exe
-if exist "C:\Users\a1dtm\.gemini\antigravity\scratch\git\cmd\git.exe" if not exist "..\git\cmd\git.exe" set GIT_EXE=C:\Users\a1dtm\.gemini\antigravity\scratch\git\cmd\git.exe
 
 :: Kiem tra remote github da co chua
 "%GIT_EXE%" remote get-url github >nul 2>&1
