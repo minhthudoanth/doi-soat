@@ -7,8 +7,8 @@ echo ================================================================
 echo.
 cd /d "%~dp0"
 if exist "..\python\python.exe" (
-    "..\python\python.exe" userbot.py
+    "..\python\python.exe" telegram_listener.py
 ) else (
-    python userbot.py
+    python telegram_listener.py
 )
 pause

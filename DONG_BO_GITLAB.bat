@@ -1,4 +1,4 @@
-﻿@echo off
+@echo off
 title DONG BO CODE LEN GITLAB
 color 0A
 echo ================================================================
@@ -7,10 +7,12 @@ echo ================================================================
 echo.
 
 cd /d "%~dp0"
-set GIT_EXE=C:\Users\a1dtm\.gemini\antigravity\scratch\git\cmd\git.exe
+set GIT_EXE=git
+if exist "..\git\cmd\git.exe" set GIT_EXE=..\git\cmd\git.exe
 
 echo [*] Kiem tra trang thai thay doi...
 "%GIT_EXE%" status --short
+
 
 echo.
 echo [*] Dang gom toan bo thay doi (git add)...

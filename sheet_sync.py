@@ -21,7 +21,7 @@ if sys.platform == 'win32':
 from config import DB_PATH
 import re
 
-DEFAULT_SHEET_URL = "https://docs.google.com/spreadsheets/d/1vPHHrZf5prEgE_09j_RbQQC1gNWhUmV0Q6aah6Z3mjQ/edit?gid=1422896115#gid=1422896115"
+DEFAULT_SHEET_URL = "https://docs.google.com/spreadsheets/d/1XBNLjZLsgaaHDBqVKsbCSYhzD4v-4qMA6rjGXGG4ThM/edit?gid=1422896115#gid=1422896115"
 
 def init_settings_db():
     conn = sqlite3.connect(DB_PATH)
@@ -58,7 +58,7 @@ def parse_csv_export_url(url):
     if not url:
         url = DEFAULT_SHEET_URL
     match_id = re.search(r"/spreadsheets/d/([a-zA-Z0-9-_]+)", url)
-    sheet_id = match_id.group(1) if match_id else "1vPHHrZf5prEgE_09j_RbQQC1gNWhUmV0Q6aah6Z3mjQ"
+    sheet_id = match_id.group(1) if match_id else "1XBNLjZLsgaaHDBqVKsbCSYhzD4v-4qMA6rjGXGG4ThM"
     
     match_gid = re.search(r"[#&?]gid=([0-9]+)", url)
     gid = match_gid.group(1) if match_gid else "1422896115"
@@ -286,7 +286,7 @@ def sync_ds_st_data():
     init_ds_st_db()
     current_url = get_sheet_url()
     match_id = re.search(r"/spreadsheets/d/([a-zA-Z0-9-_]+)", current_url)
-    sheet_id = match_id.group(1) if match_id else "1vPHHrZf5prEgE_09j_RbQQC1gNWhUmV0Q6aah6Z3mjQ"
+    sheet_id = match_id.group(1) if match_id else "1XBNLjZLsgaaHDBqVKsbCSYhzD4v-4qMA6rjGXGG4ThM"
     
     # URL export CSV cho tab DS ST (gid 1343221916)
     ds_st_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&gid=1343221916"

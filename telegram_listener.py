@@ -5,16 +5,45 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 if BASE_DIR not in sys.path:
     sys.path.insert(0, BASE_DIR)
 
-if sys.stdout is None or not hasattr(sys.stdout, 'write'):
-    try:
-        sys.stdout = open(os.path.join(BASE_DIR, 'listener.log'), 'a', encoding='utf-8', buffering=1)
-    except Exception:
-        pass
-if sys.stderr is None or not hasattr(sys.stderr, 'write'):
-    try:
-        sys.stderr = open(os.path.join(BASE_DIR, 'listener.log'), 'a', encoding='utf-8', buffering=1)
-    except Exception:
-        pass
+class RobustLogger:
+    def __init__(self, log_filename, orig_stream):
+        self.orig_stream = orig_stream
+        self.log_path = os.path.join(BASE_DIR, log_filename)
+        self._f = None
+        try:
+            self._f = open(self.log_path, 'a', encoding='utf-8', buffering=1)
+        except Exception:
+            pass
+
+    def write(self, data):
+        if self._f:
+            try:
+                self._f.write(data)
+                self._f.flush()
+            except Exception:
+                pass
+        if self.orig_stream and hasattr(self.orig_stream, 'write') and self.orig_stream != self:
+            try:
+                self.orig_stream.write(data)
+                if hasattr(self.orig_stream, 'flush'):
+                    self.orig_stream.flush()
+            except Exception:
+                pass
+
+    def flush(self):
+        if self._f:
+            try:
+                self._f.flush()
+            except Exception:
+                pass
+        if self.orig_stream and hasattr(self.orig_stream, 'flush') and self.orig_stream != self:
+            try:
+                self.orig_stream.flush()
+            except Exception:
+                pass
+
+    def isatty(self):
+        return False
 
 if sys.platform == 'win32':
     try:
@@ -25,21 +54,16 @@ if sys.platform == 'win32':
     except Exception:
         pass
 
+sys.stdout = RobustLogger('listener.log', sys.stdout)
+sys.stderr = RobustLogger('listener.log', sys.stderr)
+
 import asyncio
 import sqlite3
 from datetime import datetime, timezone, timedelta
 from telethon import TelegramClient, events
 from config import API_ID, API_HASH, SESSION_NAME, DB_PATH
-
 from classifier import classify_message, is_group_excluded
 from database import init_db
-
-if sys.platform == 'win32':
-    try:
-        sys.stdout.reconfigure(encoding='utf-8')
-        sys.stderr.reconfigure(encoding='utf-8')
-    except Exception:
-        pass
 
 VN_TZ = timezone(timedelta(hours=7))
 
@@ -223,5 +247,13 @@ async def main():
             backoff = min(backoff * 2, 60)
 
 if __name__ == '__main__':
+    import socket
+    _lock_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        _lock_socket.bind(('127.0.0.1', 5001))
+    except OSError:
+        print("[*] Telegram Listener đã đang chạy trên hệ thống (Port 5001). Bỏ qua tiến trình trùng lặp.", flush=True)
+        sys.exit(0)
+
     asyncio.run(main())
 

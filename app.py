@@ -5,16 +5,45 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 if BASE_DIR not in sys.path:
     sys.path.insert(0, BASE_DIR)
 
-if sys.stdout is None or not hasattr(sys.stdout, 'write'):
-    try:
-        sys.stdout = open(os.path.join(BASE_DIR, 'app.log'), 'a', encoding='utf-8', buffering=1)
-    except Exception:
-        pass
-if sys.stderr is None or not hasattr(sys.stderr, 'write'):
-    try:
-        sys.stderr = open(os.path.join(BASE_DIR, 'app.log'), 'a', encoding='utf-8', buffering=1)
-    except Exception:
-        pass
+class RobustLogger:
+    def __init__(self, log_filename, orig_stream):
+        self.orig_stream = orig_stream
+        self.log_path = os.path.join(BASE_DIR, log_filename)
+        self._f = None
+        try:
+            self._f = open(self.log_path, 'a', encoding='utf-8', buffering=1)
+        except Exception:
+            pass
+
+    def write(self, data):
+        if self._f:
+            try:
+                self._f.write(data)
+                self._f.flush()
+            except Exception:
+                pass
+        if self.orig_stream and hasattr(self.orig_stream, 'write') and self.orig_stream != self:
+            try:
+                self.orig_stream.write(data)
+                if hasattr(self.orig_stream, 'flush'):
+                    self.orig_stream.flush()
+            except Exception:
+                pass
+
+    def flush(self):
+        if self._f:
+            try:
+                self._f.flush()
+            except Exception:
+                pass
+        if self.orig_stream and hasattr(self.orig_stream, 'flush') and self.orig_stream != self:
+            try:
+                self.orig_stream.flush()
+            except Exception:
+                pass
+
+    def isatty(self):
+        return False
 
 if sys.platform == 'win32':
     try:
@@ -24,6 +53,9 @@ if sys.platform == 'win32':
             sys.stderr.reconfigure(encoding='utf-8')
     except Exception:
         pass
+
+sys.stdout = RobustLogger('app.log', sys.stdout)
+sys.stderr = RobustLogger('app.log', sys.stderr)
 
 import re
 import io
@@ -1401,17 +1433,15 @@ def api_prepare_batch_alerts():
     
     if template_type == 1:
         # 1. Remind done phiếu hậu kiểm KRC & KRCBT (status = 1: Cần hậu kiểm)
-        from kingfood_api import KINGFOOD_TOKEN, KRC_BRANCH_ID
+        from kingfood_api import get_headers, KRC_BRANCH_ID
         import urllib.request, json
         try:
             req_url = f"https://api.kingfood.co/v1/transfers/double-check?from_branch_id={KRC_BRANCH_ID}&status=1&limit=100"
-            req = urllib.request.Request(req_url, headers={
-                'x-access-token': KINGFOOD_TOKEN,
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-            })
+            req = urllib.request.Request(req_url, headers=get_headers())
             with urllib.request.urlopen(req, timeout=8) as r_resp:
                 hk_data = json.loads(r_resp.read().decode('utf-8'))
                 hk_items = hk_data.get('data', [])
+
 
 
             
@@ -1690,6 +1720,62 @@ def api_sheet_sync():
     try:
         res = sync_sheet_data()
         return jsonify(res)
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/git/push', methods=['POST'])
+def api_git_push():
+    import subprocess
+    data = request.get_json(silent=True) or {}
+    target = data.get('target', 'github')
+    commit_msg = data.get('message', '').strip()
+    if not commit_msg:
+        commit_msg = f"auto: cap nhat ma nguon luc {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}"
+    
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    git_exe = 'git'
+    if os.path.exists(os.path.join(current_dir, '..', 'git', 'cmd', 'git.exe')):
+        git_exe = os.path.join(current_dir, '..', 'git', 'cmd', 'git.exe')
+        
+    logs = []
+    try:
+        r1 = subprocess.run([git_exe, 'add', '.'], cwd=current_dir, capture_output=True, text=True, timeout=15)
+        logs.append(r1.stdout + r1.stderr)
+        
+        r2 = subprocess.run([git_exe, 'commit', '-m', commit_msg], cwd=current_dir, capture_output=True, text=True, timeout=15)
+        logs.append(r2.stdout + r2.stderr)
+        
+        remote_name = 'github' if target == 'github' else 'origin'
+        r3 = subprocess.run([git_exe, 'push', remote_name, 'main'], cwd=current_dir, capture_output=True, text=True, timeout=30)
+        logs.append(r3.stdout + r3.stderr)
+        
+        out_combined = "\n".join(logs)
+        success = (r3.returncode == 0) or ('Everything up-to-date' in out_combined) or ('up to date' in out_combined.lower())
+        return jsonify({
+            'success': success,
+            'target': target,
+            'message': 'Đã đẩy mã nguồn lên GitHub thành công!' if success else 'Không thể đẩy code lên GitHub. Hãy kiểm tra Repository đã được tạo hoặc xác thực Token.',
+            'output': out_combined
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e), 'output': '\n'.join(logs)}), 500
+
+@app.route('/api/git/status')
+def api_git_status():
+    import subprocess
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    git_exe = 'git'
+    if os.path.exists(os.path.join(current_dir, '..', 'git', 'cmd', 'git.exe')):
+        git_exe = os.path.join(current_dir, '..', 'git', 'cmd', 'git.exe')
+    try:
+        r = subprocess.run([git_exe, 'status', '--short'], cwd=current_dir, capture_output=True, text=True, timeout=8)
+        r_remote = subprocess.run([git_exe, 'remote', '-v'], cwd=current_dir, capture_output=True, text=True, timeout=8)
+        return jsonify({
+            'success': True,
+            'changed_files': len([l for l in r.stdout.split('\n') if l.strip()]),
+            'status': r.stdout,
+            'remotes': r_remote.stdout
+        })
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
@@ -2600,15 +2686,50 @@ def start_background_sheet_sync():
     t.start()
     print("[*] Đã kích hoạt tiến trình tự động đồng bộ Google Sheet liên tục 24/7 (mỗi 3 phút)!", flush=True)
 
+def open_browser_when_ready(port=5000):
+    import socket
+    import webbrowser
+    for _ in range(40):
+        time.sleep(0.25)
+        try:
+            with socket.create_connection(('127.0.0.1', port), timeout=0.5):
+                break
+        except OSError:
+            pass
+    try:
+        webbrowser.open(f"http://127.0.0.1:{port}")
+    except Exception:
+        pass
+
 if __name__ == '__main__':
+    port = int(os.environ.get("PORT", 5000))
+    import socket
+    _test_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        _test_sock.bind(('127.0.0.1', port))
+        _test_sock.close()
+    except OSError:
+        print(f"[*] Web Dashboard đã đang chạy trên cổng {port}. Bỏ qua tiến trình trùng lặp.", flush=True)
+        sys.exit(0)
+
     init_db()
     start_background_sheet_sync()
     print("================================================================")
     print(" >>> KINGFOOD SCM WEB DASHBOARD DANG CHAY TAI:")
-    print(" >>> http://127.0.0.1:5000")
+    print(f" >>> http://127.0.0.1:{port}")
     print("================================================================")
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host='0.0.0.0', port=port, debug=False, threaded=True)
+    
+    if os.environ.get("AUTO_OPEN_BROWSER", "1") == "1":
+        import threading
+        threading.Thread(target=open_browser_when_ready, args=(port,), daemon=True).start()
+
+    try:
+        app.run(host='0.0.0.0', port=port, debug=False, threaded=True)
+    except OSError as e:
+        if '10048' in str(e) or 'address already in use' in str(e).lower():
+            print(f"[*] Cổng {port} đã được sử dụng bởi phiên bản Web đang chạy. Bỏ qua tiến trình trùng lặp.", flush=True)
+            sys.exit(0)
+        raise
 
 
 
