@@ -17,7 +17,7 @@ objHTTP.open "GET", "http://127.0.0.1:5000/api/stats", False
 objHTTP.send
 
 If Err.Number = 0 And (objHTTP.Status = 200 Or objHTTP.Status = 302) Then
-    WshShell.Run "http://127.0.0.1:5000", 1, False
+    WshShell.Run "http://doi-soat.local:5000", 1, False
     WScript.Quit
 End If
 Err.Clear
@@ -31,4 +31,4 @@ WshShell.Run """" & pythonExe & """ """ & strCurDir & "\app.py""", 0, False
 
 ' 3. Cho may chu khoi dong san sang roi mo trinh duyet
 WScript.Sleep 2500
-WshShell.Run "http://127.0.0.1:5000", 1, False
+WshShell.Run "http://doi-soat.local:5000", 1, False

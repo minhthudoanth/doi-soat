@@ -14,7 +14,7 @@ if exist "..\python\python.exe" set PYTHON_EXE=..\python\python.exe
 powershell -NoProfile -Command "try { $r = Invoke-WebRequest -Uri 'http://127.0.0.1:5000' -UseBasicParsing -TimeoutSec 2; exit 0 } catch { exit 1 }"
 if %ERRORLEVEL% equ 0 (
     echo [*] He thong da dang chay san! Dang mo trinh duyet...
-    start "" "http://127.0.0.1:5000"
+    start "" "http://doi-soat.local:5000"
     ping 127.0.0.1 -n 2 >nul
     exit /b
 )

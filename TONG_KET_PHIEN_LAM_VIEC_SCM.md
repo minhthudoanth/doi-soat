@@ -66,6 +66,7 @@ $$\text{Tổng SL Lệch} = \sum (\text{SL Hàng Pack}) + \sum (\text{SL Hàng K
 - 📄 Đầy đủ 11 file mã nguồn cốt lõi (`app.py`, `dashboard.html`, `classifier.py`, `sheet_sync.py`, `kingfood_api.py`, `telegram_sender.py`, `telegram_listener.py`, `config.py`, `requirements.txt`, `Procfile`, `Dockerfile`).
 
 ### 2. Các Đường Link Truy Cập:
-- **Local Web**: `http://127.0.0.1:5000`
+- **Local Web (Tên miền riêng)**: `http://doi-soat.local:5000`
+- **Local Web (Dự phòng)**: `http://127.0.0.1:5000` / `http://localhost:5000`
 - **Cloud Web Render**: `https://mae-bot.onrender.com`
-- **GitHub Repository**: `https://github.com/thudoanthiminh/Mae-`
+- **GitHub Repository**: `https://github.com/minhthudoanth/doi-soat`
