@@ -36,17 +36,22 @@ if %ERRORLEVEL% neq 0 (
 if %SILENT_MODE% equ 0 echo [*] Dang day (push) code len GitHub...
 "%GIT_EXE%" push -u origin main
 if %ERRORLEVEL% neq 0 (
-    echo.
-    echo [!] Ket noi GitHub yeu cau xac thuc Token.
-    echo     (Ban co the tao Token tai: https://github.com/settings/tokens/new voi quyen 'repo')
-    set /p GITHUB_TOKEN="Nhap GitHub Personal Access Token cua ban (hoac an Enter de thu pull/rebase): "
-    if defined GITHUB_TOKEN (
-        "%GIT_EXE%" remote set-url origin https://!GITHUB_TOKEN!@github.com/minhthudoanth/doi-soat.git
-        "%GIT_EXE%" push -u origin main
+    if %SILENT_MODE% equ 1 (
+        "%GIT_EXE%" pull --rebase origin main >nul 2>&1
+        "%GIT_EXE%" push -u origin main >nul 2>&1
     ) else (
-        echo [*] Dang dong bo conflict va thu lai...
-        "%GIT_EXE%" pull --rebase origin main
-        "%GIT_EXE%" push -u origin main
+        echo.
+        echo [!] Ket noi GitHub yeu cau xac thuc Token.
+        echo     (Ban co the tao Token tai: https://github.com/settings/tokens/new voi quyen 'repo')
+        set /p GITHUB_TOKEN="Nhap GitHub Personal Access Token cua ban (hoac an Enter de thu pull/rebase): "
+        if defined GITHUB_TOKEN (
+            "%GIT_EXE%" remote set-url origin https://!GITHUB_TOKEN!@github.com/minhthudoanth/doi-soat.git
+            "%GIT_EXE%" push -u origin main
+        ) else (
+            echo [*] Dang dong bo conflict va thu lai...
+            "%GIT_EXE%" pull --rebase origin main
+            "%GIT_EXE%" push -u origin main
+        )
     )
 )
 
