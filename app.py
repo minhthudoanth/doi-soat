@@ -483,7 +483,7 @@ def api_cases_audit_group():
                 return row
         return None
 
-    dl_pattern = re.compile(r'(?:trước|sau|deadline:?|hạn chót:?)\s*(\d{1,2}(?:h|:\d{2})?\s*(?:ngày\s*)?\d{1,2}[\/\.]\d{1,2})', re.IGNORECASE)
+    dl_pattern = re.compile(r'(?:trước|sau|deadline:?|hạn chót:?)\s*(\d{1,2}(?:h|:\d{2})?\s*(?:ngày\s*(?:mai\s*)?|\.)?\d{1,2}[\/\.]\d{1,2})', re.IGNORECASE)
 
     def extract_deadline_from_text(txt):
         if not txt:
@@ -493,53 +493,112 @@ def api_cases_audit_group():
             return m.group(1).replace('.', '/')
         return None
 
-    def check_sent_alert(sku, pt, st_du, st_name, sheet_id):
+    def parse_case_date_dt(dt_str):
+        if not dt_str:
+            return None
+        m = re.search(r'(\d{1,2})[\/\.](\d{1,2})(?:[\/\.](\d{2,4}))?', str(dt_str))
+        if not m:
+            return None
+        p1, p2 = int(m.group(1)), int(m.group(2))
+        yr = int(m.group(3)) if m.group(3) else 2026
+        if yr < 100:
+            yr += 2000
+        if p1 > 12:
+            d, mo = p1, p2
+        elif p2 > 12:
+            mo, d = p1, p2
+        else:
+            mo, d = p1, p2
+        try:
+            return datetime(yr, mo, d)
+        except:
+            return None
+
+    from classifier import is_group_excluded
+
+    def check_sent_alert(sku, pt, target_store_search, target_group_id, target_group_title, case_date_str=None):
         if not sku or sku == '---':
             return None, None, ''
         sku_clean = str(sku).strip()
         pt_clean = str(pt).strip() if pt and pt != '---' else None
+        target_st_clean = (target_store_search or '').strip().upper()
+        target_title_clean = (target_group_title or '').strip().upper()
+        
+        case_dt = parse_case_date_dt(case_date_str)
         
         for s in sent_messages_db:
-            txt = s['message_text']
-            # Khớp chính xác SKU hoặc PT trong nội dung tin nhắn do Thư Đoàn gửi
-            if (sku_clean and sku_clean in txt) or (pt_clean and pt_clean in txt):
-                sent_time_str = ''
+            # 1. BẮT BUỘC: Nhóm gửi tin phải là nhóm Siêu Thị hợp lệ, không phải nhóm nội bộ
+            s_chat = s['chat_title'] or ''
+            if is_group_excluded(s_chat):
+                continue
+                
+            # 2. BẮT BUỘC: Nhóm gửi tin phải khớp với Siêu thị của case này
+            cid_match = (target_group_id and str(s['chat_id']) == str(target_group_id))
+            title_match = False
+            s_chat_upper = s_chat.upper()
+            if target_title_clean and target_title_clean in s_chat_upper:
+                title_match = True
+            elif target_st_clean and len(target_st_clean) >= 3:
+                if re.search(r'\b' + re.escape(target_st_clean) + r'\b', s_chat_upper) or target_st_clean in s_chat_upper:
+                    title_match = True
+            
+            if not (cid_match or title_match):
+                continue
+                
+            # 3. BẮT BUỘC: Thời điểm gửi tin không thể xảy ra trước ngày phát sinh sự cố
+            if case_dt:
                 try:
-                    dt_part = s['created_at'].split()
-                    time_str = dt_part[1][:5]
-                    d_parts = dt_part[0].split('-')
-                    date_fmt = f"{d_parts[2]}/{d_parts[1]}"
-                    sent_time_str = f"Đã báo lúc {time_str} {date_fmt}"
+                    s_dt = datetime.strptime(s['created_at'][:10], '%Y-%m-%d')
+                    if s_dt < (case_dt - timedelta(days=1)):
+                        continue
                 except:
-                    sent_time_str = f"Đã báo lúc {s['created_at']}"
+                    pass
+                    
+            # 4. Kiểm tra nội dung có đúng SKU hoặc Mã PT cần báo
+            txt = s['message_text']
+            sku_match = (sku_clean and sku_clean in txt)
+            pt_match = (pt_clean and pt_clean in txt)
+            if not (sku_match or pt_match):
+                continue
+                
+            # ĐÃ XÁC THỰC: Đây chính xác là tin nhắn Thư Đoàn đã gửi cho ST về case này!
+            sent_time_str = ''
+            c_at = s['created_at']
+            try:
+                dt_part = c_at.split()
+                time_str = dt_part[1][:5]
+                d_parts = dt_part[0].split('-')
+                date_fmt = f"{d_parts[2]}/{d_parts[1]}"
+                sent_time_str = f"Đã báo lúc {time_str} {date_fmt}"
+            except:
+                sent_time_str = f"Đã báo lúc {c_at}"
 
-                # 1. Trích xuất deadline trực tiếp từ nội dung tin nhắn gửi
-                extracted_dl = extract_deadline_from_text(txt)
+            # Trích xuất deadline trực tiếp từ nội dung tin nhắn gửi cho ST
+            extracted_dl = extract_deadline_from_text(txt)
 
-                # 2. Nếu tin nhắn này không có deadline (ví dụ tin forward), tìm tin nhắn gửi kèm cùng lúc trong cùng chat
-                if not extracted_dl:
-                    for s2 in sent_messages_db:
-                        if s2['chat_id'] == s['chat_id'] and s2['created_at'][:16] == s['created_at'][:16]:
-                            extracted_dl = extract_deadline_from_text(s2['message_text'])
-                            if extracted_dl:
-                                break
+            if not extracted_dl:
+                for s2 in sent_messages_db:
+                    if s2['chat_id'] == s['chat_id'] and s2['created_at'][:16] == s['created_at'][:16]:
+                        extracted_dl = extract_deadline_from_text(s2['message_text'])
+                        if extracted_dl:
+                            break
 
-                # 3. Nếu vẫn không thấy deadline bằng chữ, tính deadline chuẩn theo thời điểm gửi
-                if not extracted_dl:
-                    try:
-                        m_time = re.search(r'(\d{1,2}):(\d{1,2})\s+(\d{1,2})[\/\.](\d{1,2})', sent_time_str)
-                        if m_time:
-                            hour, minute, day_num, month_num = int(m_time.group(1)), int(m_time.group(2)), int(m_time.group(3)), int(m_time.group(4))
-                            if hour < 12:
-                                extracted_dl = f"17h ngày {day_num:02d}/{month_num:02d}"
-                            else:
-                                next_day = day_num + 1
-                                extracted_dl = f"10h ngày {next_day:02d}/{month_num:02d}"
-                    except:
-                        pass
+            if not extracted_dl:
+                try:
+                    m_time = re.search(r'(\d{1,2}):(\d{1,2})\s+(\d{1,2})[\/\.](\d{1,2})', sent_time_str)
+                    if m_time:
+                        hour, minute, day_num, month_num = int(m_time.group(1)), int(m_time.group(2)), int(m_time.group(3)), int(m_time.group(4))
+                        if hour < 12:
+                            extracted_dl = f"17h ngày {day_num:02d}/{month_num:02d}"
+                        else:
+                            next_day = day_num + 1
+                            extracted_dl = f"10h ngày {next_day:02d}/{month_num:02d}"
+                except:
+                    pass
 
-                deadline_res = f"Deadline: {extracted_dl}" if extracted_dl else ""
-                return sent_time_str, s['chat_title'], deadline_res
+            deadline_res = f"Deadline: {extracted_dl}" if extracted_dl else ""
+            return sent_time_str, s['chat_title'], deadline_res
+
         return None, None, ''
 
     # 1. Gom các tin nhắn reply/phản hồi vào tin nhắn gốc tương ứng
@@ -665,7 +724,14 @@ def api_cases_audit_group():
                 pt_goc_note = f"Chưa tìm thấy PT gốc ngày {parsed['date']}"
 
         # Tự động phát hiện xem chính Thư Đoàn đã gửi tin báo trong group hay chưa
-        sent_alert_time, sent_chat, deadline_str = check_sent_alert(sku, pt, st_du, parsed['st_name'], sheet_id_mart)
+        sent_alert_time, sent_chat, deadline_str = check_sent_alert(
+            sku=sku,
+            pt=pt,
+            target_store_search=target_store_search,
+            target_group_id=target_group_id,
+            target_group_title=target_group_title,
+            case_date_str=parsed.get('date')
+        )
 
         audit_list.append({
             'id': r['id'],
