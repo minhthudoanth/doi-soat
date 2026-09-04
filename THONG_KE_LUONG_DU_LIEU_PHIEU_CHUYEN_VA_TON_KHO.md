@@ -14,7 +14,27 @@ Trong hệ thống Kingfood SCM, dữ liệu về **Phiếu chuyển (Transfers/
 
 ---
 
-## 📈 II. THỐNG KÊ CHI TIẾT CÁC BẢNG CƠ SỞ DỮ LIỆU
+## 🗄️ II. BẢNG DANH MỤC 11 BẢNG CƠ SỞ DỮ LIỆU CDC & NGHIỆP VỤ SCM (MASTER SCHEMA)
+
+Dưới đây là bảng chuẩn hóa chi tiết 11 bảng cơ sở dữ liệu cốt lõi thuộc tầng Kafka CDC Streaming và Nghiệp vụ SCM Kingfoodmart:
+
+| STT | Tên Bảng Trong Database | Phân Loại | Số Bản Ghi | Chức Năng & Ý Nghĩa Nghiệp Vụ |
+| :-: | :--- | :--- | :-: | :--- |
+| **1** | `__cdc_kfm_kf_inventories_kf_inventory_transaction_stockcard` | CDC Tồn Kho | **50,571,092** | Thẻ kho chi tiết: Theo dõi từng giao dịch nhập/xuất/tồn, tồn trước, tồn sau, đơn vị giá vốn |
+| **2** | `__cdc_kfm_kf_inventories_kf_inventory_transaction_stock_summaries` | CDC Tồn Kho | **155,820,944** | Bảng tổng hợp số dư tồn kho thời gian thực theo từng kho/chi nhánh |
+| **3** | `__cdc_kfm_kf_inventories_kf_claim_stock_summaries` | CDC Hàng Claim | **2** | Theo dõi tồn kho đối với các mặt hàng có phát sinh khiếu nại/claim hư hỏng |
+| **4** | `__cdc_kfm_kf_transfer_tickets_kf_transfer_tickets` | CDC Chuyển Hàng | **51,504** | Phiếu chuyển hàng (PT) từ Kho DC đến các siêu thị |
+| **5** | `__cdc_kfm_kf_transfer_tickets_kf_transfer_ticket_lines` | CDC Chuyển Hàng | **162,959** | Chi tiết danh sách mặt hàng và số lượng chuyển trong từng phiếu chuyển |
+| **6** | `__cdc_kfm_kf_inventories_kf_hrw_quality_tickets` | CDC Chất Lượng | **21,871** | Phiếu kiểm định chất lượng hàng hóa, xác nhận tỷ lệ đạt/hỏng |
+| **7** | `__cdc_kfm_kf_inventories_kf_hrw_quality_tickets___items` | CDC Chất Lượng | **101,632** | Chi tiết từng mã SKU kiểm định chất lượng |
+| **8** | `krc_dashboard_slg_adjustments` | Bảng Nghiệp Vụ | **20,931** | Tổng hợp điều chỉnh tồn kho: Lưu mã phiếu rút tồn ST (TO), trả tồn ST (PT) và trạng thái camera |
+| **9** | `krc_datapay_records` | Bảng Nghiệp Vụ | **6,383** | Dữ liệu chi tiết từng ca Datapay: Phân loại 9 lỗi, tiền phạt Kho DC, Siêu thị, hao hụt |
+| **10** | `krc_datapay_summary` | Bảng Nghiệp Vụ | **1** | Tổng hợp số liệu KPI tài chính Datapay theo từng kỳ đối soát |
+| **11** | `krc_dashboard_discrepancies` | Bảng Nghiệp Vụ | **36,301** | Bảng đối soát chênh lệch tổng hợp hàng kho và siêu thị |
+
+---
+
+## 📈 III. THỐNG KÊ CHI TIẾT CÁC BẢNG CƠ SỞ DỮ LIỆU ĐỐI SOÁT LOCAL (`scm_monitor.db`)
 
 ### 1. Bảng Dữ Liệu Phiếu Chuyển & Đối Soát (`sheet_audit_records`)
 Bảng này lưu trữ toàn bộ các ca phát sinh chênh lệch giữa lượng hàng xuất kho và lượng hàng thực nhận tại siêu thị.
@@ -74,7 +94,7 @@ Ghi nhận các trường hợp siêu thị bị âm tồn kho trên hệ thốn
 
 ---
 
-## 🔄 III. SƠ ĐỒ PHÂN LUỒNG DỮ LIỆU END-TO-END
+## 🔄 IV. SƠ ĐỒ PHÂN LUỒNG DỮ LIỆU END-TO-END
 
 ```mermaid
 sequenceDiagram
@@ -123,7 +143,7 @@ sequenceDiagram
 
 ---
 
-## 🎯 IV. NGUYÊN TẮC CÂN ĐỐI TỒN KHO & ĐỐI SOÁT CHUẨN
+## 🎯 V. NGUYÊN TẮC CÂN ĐỐI TỒN KHO & ĐỐI SOÁT CHUẨN
 
 1. **Quy tắc tính Tổng Lượng Lệch Phiếu Chuyển**:
    $$\text{Tổng SL Lệch} = \sum (\text{Hàng Đóng Gói Pack/Vỉ/Cái}) + \sum (\text{Hàng Cân Ký KG})$$
