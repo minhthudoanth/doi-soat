@@ -19,6 +19,7 @@ __pycache__/
 # Secrets & Environment variables
 .env
 .env.*
+*.conf
 
 # Backups & Archives
 *.zip
