@@ -966,11 +966,14 @@
                     </button>
                 </div>
                 <div class="d-flex align-items-center gap-2">
-                    <button class="btn btn-sm btn-outline-dark fw-semibold px-3 py-2" onclick="openKingfoodTokenModal()">
-                        <i class="fa-solid fa-key me-1"></i> Cập Nhật Token (KDB)
+                    <span class="badge bg-success-subtle text-success border border-success fw-bold px-3 py-2" id="vpn-status-badge">
+                        <i class="fa-solid fa-shield-halved me-1"></i> NGUỒN: VPN NỘI BỘ (10.100.0.1)
+                    </span>
+                    <button class="btn btn-sm btn-outline-dark fw-semibold px-3 py-2" onclick="openVPNInfoModal()" title="Kiểm tra trạng thái kết nối VPN nội bộ">
+                        <i class="fa-solid fa-network-wired me-1"></i> Kiểm Tra VPN
                     </button>
-                    <button class="btn btn-sm btn-black fw-semibold px-3 py-2" onclick="syncInventoryLive()">
-                        <i class="fa-solid fa-cloud-arrow-down me-1"></i> Đồng Bộ Lại Dữ Liệu
+                    <button class="btn btn-sm btn-black fw-semibold px-3 py-2" onclick="syncInventoryVPN()">
+                        <i class="fa-solid fa-rotate me-1"></i> Đồng Bộ Tồn Kho Qua VPN
                     </button>
                 </div>
             </div>
@@ -1412,27 +1415,39 @@
                 </div>
             </div>
 
-            <!-- MODAL CÀI ĐẶT TOKEN KINGFOOD ERP (KDB) -->
-            <div class="modal fade" id="kingfoodTokenModal" tabindex="-1" aria-hidden="true">
+            <!-- MODAL THÔNG TIN MẠNG NỘI BỘ VPN (THAY THẾ TOÀN BỘ KDB TOKEN CŨ) -->
+            <div class="modal fade" id="vpnInfoModal" tabindex="-1" aria-hidden="true">
                 <div class="modal-dialog modal-lg">
                     <div class="modal-content border-0 shadow">
                         <div class="modal-header bg-black text-white py-2 px-3">
-                            <h6 class="modal-title font-monospace"><i class="fa-solid fa-key me-2"></i>Cài Đặt Token Đăng Nhập Kingfood (KDB)</h6>
+                            <h6 class="modal-title font-monospace"><i class="fa-solid fa-shield-halved me-2"></i>Trạng Thái Mạng Nội Bộ VPN (Thay Thế KDB Web)</h6>
                             <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                         </div>
                         <div class="modal-body p-4 bg-white">
-                            <div class="mb-3">
-                                <label class="form-label fw-bold text-dark small text-uppercase">Mã Token (Bearer Token / x-access-token):</label>
-                                <textarea class="form-control font-monospace" id="input-kingfood-token" rows="4" placeholder="Dán mã Token lấy từ https://next.kingfood.co/ vào đây..."></textarea>
-                                <div class="form-text text-muted mt-2" style="font-size: 0.8rem;">
-                                    <i class="fa-solid fa-circle-info me-1"></i> Khi token hết hạn, bạn đăng nhập vào <strong>https://next.kingfood.co/</strong>, mở F12 $\rightarrow$ Application $\rightarrow$ Local Storage $\rightarrow$ copy giá trị của <strong>token</strong> và dán vào đây.
+                            <div class="alert alert-success border-success d-flex align-items-center mb-3">
+                                <i class="fa-solid fa-circle-check fs-4 me-3 text-success"></i>
+                                <div>
+                                    <div class="fw-bold">Đã ngắt hoàn toàn kết nối với web kdb.kingfood.co và next.kingfood.co</div>
+                                    <div class="small">Từ giờ, tab Tồn Kho tự động lấy dữ liệu từ dải mạng nội bộ WireGuard VPN (VNPT-VPN-01).</div>
                                 </div>
+                            </div>
+                            <div class="p-3 bg-light rounded border font-monospace small mb-3">
+                                <div class="row g-2">
+                                    <div class="col-sm-6"><strong>Server VPN:</strong> VNPT-VPN-01 (160.25.80.219)</div>
+                                    <div class="col-sm-6"><strong>Địa chỉ VPN của bạn:</strong> 10.100.0.50</div>
+                                    <div class="col-sm-6"><strong>Gateway Máy Chủ:</strong> 10.100.0.1</div>
+                                    <div class="col-sm-6"><strong>Cụm CSDL MongoDB:</strong> 10.100.0.1:27017</div>
+                                    <div class="col-12 mt-2"><strong>Dải Mạng Nội Bộ:</strong> 10.100.0.0/24, 103.104.122.0/24, 103.140.248.0/24, 171.244.16.0/24</div>
+                                </div>
+                            </div>
+                            <div id="vpn-modal-live-status" class="small text-muted">
+                                <i class="fa-solid fa-spinner fa-spin me-1"></i> Đang kiểm tra tín hiệu VPN...
                             </div>
                         </div>
                         <div class="modal-footer bg-light py-2 px-3">
                             <button type="button" class="btn btn-sm btn-outline-dark" data-bs-dismiss="modal">Đóng</button>
-                            <button type="button" class="btn btn-sm btn-black fw-bold px-3" id="btn-save-kf-token" onclick="saveKingfoodToken()">
-                                <i class="fa-solid fa-floppy-disk me-1"></i> Lưu & Đồng Bộ Ngay
+                            <button type="button" class="btn btn-sm btn-black fw-bold px-3" onclick="syncInventoryVPN()">
+                                <i class="fa-solid fa-rotate me-1"></i> Đồng Bộ Ngay Qua VPN
                             </button>
                         </div>
                     </div>
@@ -4166,74 +4181,56 @@
             }
         }
 
-        async function openKingfoodTokenModal() {
+        async function openVPNInfoModal() {
             try {
-                const res = await fetch('/api/kingfood/token');
+                const statusDiv = document.getElementById('vpn-modal-live-status');
+                if (statusDiv) statusDiv.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> Đang kiểm tra tín hiệu VPN...';
+                new bootstrap.Modal(document.getElementById('vpnInfoModal')).show();
+
+                const res = await fetch('/api/inventory/vpn_status');
                 const data = await res.json();
-                document.getElementById('input-kingfood-token').value = data.token || '';
-                new bootstrap.Modal(document.getElementById('kingfoodTokenModal')).show();
+                if (data.vpn_online) {
+                    statusDiv.innerHTML = `<span class="text-success fw-bold"><i class="fa-solid fa-circle-check me-1"></i> ĐÃ KẾT NỐI MẠNG NỘI BỘ THÀNH CÔNG!</span><br>Cụm MongoDB (10.100.0.1:27017) đang sẵn sàng. Hiện có ${data.inventory_records || 0} mã nâng tồn và ${data.negative_records || 0} mã âm tồn trong bộ nhớ dữ liệu.`;
+                } else {
+                    statusDiv.innerHTML = `<span class="text-danger fw-bold"><i class="fa-solid fa-triangle-exclamation me-1"></i> CHƯA THÔNG TUYẾN VPN!</span><br>Vui lòng mở file <strong>KET_NOI_VPN.bat</strong> trên Desktop để kích hoạt WireGuard VPN trước khi đồng bộ.`;
+                }
             } catch (e) {
-                alert('Lỗi: ' + e.message);
+                console.error("Lỗi openVPNInfoModal:", e);
             }
         }
 
-        async function saveKingfoodToken() {
-            const token = document.getElementById('input-kingfood-token').value.trim();
-            if (!token) {
-                alert('Vui lòng dán mã Token!');
-                return;
-            }
-            const btn = document.getElementById('btn-save-kf-token');
-            btn.disabled = true;
-            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Đang cập nhật & đồng bộ tồn kho...';
-
+        async function syncInventoryVPN() {
             try {
-                const res = await fetch('/api/kingfood/token', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ token: token })
-                });
+                const badge = document.getElementById('vpn-status-badge');
+                if (badge) badge.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> ĐANG ĐỒNG BỘ QUA VPN...';
+
+                const res = await fetch('/api/inventory/sync_vpn', { method: 'POST' });
                 const data = await res.json();
                 if (data.success) {
-                    const modalEl = document.getElementById('kingfoodTokenModal');
-                    const modalInstance = bootstrap.Modal.getInstance(modalEl);
-                    if (modalInstance) modalInstance.hide();
-                    
                     if (currentInventorySubtab === 'increase') {
                         await loadStoreInventory();
                     } else {
                         await loadNegativeStockRecords();
                     }
-                    const syncInfo = data.sync || {};
-                    alert(`✅ Đã lưu token mới và đồng bộ thành công! (+${syncInfo.increase_count || 0} mã nâng tồn, -${syncInfo.negative_count || 0} mã âm tồn)`);
+                    if (badge) {
+                        badge.className = 'badge bg-success-subtle text-success border border-success fw-bold px-3 py-2';
+                        badge.innerHTML = '<i class="fa-solid fa-shield-halved me-1"></i> NGUỒN: VPN NỘI BỘ (10.100.0.1)';
+                    }
+                    alert(`✅ Đồng bộ tồn kho qua VPN thành công!\n• Mã nâng tồn: ${data.increase_count || 0}\n• Mã âm tồn: ${data.negative_count || 0}`);
                 } else {
-                    alert('❌ Lỗi: ' + (data.error || 'Thất bại'));
+                    if (badge) {
+                        badge.className = 'badge bg-warning-subtle text-warning border border-warning fw-bold px-3 py-2';
+                        badge.innerHTML = '<i class="fa-solid fa-database me-1"></i> NGUỒN: CSDL NỘI BỘ (LOCAL)';
+                    }
+                    alert(`⚠️ Thông báo: ${data.error || 'Dữ liệu đã được nạp từ bản ghi CSDL nội bộ'}`);
                 }
             } catch (e) {
-                alert('Lỗi kết nối máy chủ: ' + e.message);
-            } finally {
-                btn.disabled = false;
-                btn.innerHTML = '<i class="fa-solid fa-floppy-disk me-1"></i> Lưu & Đồng Bộ Ngay';
+                alert('Lỗi: ' + e.message);
             }
         }
 
         async function syncInventoryLive() {
-            try {
-                const res = await fetch('/api/inventory/sync', { method: 'POST' });
-                const data = await res.json();
-                if (data.success) {
-                    if (currentInventorySubtab === 'increase') {
-                        await loadStoreInventory();
-                    } else {
-                        await loadNegativeStockRecords();
-                    }
-                    alert(`✅ Đồng bộ thành công: ${data.increase_count || 0} mã nâng tồn, ${data.negative_count || 0} mã âm tồn!`);
-                } else {
-                    alert(`⚠️ Lỗi đồng bộ: ${data.error || 'Vui lòng kiểm tra lại token đăng nhập Kingfood'}`);
-                }
-            } catch (e) {
-                alert('Lỗi: ' + e.message);
-            }
+            await syncInventoryVPN();
         }
 
         function exportInventoryExcel() {

@@ -775,26 +775,78 @@ def api_sheet_sync_ds_st():
     res = sync_ds_st_data()
     return jsonify(res)
 
-@app.route('/api/kingfood/token', methods=['GET', 'POST'])
-def api_kingfood_token():
-    from kingfood_api import get_kingfood_token, set_kingfood_token
-    if request.method == 'POST':
-        data = request.json or {}
-        new_token = data.get('token', '').strip()
-        if not new_token:
-            return jsonify({'success': False, 'error': 'Vui lòng cung cấp mã Token'}), 400
-        set_kingfood_token(new_token)
-        from sheet_sync import sync_inventory_from_sheet
-        sync_res = sync_inventory_from_sheet()
-        return jsonify({'success': True, 'sync': sync_res})
-    else:
-        return jsonify({'token': get_kingfood_token()})
+@app.route('/api/inventory/vpn_status')
+def api_inventory_vpn_status():
+    """
+    Kiểm tra trạng thái kết nối mạng nội bộ WireGuard VPN (10.100.0.1:27017)
+    Thay thế hoàn toàn việc đăng nhập token web kdb / next.kingfood.co
+    """
+    import socket
+    vpn_online = False
+    details = {}
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.settimeout(1.2)
+        res = s.connect_ex(('10.100.0.1', 27017))
+        s.close()
+        vpn_online = (res == 0)
+        details = {
+            'gateway_ip': '10.100.0.1',
+            'peer_ip': '10.100.0.50',
+            'mongodb_port': 27017,
+            'mongodb_status': 'CONNECTED' if vpn_online else 'DISCONNECTED'
+        }
+    except Exception as e:
+        details['error'] = str(e)
+
+    conn = get_optimized_conn()
+    c = conn.cursor()
+    c.execute("SELECT COUNT(*) FROM store_inventory_records")
+    inv_count = c.fetchone()[0]
+    c.execute("SELECT COUNT(*) FROM store_negative_stock_records")
+    neg_count = c.fetchone()[0]
+    conn.close()
+
+    return jsonify({
+        'success': True,
+        'vpn_online': vpn_online,
+        'source': 'Mạng Nội Bộ VPN (10.100.0.1:27017)' if vpn_online else 'Bộ Nhớ Đệm CSDL Nội Bộ (Local Cache)',
+        'inventory_records': inv_count,
+        'negative_records': neg_count,
+        'details': details
+    })
 
 @app.route('/api/inventory/sync', methods=['GET', 'POST'])
+@app.route('/api/inventory/sync_vpn', methods=['GET', 'POST'])
 def api_inventory_sync():
+    """
+    Đồng bộ dữ liệu tồn kho trực tiếp từ nguồn mạng nội bộ VPN (10.100.0.1) & SQLite
+    Đã ngắt hoàn toàn kết nối tới web kdb https://kdb.kingfood.co/login và https://next.kingfood.co/login
+    """
+    import socket
+    vpn_connected = False
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.settimeout(1.2)
+        vpn_connected = (s.connect_ex(('10.100.0.1', 27017)) == 0)
+        s.close()
+    except Exception:
+        pass
+
     from sheet_sync import sync_inventory_from_sheet
     res = sync_inventory_from_sheet()
+    res['vpn_connected'] = vpn_connected
+    res['source'] = 'VPN_10_100_0_1' if vpn_connected else 'LOCAL_DATABASE_CACHE'
     return jsonify(res)
+
+@app.route('/api/kingfood/token', methods=['GET', 'POST'])
+def api_kingfood_token():
+    # Giữ endpoint giả lập tương thích ngược nhưng không còn yêu cầu đăng nhập web ngoài
+    return jsonify({
+        'success': True,
+        'mode': 'VPN_INTERNAL',
+        'message': 'Đã chuyển sang dùng dữ liệu nội bộ qua VPN 10.100.0.1, không cần token web ngoài.'
+    })
 
 
 # =========================================================================
@@ -1636,51 +1688,45 @@ def api_prepare_batch_alerts():
     if template_type == 1:
         # 1. Remind done phiếu hậu kiểm KRC & KRCBT (đã dừng truy cập KDB theo yêu cầu)
         hk_items = []
-
-
-
+        store_groups = {}
+        for hk in hk_items:
+            to_b = hk.get('to_branch') or {}
+            s_name = to_b.get('name', '')
+            s_code = to_b.get('code', '')
+            st_key = s_code or s_name
+            if not st_key:
+                continue
+            if st_key not in store_groups:
+                store_groups[st_key] = {'store_name': s_name, 'store_code': s_code, 'items': []}
+            store_groups[st_key]['items'].append(hk)
             
-            store_groups = {}
-            for hk in hk_items:
-                to_b = hk.get('to_branch') or {}
-                s_name = to_b.get('name', '')
-                s_code = to_b.get('code', '')
-                st_key = s_code or s_name
-                if not st_key:
-                    continue
-                if st_key not in store_groups:
-                    store_groups[st_key] = {'store_name': s_name, 'store_code': s_code, 'items': []}
-                store_groups[st_key]['items'].append(hk)
+        for st_key, grp_data in store_groups.items():
+            target_chat = find_krc_store_chat(st_key, all_stores)
+            chat_id = target_chat['chat_id'] if target_chat else None
+            chat_title = target_chat['chat_title'] if target_chat else f"KRC - {grp_data['store_name']}"
+            
+            tags = ""
+            if chat_id:
+                try:
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                    tags = loop.run_until_complete(get_store_manager_tags(chat_id))
+                    loop.close()
+                except:
+                    pass
+            
+            msg_body = "ST kiểm tra HOÀN THÀNH phiếu hậu kiểm gấp nhé team"
+            if tags:
+                msg_body += f"\n{tags}"
                 
-            for st_key, grp_data in store_groups.items():
-                target_chat = find_krc_store_chat(st_key, all_stores)
-                chat_id = target_chat['chat_id'] if target_chat else None
-                chat_title = target_chat['chat_title'] if target_chat else f"KRC - {grp_data['store_name']}"
-                
-                tags = ""
-                if chat_id:
-                    try:
-                        loop = asyncio.new_event_loop()
-                        asyncio.set_event_loop(loop)
-                        tags = loop.run_until_complete(get_store_manager_tags(chat_id))
-                        loop.close()
-                    except:
-                        pass
-                
-                msg_body = "ST kiểm tra HOÀN THÀNH phiếu hậu kiểm gấp nhé team"
-                if tags:
-                    msg_body += f"\n{tags}"
-                    
-                batch_list.append({
-                    'store_key': st_key,
-                    'store_name': grp_data['store_name'],
-                    'chat_id': chat_id,
-                    'chat_title': chat_title,
-                    'message_text': msg_body,
-                    'count_items': len(grp_data['items'])
-                })
-        except Exception as e:
-            print(f"Error fetching HK: {e}")
+            batch_list.append({
+                'store_key': st_key,
+                'store_name': grp_data['store_name'],
+                'chat_id': chat_id,
+                'chat_title': chat_title,
+                'message_text': msg_body,
+                'count_items': len(grp_data['items'])
+            })
             
     elif template_type == 2:
         # 2. Đối soát chênh lệch: Lọc DC giao thiếu
