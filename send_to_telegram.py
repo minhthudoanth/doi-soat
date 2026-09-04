@@ -55,8 +55,30 @@ async def main():
     await client.connect()
     
     if not await client.is_user_authorized():
-        print("[!] Session chưa đăng nhập!", flush=True)
-        return
+        print("\n[!] Session Telegram hiện tại chưa được đăng nhập hoặc đã hết hạn.")
+        print("[*] Vui lòng xác thực tài khoản để gửi file lên Saved Messages:")
+        try:
+            phone = input(">> Nhập số điện thoại Telegram của bạn (vd: +84912345678): ").strip()
+            if not phone:
+                print("[-] Bạn chưa nhập số điện thoại. Hủy gửi.")
+                return
+            await client.send_code_request(phone)
+            code = input(">> Nhập mã xác nhận (OTP) gửi về app Telegram của bạn: ").strip()
+            try:
+                await client.sign_in(phone=phone, code=code)
+            except Exception as auth_err:
+                if 'SessionPasswordNeeded' in type(auth_err).__name__:
+                    pwd = input(">> Nhập mật khẩu 2 bước (Two-step verification): ").strip()
+                    await client.sign_in(password=pwd)
+                else:
+                    print(f"[-] Đăng nhập thất bại: {auth_err}")
+                    return
+            # Cập nhật ngược lại file session gốc
+            shutil.copy2(temp_session_name + ".session", orig_session)
+            print("[OK] Đăng nhập Telegram thành công và đã lưu phiên làm việc!\n", flush=True)
+        except Exception as ex:
+            print(f"[-] Lỗi trong quá trình đăng nhập: {ex}")
+            return
         
     me = await client.get_me()
     name = f"{getattr(me, 'first_name', '')} {getattr(me, 'last_name', '')}".strip()
@@ -107,6 +129,10 @@ async def main():
         (os.path.join(BASE_DIR, "Procfile"), "File cấu hình tiến trình Cloud Render"),
         (os.path.join(BASE_DIR, "DONG_BO_GITHUB.bat"), "Script tự động commit & đồng bộ mã nguồn lên GitHub / GitLab"),
         (os.path.join(BASE_DIR, "start_all.bat"), "Script khởi động toàn bộ hệ thống bot & web"),
+        (os.path.join(BASE_DIR, "DANG_NHAP_TELEGRAM.bat"), "Script đăng nhập tài khoản Telegram"),
+        (os.path.join(BASE_DIR, "login_telegram.py"), "Module đăng nhập console Telegram"),
+        (os.path.join(BASE_DIR, "telegram_auth_manager.py"), "Module quản lý đăng nhập Telegram qua Web & OTP/QR"),
+        (os.path.join(BASE_DIR, "sync_stores_and_day31.py"), "Script cập nhật cấu trúc 241 siêu thị và case 31/08"),
         (os.path.join(BASE_DIR, "DAY_CODE_LEN_TELEGRAM.bat"), "Script 1-click đẩy mã nguồn lên Telegram Saved Messages"),
         (os.path.join(BASE_DIR, "send_to_telegram.py"), "Mã nguồn Python tự động đóng gói & gửi file lên Telegram"),
         (os.path.join(BASE_DIR, "README.md"), "Tài liệu hướng dẫn sử dụng và vận hành hệ thống"),

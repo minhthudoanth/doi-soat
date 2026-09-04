@@ -16,14 +16,44 @@ import sqlite3
 from config import DB_PATH
 
 
-def inspect():
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute("SELECT id, chat_title, sender_name, issue_type, content FROM priority_cases ORDER BY RANDOM() LIMIT 25")
-    rows = cursor.fetchall()
-    for r in rows:
-        print(f"#{r[0]} [{r[3]}] [{r[1]}] {r[2]}:\n   {r[4]}\n")
-    conn.close()
+import sqlite3, sys
 
-if __name__ == "__main__":
-    inspect()
+if sys.platform == 'win32':
+    try:
+        sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+    except Exception:
+        pass
+
+conn = sqlite3.connect('scm_monitor.db')
+c = conn.cursor()
+import sqlite3, sys
+
+if sys.platform == 'win32':
+    try:
+        sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+    except Exception:
+        pass
+
+import sys
+if sys.platform == 'win32':
+    try:
+        sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+    except Exception:
+        pass
+
+import sqlite3
+
+conn = sqlite3.connect('scm_monitor.db')
+c = conn.cursor()
+c.execute("SELECT store_id, store_name FROM sheet_store_list ORDER BY store_id ASC")
+rows = c.fetchall()
+print(f"Total stores in sheet_store_list: {len(rows)}")
+for r in rows[:20]:
+    print(r)
+
+
+
+
+
+
+

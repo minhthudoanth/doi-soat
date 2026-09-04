@@ -30,3 +30,8 @@ __pycache__/
 .DS_Store
 Thumbs.db
 .vscode/
+
+# Scratch and debug files
+scratch_*.py
+chunk.js
+static/generated_docs/
