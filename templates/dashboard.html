@@ -4859,31 +4859,44 @@
         }
 
         async function pushCodeToGitHub() {
-            if (!confirm('Bạn có muốn đẩy toàn bộ mã nguồn và cấu hình mới nhất lên GitHub (minhthudoanth) không?')) {
-                return;
+            let savedToken = localStorage.getItem('github_token') || '';
+            let token = prompt('Nhập GitHub Personal Access Token (PAT) để đẩy code lên GitHub (bỏ trống nếu máy đã lưu mật khẩu):', savedToken);
+            if (token === null) return;
+            
+            token = token.trim();
+            if (token) {
+                localStorage.setItem('github_token', token);
             }
+
             const btn = document.getElementById('btn-git-push');
-            const originalHtml = btn.innerHTML;
-            btn.disabled = true;
-            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Đang đẩy...';
+            const originalHtml = btn ? btn.innerHTML : '';
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Đang đẩy...';
+            }
 
             try {
                 const res = await fetch('/api/git/push', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ target: 'github' })
+                    body: JSON.stringify({ target: 'github', token: token })
                 });
                 const d = await res.json();
                 if (d.success) {
-                    alert(`✅ ${d.message}\n\nXem chi tiết tại: https://github.com/minhthudoanth`);
+                    alert(`✅ ${d.message}\n\nXem chi tiết tại: https://github.com/minhthudoanth/doi-soat`);
                 } else {
+                    if (d.output && (d.output.includes('Authentication failed') || d.output.includes('terminal prompts disabled'))) {
+                        localStorage.removeItem('github_token');
+                    }
                     alert(`⚠️ ${d.message}\n\nChi tiết log:\n${d.output || d.error}`);
                 }
             } catch (e) {
                 alert('❌ Lỗi kết nối máy chủ khi đẩy Git!');
             } finally {
-                btn.disabled = false;
-                btn.innerHTML = originalHtml;
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = originalHtml;
+                }
             }
         }
 
