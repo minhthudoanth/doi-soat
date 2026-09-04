@@ -17,6 +17,9 @@ if sys.platform == 'win32':
         pass
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+if BASE_DIR not in sys.path:
+    sys.path.insert(0, BASE_DIR)
+
 from config import API_ID, API_HASH, SESSION_NAME
 
 async def main():
@@ -104,6 +107,8 @@ async def main():
         (os.path.join(BASE_DIR, "Procfile"), "File cấu hình tiến trình Cloud Render"),
         (os.path.join(BASE_DIR, "DONG_BO_GITHUB.bat"), "Script tự động commit & đồng bộ mã nguồn lên GitHub / GitLab"),
         (os.path.join(BASE_DIR, "start_all.bat"), "Script khởi động toàn bộ hệ thống bot & web"),
+        (os.path.join(BASE_DIR, "DAY_CODE_LEN_TELEGRAM.bat"), "Script 1-click đẩy mã nguồn lên Telegram Saved Messages"),
+        (os.path.join(BASE_DIR, "send_to_telegram.py"), "Mã nguồn Python tự động đóng gói & gửi file lên Telegram"),
         (os.path.join(BASE_DIR, "README.md"), "Tài liệu hướng dẫn sử dụng và vận hành hệ thống"),
         (os.path.join(BASE_DIR, "TONG_KET_PHIEN_LAM_VIEC_SCM.md"), "Biên bản tổng kết phiên làm việc & bàn giao hệ thống")
     ]
