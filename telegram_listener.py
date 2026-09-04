@@ -77,7 +77,12 @@ async def start_listener():
     await client.connect()
     
     if not await client.is_user_authorized():
-        print("[!] Client chưa đăng nhập Telegram!", flush=True)
+        print("[!] Client chưa đăng nhập Telegram! Đang chờ đăng nhập (tự động kiểm tra lại sau 10s)...", flush=True)
+        try:
+            await client.disconnect()
+        except Exception:
+            pass
+        await asyncio.sleep(10)
         return
 
     me = await client.get_me()

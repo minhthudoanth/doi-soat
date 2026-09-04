@@ -141,15 +141,20 @@ def parse_full_audit(text, created_at=""):
     # 3. Mã hàng & Tên hàng
     sku_code = ''
     item_name = ''
+    text_no_date = re.sub(r'\b\d{1,2}[\/\.]\d{1,2}(?:[\/\.]\d{2,4})?\b', '', text)
+    text_no_date = re.sub(r'PT\d+', '', text_no_date)
     pt_line_match = re.search(r'PT\d+\s+([0-9]{4,14})', text)
     pre_pt_match = re.search(r'([0-9]{4,14})\s+PT\d+', text)
+    sku_with_name_match = re.search(r'\b([0-9]{4,13})\s+[A-ZÀ-Ỵ]', text_no_date)
     if pt_line_match:
         sku_code = pt_line_match.group(1)
     elif pre_pt_match:
         sku_code = pre_pt_match.group(1)
+    elif sku_with_name_match:
+        sku_code = sku_with_name_match.group(1)
     else:
-        sku_match = re.search(r'\b([0-9]{4,13})\b', text)
-        if sku_match:
+        sku_match = re.search(r'\b([0-9]{4,13})\b', text_no_date)
+        if sku_match and sku_match.group(1) not in ['2026', '2025', '2024']:
             sku_code = sku_match.group(1)
             
     # 4. Tên ST
@@ -202,20 +207,35 @@ def parse_full_audit(text, created_at=""):
         except:
             issue_type = 'Thiếu'
         qty_info = f"Chuyển: {cl_match.group(1)} | Nhận: {cl_match.group(2)} | CL: {cl_match.group(3)}"
+    elif re.search(r'(?:nhập|nhận)\s*phiếu:\s*([\d,\.]+)(?:[\/\d,\.]*)?\s*[-–]?\s*thực\s*tế:\s*([\d,\.]+)', text, re.IGNORECASE):
+        m_phieu = re.search(r'(?:nhập|nhận)\s*phiếu:\s*([\d,\.]+)(?:[\/\d,\.]*)?\s*[-–]?\s*thực\s*tế:\s*([\d,\.]+)', text, re.IGNORECASE)
+        p_str = m_phieu.group(1).replace(',', '.')
+        t_str = m_phieu.group(2).replace(',', '.')
+        try:
+            diff = abs(float(p_str) - float(t_str))
+            diff_disp = f"{diff:g}"
+        except:
+            diff_disp = p_str
+        qty_info = f"Phiếu: {m_phieu.group(1)} | Thực tế: {m_phieu.group(2)} | CL: {diff_disp}"
+        try:
+            issue_type = 'Thiếu' if float(t_str) < float(p_str) else 'Thừa'
+        except:
+            issue_type = 'Thiếu'
+    elif re.search(r'SL\s*([\d,\.]+)', text, re.IGNORECASE):
+        m_sl = re.search(r'SL\s*([\d,\.]+)', text, re.IGNORECASE)
+        qty_info = f"Chuyển: {m_sl.group(1)} | Nhận: 0 | CL: {m_sl.group(1)}"
+        issue_type = 'Thiếu'
+    elif re.search(r'[-–]\s*(\d+)\s*(?:gói|hộp|vỉ|bó|cây|kg|trái|quả|thùng|pack)', text, re.IGNORECASE):
+        m_unit = re.search(r'[-–]\s*(\d+)\s*(?:gói|hộp|vỉ|bó|cây|kg|trái|quả|thùng|pack)', text, re.IGNORECASE)
+        qty_info = f"Lệch: {m_unit.group(1)}"
+        issue_type = 'Thiếu'
     elif re.search(r'(?:bể|vỡ|nứt)\s+(\d+)\s*vỉ', text, re.IGNORECASE):
         m_be = re.search(r'(?:bể|vỡ|nứt)\s+(\d+)\s*vỉ', text, re.IGNORECASE)
         qty_info = f"Bể: {m_be.group(1)} vỉ"
         issue_type = 'XCL'
-    elif re.search(r'nhận\s+phiếu:\s*(\d+)[\/\d]*\s*thực\s*tế:\s*(\d+)', text, re.IGNORECASE):
-        m_phieu = re.search(r'nhận\s+phiếu:\s*(\d+)[\/\d]*\s*thực\s*tế:\s*(\d+)', text, re.IGNORECASE)
-        phieu_qty = m_phieu.group(1)
-        thuc_qty = m_phieu.group(2)
-        diff = abs(int(phieu_qty) - int(thuc_qty))
-        qty_info = f"Phiếu: {phieu_qty} | Thực tế: {thuc_qty} | Lệch: {diff}"
-        issue_type = 'Thiếu' if int(thuc_qty) < int(phieu_qty) else 'Thừa'
     elif re.search(r'(?:cl|chênh lệch)\s*([\d,\.]+)', text, re.IGNORECASE):
         cl_match_simple = re.search(r'(?:cl|chênh lệch)\s*([\d,\.]+)', text, re.IGNORECASE)
-        qty_info = "Lệch: " + cl_match_simple.group(1)
+        qty_info = "CL: " + cl_match_simple.group(1)
         
     # 6. ST ghi nhận dư
     st_du = '---'
@@ -225,9 +245,10 @@ def parse_full_audit(text, created_at=""):
     m1 = re.search(r'(?:thấy\s+)?(?:st|siêu thị)\s+([a-z0-9_-]+)\s+nhận(?:\s+dư|\s+thừa|\s+hàng|\s+ạ|\s*,|\s*\.|\s+nhờ|\s*$)', lower)
     m2 = re.search(r'(?:st|siêu thị)\s+nhận\s+(?:dư\s+|thừa\s+)?([a-z0-9_-]+)', lower)
     m3 = re.search(r'thấy\s+(?:st\s+)?([a-z0-9_-]+)\s+nhận', lower)
+    m4 = re.search(r'(?:layout|kế layout)\s+nhận\s+([a-z0-9_-]+)', lower)
     
     found_st = None
-    for m in [m1, m2, m3]:
+    for m in [m1, m2, m3, m4]:
         if m:
             candidate = m.group(1).strip().upper()
             if not any(w in candidate.lower() for w in invalid_store_words) and not candidate.startswith('PHI') and not re.match(r'^\d+$', candidate) and len(candidate) <= 10:
@@ -411,7 +432,7 @@ def api_cases_audit_group():
         SELECT r.id, r.msg_id, r.chat_id, r.chat_title, r.sender_name, r.message_text, r.created_at, r.is_read, r.is_dismissed,
                r.reply_to_msg_id,
                COALESCE(s.is_checked, 0) as is_checked,
-               COALESCE(s.process_status, 'Chờ xử lý') as process_status,
+               CASE WHEN s.process_status = 'Hoàn Thành' THEN 'Đã xử lý' ELSE COALESCE(s.process_status, 'Chờ xử lý') END as process_status,
                COALESCE(s.note, '') as status_note
         FROM raw_messages r
         LEFT JOIN audit_case_status s ON r.msg_id = s.msg_id
@@ -426,11 +447,6 @@ def api_cases_audit_group():
         AND r.message_text NOT LIKE '%add giá cost%'
         AND r.message_text NOT LIKE '%các nhóm hàng còn lại rà lại%'
         AND r.message_text NOT LIKE '%mấy case này đã phản hồi%'
-        AND r.message_text NOT LIKE '%ST thao tác sai%'
-        AND r.message_text NOT LIKE '%rút tồn giúp em%'
-        AND r.message_text NOT LIKE '%xác nhận rút tồn%'
-        AND r.message_text NOT LIKE '%hỗ trợ rút tồn%'
-        AND r.message_text NOT LIKE '%nhập sai số lượng%'
         ORDER BY r.id DESC
     """
     cursor.execute(query)
@@ -467,9 +483,19 @@ def api_cases_audit_group():
                 return row
         return None
 
+    dl_pattern = re.compile(r'(?:trước|sau|deadline:?|hạn chót:?)\s*(\d{1,2}(?:h|:\d{2})?\s*(?:ngày\s*)?\d{1,2}[\/\.]\d{1,2})', re.IGNORECASE)
+
+    def extract_deadline_from_text(txt):
+        if not txt:
+            return None
+        m = dl_pattern.search(txt)
+        if m:
+            return m.group(1).replace('.', '/')
+        return None
+
     def check_sent_alert(sku, pt, st_du, st_name, sheet_id):
         if not sku or sku == '---':
-            return None, None
+            return None, None, ''
         sku_clean = str(sku).strip()
         pt_clean = str(pt).strip() if pt and pt != '---' else None
         
@@ -477,15 +503,44 @@ def api_cases_audit_group():
             txt = s['message_text']
             # Khớp chính xác SKU hoặc PT trong nội dung tin nhắn do Thư Đoàn gửi
             if (sku_clean and sku_clean in txt) or (pt_clean and pt_clean in txt):
+                sent_time_str = ''
                 try:
                     dt_part = s['created_at'].split()
                     time_str = dt_part[1][:5]
                     d_parts = dt_part[0].split('-')
                     date_fmt = f"{d_parts[2]}/{d_parts[1]}"
-                    return f"Đã báo lúc {time_str} {date_fmt}", s['chat_title']
+                    sent_time_str = f"Đã báo lúc {time_str} {date_fmt}"
                 except:
-                    return f"Đã báo lúc {s['created_at']}", s['chat_title']
-        return None, None
+                    sent_time_str = f"Đã báo lúc {s['created_at']}"
+
+                # 1. Trích xuất deadline trực tiếp từ nội dung tin nhắn gửi
+                extracted_dl = extract_deadline_from_text(txt)
+
+                # 2. Nếu tin nhắn này không có deadline (ví dụ tin forward), tìm tin nhắn gửi kèm cùng lúc trong cùng chat
+                if not extracted_dl:
+                    for s2 in sent_messages_db:
+                        if s2['chat_id'] == s['chat_id'] and s2['created_at'][:16] == s['created_at'][:16]:
+                            extracted_dl = extract_deadline_from_text(s2['message_text'])
+                            if extracted_dl:
+                                break
+
+                # 3. Nếu vẫn không thấy deadline bằng chữ, tính deadline chuẩn theo thời điểm gửi
+                if not extracted_dl:
+                    try:
+                        m_time = re.search(r'(\d{1,2}):(\d{1,2})\s+(\d{1,2})[\/\.](\d{1,2})', sent_time_str)
+                        if m_time:
+                            hour, minute, day_num, month_num = int(m_time.group(1)), int(m_time.group(2)), int(m_time.group(3)), int(m_time.group(4))
+                            if hour < 12:
+                                extracted_dl = f"17h ngày {day_num:02d}/{month_num:02d}"
+                            else:
+                                next_day = day_num + 1
+                                extracted_dl = f"10h ngày {next_day:02d}/{month_num:02d}"
+                    except:
+                        pass
+
+                deadline_res = f"Deadline: {extracted_dl}" if extracted_dl else ""
+                return sent_time_str, s['chat_title'], deadline_res
+        return None, None, ''
 
     # 1. Gom các tin nhắn reply/phản hồi vào tin nhắn gốc tương ứng
     reply_map = {}
@@ -499,8 +554,6 @@ def api_cases_audit_group():
                 reply_map[rep_id].append(f"💬 {r['sender_name']}: {txt}")
 
     invalid_st_phrases = ['rút tồn', 'kiểm tra giúp', 'nhờ check', 'gửi chị', 'chị ơi', 'phiếu pt', 'cho st nhé', 'cho st luôn', 'dạ e check', 'dạ check']
-
-    from kingfood_api import verify_surplus_in_kdb
 
     audit_list = []
     for r in rows:
@@ -516,7 +569,7 @@ def api_cases_audit_group():
         if pt == '---' or sku == '---' or qty == '---' or is_invalid_st:
             continue
             
-        st_du = parsed['st_du']
+        st_du = parsed['st_du'] if parsed['issue_type'] == 'Thừa' else None
 
         # Đối chiếu với Tab DS ST từ Google Sheet
         matched_sheet_st = match_sheet_store(parsed['st_name'])
@@ -547,52 +600,72 @@ def api_cases_audit_group():
             extra_feedback = " | ".join(reply_map[r['msg_id']])
             full_note = f"{full_note} | {extra_feedback}".strip(' |')
 
-        # Tự động tìm Mã PT gốc từ KRC đến ST ghi nhận dư trên hệ thống
+        # Tự động tìm Mã PT gốc từ KRC đến ST ghi nhận dư trên hệ thống sheet_audit_records
         pt_goc_st_du = None
-        if parsed['issue_type'] == 'Thừa' and st_du and st_du != '---':
-            cursor.execute("""
-                SELECT DISTINCT pt_transfer
-                FROM sheet_audit_records
-                WHERE (store_id = ? OR store_id LIKE ? OR branch_name LIKE ?)
-                AND (transfer_date = ? OR transfer_date LIKE ?)
-                LIMIT 1
-            """, (st_du, f"%{st_du}%", f"%{st_du}%", parsed['date'], f"%{parsed['date']}%"))
-            pt_row = cursor.fetchone()
-            if pt_row and pt_row['pt_transfer']:
-                pt_goc_st_du = pt_row['pt_transfer']
+        pt_goc_note = ''
+        pt_goc_status = '' # 'has_sku', 'no_sku', 'not_found'
 
-        # Kiểm tra chi tiết trạng thái KDB (PT gốc có/không có, ST đã add dư hay chưa)
-        kdb_pt_goc = 'PT gốc: Đang kiểm tra'
-        kdb_add_du = 'ST chưa add dư'
-        kdb_summary = ''
-        if parsed['issue_type'] == 'Thừa' and st_du and st_du != '---' and sku and sku != '---':
-            from kingfood_api import KDB_SURPLUS_CACHE
-            cache_key = f"{st_du}_{sku}_{parsed['date']}"
-            if cache_key in KDB_SURPLUS_CACHE:
-                cached_res = KDB_SURPLUS_CACHE[cache_key]
-                if isinstance(cached_res, dict):
-                    kdb_pt_goc = cached_res.get('pt_goc', 'PT gốc: Không có mã')
-                    kdb_add_du = cached_res.get('add_du', 'ST chưa add dư')
-                    kdb_summary = cached_res.get('summary', '')
+        if parsed['issue_type'] == 'Thừa' and st_du and st_du != '---':
+            # Chuẩn hóa định dạng ngày để query sheet_audit_records (chứa MM/DD/YYYY)
+            date_patterns = []
+            m_dt = re.search(r'(\d{1,2})[\/\.](\d{1,2})(?:[\/\.](\d{4}))?', str(parsed['date']))
+            if m_dt:
+                p1, p2 = int(m_dt.group(1)), int(m_dt.group(2))
+                yr = m_dt.group(3) or '2026'
+                date_patterns = [
+                    f"{p1:02d}/{p2:02d}/{yr}",
+                    f"{p2:02d}/{p1:02d}/{yr}",
+                    f"{p1:02d}/{p2:02d}",
+                    f"{p2:02d}/{p1:02d}"
+                ]
+            else:
+                date_patterns = [parsed['date']]
+
+            pt_rows = []
+            for dp in date_patterns:
+                cursor.execute("""
+                    SELECT DISTINCT pt_transfer, store_id, branch_name, transfer_date
+                    FROM sheet_audit_records
+                    WHERE (store_id = ? OR store_id LIKE ? OR branch_name LIKE ?)
+                    AND transfer_date LIKE ?
+                """, (st_du, f"%{st_du}%", f"%{st_du}%", f"%{dp}%"))
+                pt_rows = cursor.fetchall()
+                if pt_rows:
+                    break
+
+            if pt_rows:
+                found_pts = list(dict.fromkeys([prow['pt_transfer'] for prow in pt_rows if prow['pt_transfer']]))
+                pt_goc_st_du = ", ".join(found_pts)
+                
+                # Kiểm tra mã SKU trong các PT gốc này
+                sku_matches = []
+                for pt_c in found_pts:
+                    cursor.execute("""
+                        SELECT sku_code, item_name, qty_transfer, qty_receive, qty_diff
+                        FROM sheet_audit_records
+                        WHERE pt_transfer = ? AND (sku_code = ? OR sku_code LIKE ?)
+                    """, (pt_c, sku, f"%{sku}%"))
+                    sku_matches.extend(cursor.fetchall())
+                
+                if sku_matches:
+                    m_row = sku_matches[0]
+                    q_trans = m_row['qty_transfer']
+                    q_rec = m_row['qty_receive']
+                    q_diff = m_row['qty_diff']
+                    pt_goc_status = 'has_sku'
+                    if q_rec == q_trans:
+                        pt_goc_note = f"PT gốc {pt_goc_st_du} có mã này (Chuyển: {q_trans} | Nhận: {q_rec} - Đã nhận đủ đúng phiếu)"
+                    else:
+                        pt_goc_note = f"PT gốc {pt_goc_st_du} có mã này (Chuyển: {q_trans} | Nhận: {q_rec} | CL: {q_diff})"
+                else:
+                    pt_goc_status = 'no_sku'
+                    pt_goc_note = f"PT gốc {pt_goc_st_du}: Không có mã này trong phiếu (Giao nhầm ngoài phiếu)"
+            else:
+                pt_goc_status = 'not_found'
+                pt_goc_note = f"Chưa tìm thấy PT gốc ngày {parsed['date']}"
 
         # Tự động phát hiện xem chính Thư Đoàn đã gửi tin báo trong group hay chưa
-        sent_alert_time, sent_chat = check_sent_alert(sku, pt, st_du, parsed['st_name'], sheet_id_mart)
-
-        # Tính Deadline ST Check
-        deadline_str = ''
-        if sent_alert_time:
-            m_time = re.search(r'(\d{1,2}):(\d{1,2})\s+(\d{1,2})[\/\.](\d{1,2})', sent_alert_time)
-            if m_time:
-                hour, minute, day_num, month_num = int(m_time.group(1)), int(m_time.group(2)), int(m_time.group(3)), int(m_time.group(4))
-                if hour < 12:
-                    deadline_str = f"Deadline: 17:00 {day_num:02d}/{month_num:02d}"
-                else:
-                    next_day = day_num + 1
-                    deadline_str = f"Deadline: 10:00 {next_day:02d}/{month_num:02d}"
-        if not deadline_str and parsed['date'] and parsed['date'] != '---':
-            m_dt = re.search(r'(\d{1,2})[\/\.](\d{1,2})', str(parsed['date']))
-            if m_dt:
-                deadline_str = f"Deadline: 17:00 {int(m_dt.group(1)):02d}/{int(m_dt.group(2)):02d}"
+        sent_alert_time, sent_chat, deadline_str = check_sent_alert(sku, pt, st_du, parsed['st_name'], sheet_id_mart)
 
         audit_list.append({
             'id': r['id'],
@@ -609,9 +682,8 @@ def api_cases_audit_group():
             'sheet_sm': sheet_sm,
             'pt_code': parsed['pt_code'],
             'pt_goc_st_du': pt_goc_st_du,
-            'kdb_pt_goc': kdb_pt_goc,
-            'kdb_add_du': kdb_add_du,
-            'kdb_summary': kdb_summary,
+            'pt_goc_note': pt_goc_note,
+            'pt_goc_status': pt_goc_status,
             'sku_code': parsed['sku_code'],
             'item_name': parsed['item_name'],
             'qty_info': parsed['qty_info'],
@@ -632,6 +704,31 @@ def api_cases_audit_group():
         })
     conn.close()
     return jsonify(audit_list)
+
+
+@app.route('/api/cases/audit/mark_all_processed', methods=['POST'])
+def api_audit_mark_all_processed():
+    data = request.get_json(silent=True) or {}
+    msg_ids = data.get('msg_ids', [])
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    if msg_ids:
+        for mid in msg_ids:
+            cursor.execute("""
+                INSERT INTO audit_case_status (msg_id, is_checked, process_status, updated_at)
+                VALUES (?, 1, 'Đã xử lý', CURRENT_TIMESTAMP)
+                ON CONFLICT(msg_id) DO UPDATE SET process_status = 'Đã xử lý', updated_at = CURRENT_TIMESTAMP
+            """, (mid,))
+    else:
+        cursor.execute("""
+            INSERT INTO audit_case_status (msg_id, is_checked, process_status, updated_at)
+            SELECT msg_id, 1, 'Đã xử lý', CURRENT_TIMESTAMP FROM raw_messages 
+            WHERE (chat_title LIKE '%Đối soát%' OR chat_title LIKE '%SCM - KRC%')
+            ON CONFLICT(msg_id) DO UPDATE SET process_status = 'Đã xử lý', updated_at = CURRENT_TIMESTAMP
+        """)
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True, 'message': 'Đã đánh dấu ĐÃ XỬ LÝ thành công!'})
 
 
 @app.route('/api/sheet/ds_st')
@@ -1009,6 +1106,7 @@ def api_sync_claim_invoices():
 
 @app.route('/api/documents/invoices')
 def api_get_claim_invoices():
+    month_filter = request.args.get('month', '').strip()
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("""
@@ -1036,12 +1134,23 @@ def api_get_claim_invoices():
         conn = get_db_connection()
         cursor = conn.cursor()
 
-    cursor.execute("""
-        SELECT id, month, warehouse_code, warehouse_name, invoice_date, content, invoice_number, co_number, pre_tax, post_tax
-        FROM warehouse_claim_invoices
-        ORDER BY month ASC, warehouse_code ASC, id ASC
-    """)
+    if month_filter:
+        cursor.execute("""
+            SELECT id, month, warehouse_code, warehouse_name, invoice_date, content, invoice_number, co_number, pre_tax, post_tax
+            FROM warehouse_claim_invoices
+            WHERE month = ?
+            ORDER BY warehouse_code ASC, id ASC
+        """, (month_filter.zfill(2),))
+    else:
+        cursor.execute("""
+            SELECT id, month, warehouse_code, warehouse_name, invoice_date, content, invoice_number, co_number, pre_tax, post_tax
+            FROM warehouse_claim_invoices
+            ORDER BY month DESC, warehouse_code ASC, id ASC
+        """)
     rows = [dict(r) for r in cursor.fetchall()]
+
+    cursor.execute("SELECT DISTINCT month FROM warehouse_claim_invoices WHERE month != '' ORDER BY CAST(month AS INTEGER) DESC")
+    available_months = [r[0] for r in cursor.fetchall()]
 
     # Group by warehouse and month
     summary = {}
@@ -1067,7 +1176,8 @@ def api_get_claim_invoices():
         'success': True,
         'count': len(rows),
         'records': rows,
-        'summary': list(summary.values())
+        'summary': list(summary.values()),
+        'available_months': available_months
     })
 
 
@@ -1101,22 +1211,73 @@ def api_documents_auto_fill():
         from sheet_sync import sync_claim_invoices_from_sheet
         sync_claim_invoices_from_sheet()
 
-    wh_code = "MF" if ("MEAT" in warehouse.upper() or "THỊT" in warehouse.upper()) else ("SL" if "SEEDLOG" in warehouse.upper() else ("DM" if "ĐÔNG MÁT" in warehouse.upper() else "%"))
+    wh_upper = warehouse.upper()
+    if "MEAT" in wh_upper or "THỊT" in wh_upper:
+        wh_code = "MF"
+        wh_cond = "(warehouse_code = 'MF' OR warehouse_name LIKE '%MEAT%' OR warehouse_name LIKE '%THỊT%' OR content LIKE '%MEAT%' OR content LIKE '%THỊT%')"
+    elif "SEEDLOG" in wh_upper or "SEEDCOM" in wh_upper or "TỔNG" in wh_upper or "DC" in wh_upper:
+        wh_code = "SL"
+        wh_cond = "(warehouse_code = 'SL' OR warehouse_name LIKE '%SEEDLOG%' OR warehouse_name LIKE '%TỔNG%' OR content LIKE '%SEEDLOG%' OR content LIKE '%HẬU KIỂM%' OR content LIKE '%SLG%')"
+    elif "RAU" in wh_upper:
+        wh_code = "RC"
+        wh_cond = "(warehouse_code = 'RC' OR warehouse_name LIKE '%RAU%' OR content LIKE '%RAU%')"
+    elif "ĐÔNG" in wh_upper and "MÁT" not in wh_upper:
+        wh_code = "KD"
+        wh_cond = "(warehouse_code IN ('KD', 'DM') OR warehouse_name LIKE '%ĐÔNG%' OR content LIKE '%ĐÔNG%' OR content LIKE '%ABA%')"
+    elif "MÁT" in wh_upper and "ĐÔNG" not in wh_upper:
+        wh_code = "KM"
+        wh_cond = "(warehouse_code IN ('KM', 'DM') OR warehouse_name LIKE '%MÁT%' OR content LIKE '%MÁT%' OR content LIKE '%ABA%')"
+    elif "BÌNH TÂN" in wh_upper or "ĐÔNG MÁT" in wh_upper or "ABA" in wh_upper:
+        wh_code = "DM"
+        wh_cond = "(warehouse_code = 'DM' OR warehouse_name LIKE '%ABA%' OR warehouse_name LIKE '%BÌNH TÂN%' OR content LIKE '%ABA%')"
+    else:
+        wh_code = "%"
+        wh_cond = "(warehouse_name LIKE ? OR content LIKE ?)"
     
-    # Tìm kiếm theo kho trong bảng hóa đơn
-    cursor.execute("""
-        SELECT id, month, warehouse_code, warehouse_name, invoice_date, content, invoice_number, co_number, pre_tax, post_tax
-        FROM warehouse_claim_invoices
-        WHERE warehouse_code LIKE ? OR warehouse_name LIKE ?
-        ORDER BY id ASC
-    """, (wh_code, f"%{warehouse}%"))
+    # Tìm kiếm theo tên kho và tháng trong bảng hóa đơn
+    if wh_cond.count('?') == 2:
+        cursor.execute(f"""
+            SELECT id, month, warehouse_code, warehouse_name, invoice_date, content, invoice_number, co_number, pre_tax, post_tax
+            FROM warehouse_claim_invoices
+            WHERE {wh_cond} AND month = ?
+            ORDER BY id ASC
+        """, (f"%{warehouse}%", f"%{warehouse}%", month))
+    else:
+        cursor.execute(f"""
+            SELECT id, month, warehouse_code, warehouse_name, invoice_date, content, invoice_number, co_number, pre_tax, post_tax
+            FROM warehouse_claim_invoices
+            WHERE {wh_cond} AND month = ?
+            ORDER BY id ASC
+        """, (month,))
     inv_rows = [dict(r) for r in cursor.fetchall()]
+
+    # Nếu tháng được chọn chưa có hóa đơn cho kho này, fallback tìm tháng gần nhất có dữ liệu của kho đó
+    if not inv_rows:
+        if wh_cond.count('?') == 2:
+            cursor.execute(f"""
+                SELECT id, month, warehouse_code, warehouse_name, invoice_date, content, invoice_number, co_number, pre_tax, post_tax
+                FROM warehouse_claim_invoices
+                WHERE {wh_cond} AND month != ''
+                ORDER BY CAST(month AS INTEGER) DESC, id ASC
+            """, (f"%{warehouse}%", f"%{warehouse}%"))
+        else:
+            cursor.execute(f"""
+                SELECT id, month, warehouse_code, warehouse_name, invoice_date, content, invoice_number, co_number, pre_tax, post_tax
+                FROM warehouse_claim_invoices
+                WHERE {wh_cond} AND month != ''
+                ORDER BY CAST(month AS INTEGER) DESC, id ASC
+            """)
+        all_wh_rows = [dict(r) for r in cursor.fetchall()]
+        if all_wh_rows:
+            latest_m = all_wh_rows[0]['month']
+            inv_rows = [r for r in all_wh_rows if r['month'] == latest_m]
     
     from doc_generator import num_to_vietnamese_words
 
     if inv_rows:
         tot_pre = sum(r['pre_tax'] for r in inv_rows)
         tot_post = sum(r['post_tax'] for r in inv_rows)
+        latest_date = max((r['invoice_date'] for r in inv_rows if r['invoice_date']), default=f"31/{month}/{year}")
         
         # Nhóm theo số hóa đơn để tạo danh sách biên bản chuẩn
         inv_grouped = {}
@@ -1140,15 +1301,21 @@ def api_documents_auto_fill():
 
         invoices_list = list(inv_grouped.values())
         
-        # Gán số lượng mẫu chuẩn theo chứng từ gốc
+        # Gán số lượng mẫu theo chứng từ gốc
         if "MEAT" in warehouse.upper():
             total_qty = 3191
-        elif "SEEDLOG" in warehouse.upper():
+        elif "SEEDLOG" in warehouse.upper() or "TỔNG" in warehouse.upper():
             total_qty = 3324
             sl_breakdowns = [1173, 316, 171, 820, 844]
             for idx, item in enumerate(invoices_list):
                 if idx < len(sl_breakdowns):
                     item['qty'] = sl_breakdowns[idx]
+        elif "RAU" in warehouse.upper():
+            total_qty = 2850
+        elif "ĐÔNG" in warehouse.upper() and "MÁT" not in warehouse.upper():
+            total_qty = 1500
+        elif "MÁT" in warehouse.upper() and "ĐÔNG" not in warehouse.upper():
+            total_qty = 1000
         else:
             total_qty = 2500
 
@@ -1164,18 +1331,36 @@ def api_documents_auto_fill():
             'total_pre_tax': tot_pre,
             'total_post_tax': tot_post,
             'total_amount': target_amount,
+            'suggested_date': latest_date,
             'words': num_to_vietnamese_words(target_amount)
         })
 
-    # Nếu kho chưa có trong bảng hóa đơn, tìm trong bảng sheet_audit_records
+    # Nếu kho chưa có trong bảng hóa đơn của tháng đó, tìm trong bảng sheet_audit_records
     date_filter = f"{month}/%/{year}"
-    cat_kw = "%Thịt%" if "MEAT" in warehouse.upper() else ("%Đông%" if "ĐÔNG MÁT" in warehouse.upper() else "%")
+    if "RAU" in wh_upper or wh_code == "RC":
+        cat_clause = "(item_type IN ('2.VEGETABLES', '2.FRUITS', '2.FLOWERS') OR item_type LIKE '%RAU%')"
+        params = (date_filter,)
+    elif "MEAT" in wh_upper or wh_code == "MF":
+        cat_clause = "(item_type LIKE ? OR item_name LIKE ?)"
+        params = (date_filter, "%Thịt%", "%Thịt%")
+    elif "ĐÔNG" in wh_upper and "MÁT" not in wh_upper:
+        cat_clause = "(item_type LIKE ? OR item_name LIKE ?)"
+        params = (date_filter, "%Đông%", "%Đông%")
+    elif "MÁT" in wh_upper and "ĐÔNG" not in wh_upper:
+        cat_clause = "(item_type LIKE ? OR item_name LIKE ?)"
+        params = (date_filter, "%Mát%", "%Mát%")
+    elif "BÌNH TÂN" in wh_upper or "ĐÔNG MÁT" in wh_upper or wh_code == "DM":
+        cat_clause = "(item_type LIKE ? OR item_name LIKE ? OR item_type LIKE ? OR item_name LIKE ?)"
+        params = (date_filter, "%Đông%", "%Đông%", "%Mát%", "%Mát%")
+    else:
+        cat_clause = "1=1"
+        params = (date_filter,)
     
-    cursor.execute("""
+    cursor.execute(f"""
         SELECT COUNT(*), SUM(qty_diff), SUM(total_amount), SUM(kho_amount)
         FROM sheet_audit_records
-        WHERE transfer_date LIKE ? AND (item_type LIKE ? OR item_name LIKE ?)
-    """, (date_filter, cat_kw, cat_kw))
+        WHERE transfer_date LIKE ? AND {cat_clause}
+    """, params)
     res = cursor.fetchone()
     
     count_cases = res[0] or 0
@@ -1183,8 +1368,24 @@ def api_documents_auto_fill():
     total_amt = round(res[2] or 0.0, 0)
     
     if total_amt == 0:
-        total_qty = 3191 if "MEAT" in warehouse.upper() else 2500
-        total_amt = 170618353 if "MEAT" in warehouse.upper() else 125000000
+        if "MEAT" in wh_upper:
+            total_qty = 3191
+            total_amt = 170618353
+        elif "SEEDLOG" in wh_upper or "TỔNG" in wh_upper:
+            total_qty = 3324
+            total_amt = 94434064
+        elif "RAU" in wh_upper:
+            total_qty = 4592.4
+            total_amt = 84084551
+        elif "ĐÔNG" in wh_upper and "MÁT" not in wh_upper:
+            total_qty = 1500
+            total_amt = 120500000
+        elif "MÁT" in wh_upper and "ĐÔNG" not in wh_upper:
+            total_qty = 1000
+            total_amt = 88292989
+        else:
+            total_qty = 2500
+            total_amt = 208792989
         
     conn.close()
     return jsonify({
@@ -1194,6 +1395,7 @@ def api_documents_auto_fill():
         'invoices': [],
         'total_qty': total_qty,
         'total_amount': total_amt,
+        'suggested_date': f"31/{month}/{year}",
         'words': num_to_vietnamese_words(total_amt)
     })
 
@@ -1432,15 +1634,8 @@ def api_prepare_batch_alerts():
     batch_list = []
     
     if template_type == 1:
-        # 1. Remind done phiếu hậu kiểm KRC & KRCBT (status = 1: Cần hậu kiểm)
-        from kingfood_api import get_headers, KRC_BRANCH_ID
-        import urllib.request, json
-        try:
-            req_url = f"https://api.kingfood.co/v1/transfers/double-check?from_branch_id={KRC_BRANCH_ID}&status=1&limit=100"
-            req = urllib.request.Request(req_url, headers=get_headers())
-            with urllib.request.urlopen(req, timeout=8) as r_resp:
-                hk_data = json.loads(r_resp.read().decode('utf-8'))
-                hk_items = hk_data.get('data', [])
+        # 1. Remind done phiếu hậu kiểm KRC & KRCBT (đã dừng truy cập KDB theo yêu cầu)
+        hk_items = []
 
 
 
@@ -1774,7 +1969,9 @@ def api_sheet_config():
 def api_sheet_sync():
     from sheet_sync import sync_sheet_data
     try:
-        res = sync_sheet_data()
+        data = request.get_json(silent=True) or {}
+        full = request.args.get('full') == '1' or data.get('full', False)
+        res = sync_sheet_data(include_historical=True if full else None)
         return jsonify(res)
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -2618,6 +2815,53 @@ def api_sheet_top_stores():
     return jsonify(top)
 
 
+# ================================================================
+# TELEGRAM AUTH & REALTIME LISTENER LIFECYCLE APIS
+# ================================================================
+import telegram_auth_manager as tam
+
+@app.route('/api/telegram/status')
+def api_telegram_status():
+    force = request.args.get('refresh', '0') == '1'
+    return jsonify(tam.get_telegram_status(force_refresh=force))
+
+@app.route('/api/telegram/send_code', methods=['POST'])
+def api_telegram_send_code():
+    data = request.get_json() or {}
+    phone = data.get('phone', '').strip()
+    res = tam.request_phone_code(phone)
+    return jsonify(res)
+
+@app.route('/api/telegram/verify_code', methods=['POST'])
+def api_telegram_verify_code():
+    data = request.get_json() or {}
+    phone = data.get('phone', '').strip()
+    code = data.get('code', '').strip()
+    password = data.get('password', '').strip()
+    res = tam.verify_phone_code(phone, code, password)
+    return jsonify(res)
+
+@app.route('/api/telegram/qr_init')
+def api_telegram_qr_init():
+    res = tam.start_qr_session()
+    return jsonify(res)
+
+@app.route('/api/telegram/qr_status')
+def api_telegram_qr_status():
+    res = tam.get_qr_state()
+    return jsonify(res)
+
+@app.route('/api/telegram/launch_desktop', methods=['POST'])
+def api_telegram_launch_desktop():
+    ok = tam.launch_desktop_login()
+    return jsonify({'success': ok})
+
+@app.route('/api/telegram/start_listener', methods=['POST'])
+def api_telegram_start_listener():
+    ok = tam.start_listener_process()
+    return jsonify({'success': ok})
+
+
 @app.route('/api/export')
 def api_export():
     conn = get_db_connection()
@@ -2812,6 +3056,17 @@ if __name__ == '__main__':
     init_db()
     start_background_sheet_sync()
     import threading
+    def _tele_supervisor():
+        time.sleep(3)
+        while True:
+            try:
+                st = tam.get_telegram_status()
+                if st.get('is_authorized') and not st.get('is_running'):
+                    tam.start_listener_process()
+            except Exception:
+                pass
+            time.sleep(15)
+    threading.Thread(target=_tele_supervisor, daemon=True).start()
     threading.Thread(target=background_github_push_loop, daemon=True).start()
 
     print("================================================================")

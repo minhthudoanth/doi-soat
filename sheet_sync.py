@@ -147,91 +147,122 @@ def parse_num(val):
     except:
         return 0.0
 
-def sync_sheet_data():
+HISTORICAL_SHEETS = [
+    {
+        'id': 'T05_2026',
+        'name': 'Đối Soát Kho Rau tháng 05.2026 (25.04 - 25.05.2026)',
+        'sheet_id': '1suHerEzgKzxB7g1UbrGIZPNaxK5a96xFnmxcIQywpko',
+        'gid': '1422896115'
+    },
+    {
+        'id': 'T06_2026',
+        'name': 'Đối Soát Kho Rau tháng 06.2026 (26.05 - 24.06.2026)',
+        'sheet_id': '1065akVGAsBNjONniCS6ccU_mmsRFXb663_Qms8U053Q',
+        'gid': '1422896115'
+    },
+    {
+        'id': 'T07_2026',
+        'name': 'Đối Soát Kho Rau tháng 25.06.2026 - 07.2026',
+        'sheet_id': '1wdbowphojL8YULVlPwDHK-hofacdt6J5K_PFZbWz-as',
+        'gid': '1422896115'
+    },
+    {
+        'id': 'T08_2026',
+        'name': 'Đối Soát Kho Rau tháng 08.2026',
+        'sheet_id': '1vPHHrZf5prEgE_09j_RbQQC1gNWhUmV0Q6aah6Z3mjQ',
+        'gid': '1422896115'
+    }
+]
+
+def parse_row_to_record(r):
+    if len(r) < 10:
+        return None
+    transfer_date = r[1].strip() if len(r) > 1 else ""
+    store_id = r[3].strip() if len(r) > 3 else ""
+    sku_code = r[4].strip() if len(r) > 4 else ""
+    pt_transfer = r[10].strip() if len(r) > 10 else ""
+    
+    nguoi_xu_ly = r[0].strip() if len(r) > 0 else ""
+    branch_name = r[2].strip() if len(r) > 2 else ""
+    item_name = r[5].strip() if len(r) > 5 else ""
+    uom = r[6].strip() if len(r) > 6 else ""
+    qty_transfer = parse_num(r[7]) if len(r) > 7 else 0.0
+    qty_receive = parse_num(r[8]) if len(r) > 8 else 0.0
+    qty_diff = parse_num(r[9]) if len(r) > 9 else 0.0
+    box_code = r[11].strip() if len(r) > 11 else ""
+    to_code = r[12].strip() if len(r) > 12 else ""
+    qty_loss = parse_num(r[13]) if len(r) > 13 else 0.0
+    qty_return_st = parse_num(r[14]) if len(r) > 14 else 0.0
+    qty_diff_cxd = parse_num(r[15]) if len(r) > 15 else 0.0
+    pt_return_st = r[16].strip() if len(r) > 16 else ""
+    pt_return_dc = r[17].strip() if len(r) > 17 else ""
+    pt_dc_pick_du = r[18].strip() if len(r) > 18 else ""
+    note = r[19].strip() if len(r) > 19 else ""
+    status = r[20].strip() if len(r) > 20 else ""
+    error_type = r[21].strip() if len(r) > 21 else ""
+    loss_type = r[22].strip() if len(r) > 22 else ""
+    st_responsible = r[23].strip() if len(r) > 23 else ""
+    kho_responsible = r[24].strip() if len(r) > 24 else ""
+    process_status = r[25].strip() if len(r) > 25 else "Đang xử lý"
+    image_link = r[26].strip() if len(r) > 26 else ""
+    dc_confirm = r[27].strip() if len(r) > 27 else ""
+    dc_note = r[28].strip() if len(r) > 28 else ""
+    kfm_response = r[29].strip() if len(r) > 29 else ""
+    kfm_note = r[30].strip() if len(r) > 30 else ""
+    item_type = r[31].strip() if len(r) > 31 else ""
+    package_type = r[32].strip() if len(r) > 32 else ""
+    loss_percent = r[33].strip() if len(r) > 33 else ""
+    unit_price = parse_num(r[34]) if len(r) > 34 else 0.0
+    total_amount = parse_num(r[35]) if len(r) > 35 else 0.0
+    loss_amount = parse_num(r[36]) if len(r) > 36 else 0.0
+    st_amount = parse_num(r[37]) if len(r) > 37 else 0.0
+    kho_amount = parse_num(r[38]) if len(r) > 38 else 0.0
+    cxd_amount = parse_num(r[39]) if len(r) > 39 else 0.0
+    gsm = r[40].strip() if len(r) > 40 else ""
+    rsm = r[41].strip() if len(r) > 41 else ""
+    area = r[42].strip() if len(r) > 42 else ""
+    pho_note = r[43].strip() if len(r) > 43 else ""
+    shipping_schedule = r[44].strip() if len(r) > 44 else ""
+    clv3 = r[45].strip() if len(r) > 45 else ""
+    clv4 = r[46].strip() if len(r) > 46 else ""
+    
+    key = (transfer_date, store_id, pt_transfer, sku_code)
+    record = (
+        nguoi_xu_ly, transfer_date, branch_name, store_id, sku_code, item_name, uom,
+        qty_transfer, qty_receive, qty_diff, pt_transfer, box_code, to_code,
+        qty_loss, qty_return_st, qty_diff_cxd, pt_return_st, pt_return_dc, pt_dc_pick_du,
+        note, status, error_type, loss_type, st_responsible, kho_responsible,
+        process_status, image_link, dc_confirm, dc_note, kfm_response, kfm_note, item_type, package_type,
+        loss_percent, unit_price, total_amount, loss_amount, st_amount, kho_amount, cxd_amount,
+        gsm, rsm, area, pho_note, shipping_schedule, clv3, clv4
+    )
+    return key, record
+
+def fetch_sheet_csv(url):
+    req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+    with urllib.request.urlopen(req, timeout=40) as resp:
+        content = resp.read().decode('utf-8', errors='ignore')
+    reader = csv.reader(io.StringIO(content))
+    rows = list(reader)
+    return rows[3:] if len(rows) > 3 else []
+
+def sync_sheet_data(include_historical=None):
     init_sheet_db()
     current_url = get_sheet_url()
     csv_url = parse_csv_export_url(current_url)
-    print(f"[*] Đang tải dữ liệu từ Google Sheet: {csv_url}", flush=True)
-    
-    req = urllib.request.Request(csv_url, headers={'User-Agent': 'Mozilla/5.0'})
-    with urllib.request.urlopen(req, timeout=30) as resp:
-        content = resp.read().decode('utf-8')
 
-        
-    reader = csv.reader(io.StringIO(content))
-    rows = list(reader)
-    
-    if len(rows) < 3:
-        print("[!] File Sheet rỗng hoặc không đúng định dạng!", flush=True)
-        return {"success": False, "count": 0}
-        
-    header = rows[2]
-    data_rows = rows[3:]
-    
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    cursor.execute("DELETE FROM sheet_audit_records")
-    
-    inserted = 0
-    batch = []
-    
-    for r in data_rows:
-        if len(r) < 10:
-            continue
-            
-        nguoi_xu_ly = r[0].strip() if len(r) > 0 else ""
-        transfer_date = r[1].strip() if len(r) > 1 else ""
-        branch_name = r[2].strip() if len(r) > 2 else ""
-        store_id = r[3].strip() if len(r) > 3 else ""
-        sku_code = r[4].strip() if len(r) > 4 else ""
-        item_name = r[5].strip() if len(r) > 5 else ""
-        uom = r[6].strip() if len(r) > 6 else ""
-        
-        qty_transfer = parse_num(r[7]) if len(r) > 7 else 0.0
-        qty_receive = parse_num(r[8]) if len(r) > 8 else 0.0
-        qty_diff = parse_num(r[9]) if len(r) > 9 else 0.0
-        
-        pt_transfer = r[10].strip() if len(r) > 10 else ""
-        box_code = r[11].strip() if len(r) > 11 else ""
-        to_code = r[12].strip() if len(r) > 12 else ""
-        
-        qty_loss = parse_num(r[13]) if len(r) > 13 else 0.0
-        qty_return_st = parse_num(r[14]) if len(r) > 14 else 0.0
-        qty_diff_cxd = parse_num(r[15]) if len(r) > 15 else 0.0
-        
-        pt_return_st = r[16].strip() if len(r) > 16 else ""
-        pt_return_dc = r[17].strip() if len(r) > 17 else ""
-        pt_dc_pick_du = r[18].strip() if len(r) > 18 else ""
-        note = r[19].strip() if len(r) > 19 else ""
-        status = r[20].strip() if len(r) > 20 else ""
-        error_type = r[21].strip() if len(r) > 21 else ""
-        loss_type = r[22].strip() if len(r) > 22 else ""
-        st_responsible = r[23].strip() if len(r) > 23 else ""
-        kho_responsible = r[24].strip() if len(r) > 24 else ""
-        process_status = r[25].strip() if len(r) > 25 else "Đang xử lý"
-        image_link = r[26].strip() if len(r) > 26 else ""
-        dc_confirm = r[27].strip() if len(r) > 27 else ""
-        dc_note = r[28].strip() if len(r) > 28 else ""
-        kfm_response = r[29].strip() if len(r) > 29 else ""
-        kfm_note = r[30].strip() if len(r) > 30 else ""
-        item_type = r[31].strip() if len(r) > 31 else ""
-        package_type = r[32].strip() if len(r) > 32 else ""
-        loss_percent = r[33].strip() if len(r) > 33 else ""
-        unit_price = parse_num(r[34]) if len(r) > 34 else 0.0
-        total_amount = parse_num(r[35]) if len(r) > 35 else 0.0
-        loss_amount = parse_num(r[36]) if len(r) > 36 else 0.0
-        st_amount = parse_num(r[37]) if len(r) > 37 else 0.0
-        kho_amount = parse_num(r[38]) if len(r) > 38 else 0.0
-        cxd_amount = parse_num(r[39]) if len(r) > 39 else 0.0
-        gsm = r[40].strip() if len(r) > 40 else ""
-        rsm = r[41].strip() if len(r) > 41 else ""
-        area = r[42].strip() if len(r) > 42 else ""
-        pho_note = r[43].strip() if len(r) > 43 else ""
-        shipping_schedule = r[44].strip() if len(r) > 44 else ""
-        clv3 = r[45].strip() if len(r) > 45 else ""
-        clv4 = r[46].strip() if len(r) > 46 else ""
-        
-        batch.append((
+
+    cursor.execute("SELECT COUNT(*) FROM sheet_audit_records")
+    existing_count = cursor.fetchone()[0]
+
+    # If historical data is missing (< 10,000 rows), force include_historical=True
+    if include_historical is None:
+        include_historical = (existing_count < 10000)
+
+    insert_sql = """
+        INSERT INTO sheet_audit_records (
             nguoi_xu_ly, transfer_date, branch_name, store_id, sku_code, item_name, uom,
             qty_transfer, qty_receive, qty_diff, pt_transfer, box_code, to_code,
             qty_loss, qty_return_st, qty_diff_cxd, pt_return_st, pt_return_dc, pt_dc_pick_du,
@@ -239,47 +270,80 @@ def sync_sheet_data():
             process_status, image_link, dc_confirm, dc_note, kfm_response, kfm_note, item_type, package_type,
             loss_percent, unit_price, total_amount, loss_amount, st_amount, kho_amount, cxd_amount,
             gsm, rsm, area, pho_note, shipping_schedule, clv3, clv4
-        ))
-        
-        if len(batch) >= 1000:
-            cursor.executemany("""
-                INSERT INTO sheet_audit_records (
-                    nguoi_xu_ly, transfer_date, branch_name, store_id, sku_code, item_name, uom,
-                    qty_transfer, qty_receive, qty_diff, pt_transfer, box_code, to_code,
-                    qty_loss, qty_return_st, qty_diff_cxd, pt_return_st, pt_return_dc, pt_dc_pick_du,
-                    note, status, error_type, loss_type, st_responsible, kho_responsible,
-                    process_status, image_link, dc_confirm, dc_note, kfm_response, kfm_note, item_type, package_type,
-                    loss_percent, unit_price, total_amount, loss_amount, st_amount, kho_amount, cxd_amount,
-                    gsm, rsm, area, pho_note, shipping_schedule, clv3, clv4
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, batch)
-            inserted += len(batch)
-            batch = []
-            
-    if batch:
-        cursor.executemany("""
-            INSERT INTO sheet_audit_records (
-                nguoi_xu_ly, transfer_date, branch_name, store_id, sku_code, item_name, uom,
-                qty_transfer, qty_receive, qty_diff, pt_transfer, box_code, to_code,
-                qty_loss, qty_return_st, qty_diff_cxd, pt_return_st, pt_return_dc, pt_dc_pick_du,
-                note, status, error_type, loss_type, st_responsible, kho_responsible,
-                process_status, image_link, dc_confirm, dc_note, kfm_response, kfm_note, item_type, package_type,
-                loss_percent, unit_price, total_amount, loss_amount, st_amount, kho_amount, cxd_amount,
-                gsm, rsm, area, pho_note, shipping_schedule, clv3, clv4
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, batch)
-        inserted += len(batch)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """
 
-        
-    conn.commit()
+    if include_historical:
+        print("[*] Đang thực hiện ĐỒNG BỘ TOÀN DIỆN đa tháng (Tháng 05, 06, 07, 08, 09)...", flush=True)
+        records_by_key = {}
+
+        # 1. Nạp các sheet lịch sử trước
+        for h_cfg in HISTORICAL_SHEETS:
+            h_url = f"https://docs.google.com/spreadsheets/d/{h_cfg['sheet_id']}/export?format=csv&gid={h_cfg['gid']}"
+            try:
+                print(f"[*] Đang tải {h_cfg['name']}...", flush=True)
+                rows = fetch_sheet_csv(h_url)
+                for r in rows:
+                    res = parse_row_to_record(r)
+                    if res:
+                        records_by_key[res[0]] = res[1]
+                print(f"    -> Đã nạp {len(rows):,} dòng từ {h_cfg['name']}.", flush=True)
+            except Exception as e:
+                print(f"[!] Lỗi tải sheet {h_cfg['name']}: {e}", flush=True)
+
+        # 2. Nạp sheet tháng hiện tại (ghi đè nếu trùng key)
+        try:
+            print(f"[*] Đang tải sheet tháng hiện tại: {csv_url}...", flush=True)
+            curr_rows = fetch_sheet_csv(csv_url)
+            for r in curr_rows:
+                res = parse_row_to_record(r)
+                if res:
+                    records_by_key[res[0]] = res[1]
+            print(f"    -> Đã nạp {len(curr_rows):,} dòng từ sheet hiện tại.", flush=True)
+        except Exception as e:
+            print(f"[!] Lỗi tải sheet hiện tại: {e}", flush=True)
+
+        # 3. Lưu toàn bộ vào database
+        cursor.execute("DELETE FROM sheet_audit_records")
+        all_vals = list(records_by_key.values())
+        batch_size = 2000
+        for i in range(0, len(all_vals), batch_size):
+            cursor.executemany(insert_sql, all_vals[i:i+batch_size])
+        conn.commit()
+        inserted = len(all_vals)
+        print(f"[*] Hoàn tất đồng bộ toàn diện: {inserted:,} dòng đối soát lưu thành công!", flush=True)
+    else:
+        # Quick sync: chỉ làm mới các ngày có trong sheet hiện tại, giữ nguyên các tháng cũ
+        print(f"[*] Đang cập nhật nhanh sheet hiện tại: {csv_url}...", flush=True)
+        try:
+            curr_rows = fetch_sheet_csv(csv_url)
+            current_records = []
+            active_dates = set()
+            for r in curr_rows:
+                res = parse_row_to_record(r)
+                if res:
+                    current_records.append(res[1])
+                    if res[0][0]:
+                        active_dates.add(res[0][0])
+            
+            if active_dates:
+                placeholders = ','.join('?' for _ in active_dates)
+                cursor.execute(f"DELETE FROM sheet_audit_records WHERE transfer_date IN ({placeholders})", list(active_dates))
+            
+            batch_size = 2000
+            for i in range(0, len(current_records), batch_size):
+                cursor.executemany(insert_sql, current_records[i:i+batch_size])
+            conn.commit()
+            inserted = len(current_records)
+            print(f"[*] Cập nhật nhanh thành công {inserted:,} dòng cho {len(active_dates)} ngày hoạt động!", flush=True)
+        except Exception as e:
+            print(f"[!] Lỗi cập nhật nhanh: {e}", flush=True)
+            conn.close()
+            return {"success": False, "error": str(e)}
+
     conn.close()
-    
-    print(f"[*] Đồng bộ Google Sheet thành công: Đã lưu {inserted} dòng đối soát!", flush=True)
-    
-    # Đồng bộ luôn tab DS ST
     sync_ds_st_data()
-    
-    return {"success": True, "count": inserted}
+    return {"success": True, "count": inserted, "full_sync": include_historical}
 
 def init_ds_st_db():
     conn = sqlite3.connect(DB_PATH)
@@ -306,16 +370,24 @@ def init_ds_st_db():
 
 def sync_ds_st_data():
     """
-    Tự động đồng bộ toàn bộ Danh Sách Siêu Thị (Tab 'DS ST') từ Google Sheet
+    Tự động đồng bộ toàn bộ Danh Sách Siêu Thị KFM_HCM và các cấp quản lý (SM, GSM, RSM)
+    trực tiếp từ hệ thống Master Data next.kingfood.co
     """
     init_ds_st_db()
+    # Đã tắt truy cập KDB theo yêu cầu người dùng
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("SELECT COUNT(*) FROM sheet_store_list")
+    existing_cnt = cursor.fetchone()[0]
+    conn.close()
+    if existing_cnt > 0:
+        return {"success": True, "count": existing_cnt, "source": "local_sqlite"}
+
+    # Dự phòng từ Google Sheet (Tab DS ST)
     current_url = get_sheet_url()
     match_id = re.search(r"/spreadsheets/d/([a-zA-Z0-9-_]+)", current_url)
     sheet_id = match_id.group(1) if match_id else "1XBNLjZLsgaaHDBqVKsbCSYhzD4v-4qMA6rjGXGG4ThM"
-    
-    # URL export CSV cho tab DS ST (gid 1343221916)
     ds_st_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&gid=1343221916"
-    print(f"[*] Đang đồng bộ Danh Sách Siêu Thị (Tab DS ST): {ds_st_url}", flush=True)
     
     try:
         req = urllib.request.Request(ds_st_url, headers={'User-Agent': 'Mozilla/5.0'})
@@ -336,6 +408,8 @@ def sync_ds_st_data():
             if not r or not r[0].strip():
                 continue
             st_name = r[0].strip()
+            if not st_name.startswith('KFM_HCM'):
+                continue
             id_mart = r[1].strip() if len(r) > 1 else ""
             spam = r[2].strip() if len(r) > 2 else ""
             r2 = r[3].strip() if len(r) > 3 else ""
@@ -356,10 +430,10 @@ def sync_ds_st_data():
             
         conn.commit()
         conn.close()
-        print(f"[*] Đồng bộ DS ST thành công: Đã lưu {len(batch)} siêu thị vào CSDL!", flush=True)
-        return {"success": True, "count": len(batch)}
+        print(f"[*] Đồng bộ DS ST dự phòng thành công: Đã lưu {len(batch)} siêu thị vào CSDL!", flush=True)
+        return {"success": True, "count": len(batch), "source": "google_sheet"}
     except Exception as e:
-        print(f"[!] Lỗi đồng bộ DS ST: {e}", flush=True)
+        print(f"[!] Lỗi đồng bộ DS ST dự phòng: {e}", flush=True)
         return {"success": False, "error": str(e)}
 
 def is_target_produce_or_bakery(cates, pname):
@@ -451,161 +525,26 @@ def sync_inventory_from_sheet():
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
-        
-        cursor.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_inv_unique ON store_inventory_records (date, store_id, barcode)")
-        cursor.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_neg_unique ON store_negative_stock_records (date, store_id, barcode)")
-
-        cursor.execute("SELECT store_id, store_name FROM sheet_store_list")
-        store_map = {r[0]: r[1] for r in cursor.fetchall()}
-        
-        nang_ton_rows = []
-        am_ton_rows = []
-        seen_keys = set()
-
-        # 1. Thử lấy từ Kingfood API nếu có token hợp lệ
-        try:
-            print("[*] Đang đồng bộ dữ liệu Kiểm Kê (Rau, Củ, Quả, Bánh, Trái Cây) từ 01/08/2026 đến nay...", flush=True)
-            from concurrent.futures import ThreadPoolExecutor, as_completed
-            
-            target_stocktakes = []
-            skip = 0
-            limit = 200
-            reach_end = False
-
-            while skip < 3000 and not reach_end:
-                url = f'https://api.kingfood.co/v1/stocktakes?status=5&sort_by=created_at&sort_type=-1&limit={limit}&skip={skip}'
-                try:
-                    req = urllib.request.Request(url, headers=get_headers())
-                    with urllib.request.urlopen(req, timeout=12) as resp:
-                        st_data = json.loads(resp.read().decode('utf-8'))
-                        st_list = st_data.get('items', [])
-                        if not st_list:
-                            break
-                        for st in st_list:
-                            dt = (st.get('created_at') or st.get('completed_at') or '')[:10]
-                            if dt and dt < '2026-08-01':
-                                reach_end = True
-                                break
-                            if st.get('total_sku', 0) > 0:
-                                target_stocktakes.append(st)
-                        if reach_end:
-                            break
-                    skip += limit
-                except Exception as e:
-                    print(f"[*] Lỗi duyệt trang phiếu kiểm kê skip={skip}: {e}", flush=True)
-                    break
-
-            def process_st(st):
-                st_id = st.get('id')
-                st_code = st.get('code', '')
-                created_at_str = st.get('created_at') or st.get('completed_at') or ''
-                date_iso = datetime.now().strftime('%Y-%m-%d')
-                if created_at_str:
-                    try:
-                        dt = datetime.fromisoformat(created_at_str.replace('Z', '+00:00')) + timedelta(hours=7)
-                        date_iso = dt.strftime('%Y-%m-%d')
-                    except Exception:
-                        pass
-                store_code = ''
-                m = re.search(r'^\d{6}-([A-Za-z0-9]+)-', st_code)
-                if m:
-                    store_code = m.group(1)
-                else:
-                    store_code = st.get('branch_id', '')[:8]
-                store_name = store_map.get(store_code, f"KFM_{store_code}")
-
-                lines_url = f'https://api.kingfood.co/v1/stocktakes/lines?stocktake_id={st_id}&limit=100'
-                res_items = []
-                try:
-                    r_lines = urllib.request.Request(lines_url, headers=get_headers())
-                    with urllib.request.urlopen(r_lines, timeout=8) as res_l:
-                        l_data = json.loads(res_l.read().decode('utf-8'))
-                        for line in l_data.get('items', []):
-                            bcode = str(line.get('barcode') or '').strip()
-                            pname = str(line.get('name') or '').strip()
-                            if not bcode or not pname:
-                                continue
-                            cates = line.get('cates', [])
-                            is_tgt, cat_name = is_target_produce_or_bakery(cates, pname)
-                            if not is_tgt:
-                                continue
-                            diff_q = float(line.get('diff_quantity') or 0.0)
-                            stock_q = float(line.get('stock_quantity') or 0.0)
-                            actual_q = float(line.get('actual_stock_quantity') or 0.0)
-                            diff_v = float(line.get('diff_value') or 0.0)
-                            cost = float(line.get('cost') or 0.0)
-                            price = float(line.get('price') or 0.0)
-                            res_items.append((date_iso, store_code, store_name, st_code, bcode, pname, cat_name, stock_q, diff_q, diff_v, cost, price, actual_q))
-                except Exception:
-                    pass
-                return res_items
-
-            with ThreadPoolExecutor(max_workers=8) as executor:
-                futures = [executor.submit(process_st, st) for st in target_stocktakes]
-                for f in as_completed(futures):
-                    items = f.result()
-                    for (date_iso, store_code, store_name, st_code, bcode, pname, cat_name, stock_q, diff_q, diff_v, cost, price, actual_q) in items:
-                        key = (date_iso, store_code, bcode)
-                        if key in seen_keys:
-                            continue
-                        seen_keys.add(key)
-                        if diff_v <= 0 and diff_q > 0:
-                            diff_v = diff_q * (cost if cost > 0 else price)
-                        if diff_q > 0:
-                            audit_note = f"Phiếu KK {st_code} (Sổ sách: {stock_q} -> Thực tế: {actual_q})"
-                            status_lbl = "Bất thường" if diff_v > 200000 else ("Cần lưu ý" if diff_v > 50000 else "Đã kiểm kê")
-                            nang_ton_rows.append((
-                                date_iso, store_code, store_name, bcode, bcode, pname, cat_name,
-                                stock_q, diff_q, round(diff_v, 0), 0.0, 0.0, 0.0, actual_q,
-                                audit_note, status_lbl
-                            ))
-                        if stock_q < 0:
-                            neg_val = abs(stock_q) * (cost if cost > 0 else price)
-                            neg_note = f"Tồn sổ sách bị âm ({stock_q}) trước khi kiểm kê {st_code}"
-                            am_ton_rows.append((
-                                date_iso, store_code, store_name, bcode, bcode, pname, cat_name,
-                                abs(stock_q), round(neg_val, 0), stock_q, neg_note, "Cần bù tồn"
-                            ))
-        except Exception as api_err:
-            print(f"[*] Kingfood API Stocktakes: {api_err}", flush=True)
-
-        # Lưu vào Database: chỉ lưu khi có dữ liệu kiểm kê thực tế, KHÔNG lấy từ phiếu chuyển
-        cursor.execute("DELETE FROM store_inventory_records")
-        cursor.execute("DELETE FROM store_negative_stock_records")
-        
-        if nang_ton_rows:
-            cursor.executemany("""
-                INSERT INTO store_inventory_records (
-                    date, store_id, store_name, barcode, sku, product_name, category_name,
-                    opening_stock, stocktake_in_qty, stocktake_in_value, stocktake_out_qty, stocktake_out_value, damage_qty, closing_stock,
-                    audit_note, status
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, nang_ton_rows)
-            
-        if am_ton_rows:
-            cursor.executemany("""
-                INSERT INTO store_negative_stock_records (
-                    date, store_id, store_name, barcode, sku, product_name, category_name,
-                    negative_qty, negative_value, closing_stock, reason, status
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, am_ton_rows)
-        conn.commit()
+        # Đã dừng truy cập KDB theo yêu cầu người dùng
+        cursor.execute("SELECT COUNT(*) FROM store_inventory_records")
+        cnt_nang = cursor.fetchone()[0]
+        cursor.execute("SELECT COUNT(*) FROM store_negative_stock_records")
+        cnt_am = cursor.fetchone()[0]
         conn.close()
-        print(f"[*] Đồng bộ tồn kho hoàn tất từ 01/08/2026 đến nay: {len(nang_ton_rows)} mã KK Nâng Tồn (+), {len(am_ton_rows)} mã Âm Tồn (-) thuộc Rau, Củ, Quả, Bánh, Trái Cây.", flush=True)
-        return {"success": True, "increase_count": len(nang_ton_rows), "negative_count": len(am_ton_rows)}
+        return {"success": True, "increase_count": cnt_nang, "negative_count": cnt_am, "source": "local_sqlite"}
     except Exception as e:
         print(f"[!] Lỗi sync_inventory_from_sheet: {e}", flush=True)
         return {"success": False, "error": str(e)}
 
 
-DEFAULT_INVOICE_SHEET_URL = "https://docs.google.com/spreadsheets/d/1YfpVHQbowoSj6lN-8KW0d1UmCKy4sy2PesB7g9yNG4M/export?format=csv&gid=0"
+DEFAULT_INVOICE_SHEET_URL = "https://docs.google.com/spreadsheets/d/1WfXxYmuc8gY0BUMMM2lABFUvYkjZjgdbTi3dQBrIpVo/export?format=csv&gid=0"
 
 def sync_claim_invoices_from_sheet(sheet_url=None):
     if not sheet_url:
         sheet_url = DEFAULT_INVOICE_SHEET_URL
     elif "export?format=csv" not in sheet_url:
         match_id = re.search(r"/spreadsheets/d/([a-zA-Z0-9-_]+)", sheet_url)
-        sheet_id = match_id.group(1) if match_id else "1YfpVHQbowoSj6lN-8KW0d1UmCKy4sy2PesB7g9yNG4M"
+        sheet_id = match_id.group(1) if match_id else "1WfXxYmuc8gY0BUMMM2lABFUvYkjZjgdbTi3dQBrIpVo"
         match_gid = re.search(r"gid=([0-9]+)", sheet_url)
         gid = match_gid.group(1) if match_gid else "0"
         sheet_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&gid={gid}"
@@ -614,7 +553,7 @@ def sync_claim_invoices_from_sheet(sheet_url=None):
     try:
         req = urllib.request.Request(sheet_url, headers={'User-Agent': 'Mozilla/5.0'})
         with urllib.request.urlopen(req, timeout=30) as response:
-            content = response.read().decode('utf-8')
+            content = response.read().decode('utf-8', errors='replace')
 
         reader = csv.reader(io.StringIO(content))
         rows = list(reader)
@@ -642,46 +581,125 @@ def sync_claim_invoices_from_sheet(sheet_url=None):
         """)
         cursor.execute("DELETE FROM warehouse_claim_invoices")
 
-        current_month = "07"
-        current_wh = "MF"
         invoices_to_insert = []
+        is_master_format = len(rows[1]) >= 20
 
-        for r in rows[1:]:
-            if not any(r): continue
-            month_val = r[0].strip() if len(r) > 0 else ""
-            wh_val = r[1].strip() if len(r) > 1 else ""
-            date_val = r[2].strip() if len(r) > 2 else ""
-            content_val = r[3].strip() if len(r) > 3 else ""
-            co_val = r[4].strip() if len(r) > 4 else ""
-            pre_tax_str = r[5].strip().replace(',', '') if len(r) > 5 else "0"
-            post_tax_str = r[6].strip().replace(',', '') if len(r) > 6 else "0"
+        if is_master_format:
+            # MASTER FORMAT (28 COLUMNS)
+            # Row 0: Metadata/empty, Row 1: Header, Data starts at Row 2
+            for r in rows[2:]:
+                if not any(c.strip() for c in r): continue
+                desc = r[4].strip() if len(r) > 4 else ""
+                so_hd = r[7].strip() if len(r) > 7 else ""
+                ngay_hd = r[8].strip() if len(r) > 8 else ""
+                mat_hang = r[12].strip() if len(r) > 12 else ""
+                co_val = r[13].strip() if len(r) > 13 else ""
+                # Tạm thời bỏ qua cột 14 (Kho) theo yêu cầu: "lấy số liệu theo tên kho, tạm thời bỏ qua cột kho nhé"
+                pre_tax_str = r[17].strip().replace(',', '') if len(r) > 17 else "0"
+                post_tax_str = r[20].strip().replace(',', '') if len(r) > 20 else "0"
+                thang_col = r[24].strip() if len(r) > 24 else ""
 
-            if month_val:
-                current_month = month_val.zfill(2)
-            if wh_val:
-                current_wh = wh_val
+                try:
+                    pre_tax = float(pre_tax_str) if pre_tax_str else 0.0
+                except:
+                    pre_tax = 0.0
 
-            try:
-                pre_tax = float(pre_tax_str) if pre_tax_str else 0.0
-            except:
-                pre_tax = 0.0
+                try:
+                    post_tax = float(post_tax_str) if post_tax_str else 0.0
+                except:
+                    post_tax = 0.0
 
-            try:
-                post_tax = float(post_tax_str) if post_tax_str else 0.0
-            except:
-                post_tax = 0.0
+                # Determine warehouse code & name dựa hoàn toàn vào TÊN KHO trong Description & Mặt hàng
+                full_text = f"{desc} {mat_hang}".upper()
+                if any(k in full_text for k in ['MEATFISH', 'THỊT CÁ', 'THIT CA', 'MEAT FISH', 'ABA THỊT CÁ', 'THỊT', 'MEAT']):
+                    wh_code = "MF"
+                    wh_name = "KHO MEATFISH"
+                elif any(k in full_text for k in ['RAU CỦ', 'RAU CU', 'KRC', 'KHO RAU', 'BÁNH TƯƠI', 'RAU']):
+                    wh_code = "RC"
+                    wh_name = "KHO RAU CỦ"
+                elif any(k in full_text for k in ['SEEDLOG', 'SEEDCOM', 'KHO TỔNG', 'HẬU KIỂM', 'HAU KIEM', 'SLG', 'MÙA VỤ', 'MUA VU', 'DC ']):
+                    wh_code = "SL"
+                    wh_name = "KHO TỔNG (SEEDLOG)"
+                elif 'KHO ĐÔNG' in full_text or 'HÀNG ĐÔNG' in full_text or ('ĐÔNG' in full_text and 'MÁT' not in full_text and 'MIỀN ĐÔNG' not in full_text):
+                    wh_code = "KD"
+                    wh_name = "KHO ĐÔNG"
+                elif 'KHO MÁT' in full_text or 'HÀNG MÁT' in full_text or ('MÁT' in full_text and 'ĐÔNG' not in full_text):
+                    wh_code = "KM"
+                    wh_name = "KHO MÁT"
+                elif 'ABA' in full_text or 'BÌNH TÂN' in full_text or 'BINH TAN' in full_text:
+                    wh_code = "DM"
+                    wh_name = "KHO ĐÔNG MÁT (ABA BÌNH TÂN)"
+                elif 'ITL' in full_text:
+                    wh_code = "ITL"
+                    wh_name = "KHO ITL"
+                else:
+                    wh_code = "KHAC"
+                    wh_name = "KHO KHÁC"
 
-            inv_num = ""
-            m_inv = re.search(r'hóa đơn số\s*:\s*(\d+)', content_val, re.IGNORECASE)
-            if m_inv:
-                inv_num = m_inv.group(1)
+                # Determine month
+                month_val = ""
+                if thang_col:
+                    m_match = re.search(r'T?0?([1-9]|1[0-2])', thang_col)
+                    if m_match:
+                        month_val = m_match.group(1).zfill(2)
 
-            wh_name = "KHO MEATFISH" if current_wh == "MF" else ("KHO SEEDLOG" if current_wh == "SL" else ("KHO ĐÔNG MÁT" if current_wh == "DM" else f"KHO {current_wh}"))
+                if not month_val:
+                    # Ưu tiên ngày hóa đơn nếu có (Col 8, ví dụ: 17/08/2026 -> tháng 08)
+                    m_d = re.search(r'(\d{1,2})/(\d{1,2})/(\d{4})', ngay_hd)
+                    if m_d:
+                        month_val = m_d.group(2).zfill(2)
+                    else:
+                        m_desc = re.findall(r'(?:T|tháng\s*)0?([1-9]|1[0-2])', desc, re.IGNORECASE)
+                        if m_desc:
+                            month_val = m_desc[0].zfill(2)
+                        else:
+                            month_val = "08"
 
-            invoices_to_insert.append((
-                current_month, current_wh, wh_name, date_val, content_val,
-                inv_num, co_val, pre_tax, post_tax
-            ))
+                invoices_to_insert.append((
+                    month_val, wh_code, wh_name, ngay_hd, desc,
+                    so_hd, co_val, pre_tax, post_tax
+                ))
+        else:
+            # SIMPLE 7-COLUMN FORMAT
+            current_month = "07"
+            current_wh = "MF"
+
+            for r in rows[1:]:
+                if not any(r): continue
+                month_val = r[0].strip() if len(r) > 0 else ""
+                wh_val = r[1].strip() if len(r) > 1 else ""
+                date_val = r[2].strip() if len(r) > 2 else ""
+                content_val = r[3].strip() if len(r) > 3 else ""
+                co_val = r[4].strip() if len(r) > 4 else ""
+                pre_tax_str = r[5].strip().replace(',', '') if len(r) > 5 else "0"
+                post_tax_str = r[6].strip().replace(',', '') if len(r) > 6 else "0"
+
+                if month_val:
+                    current_month = month_val.zfill(2)
+                if wh_val:
+                    current_wh = wh_val
+
+                try:
+                    pre_tax = float(pre_tax_str) if pre_tax_str else 0.0
+                except:
+                    pre_tax = 0.0
+
+                try:
+                    post_tax = float(post_tax_str) if post_tax_str else 0.0
+                except:
+                    post_tax = 0.0
+
+                inv_num = ""
+                m_inv = re.search(r'hóa đơn số\s*:\s*(\d+)', content_val, re.IGNORECASE)
+                if m_inv:
+                    inv_num = m_inv.group(1)
+
+                wh_name = "KHO MEATFISH" if current_wh == "MF" else ("KHO TỔNG (SEEDLOG)" if current_wh == "SL" else ("KHO ĐÔNG MÁT" if current_wh == "DM" else ("KHO RAU CỦ" if current_wh == "RC" else f"KHO {current_wh}")))
+
+                invoices_to_insert.append((
+                    current_month, current_wh, wh_name, date_val, content_val,
+                    inv_num, co_val, pre_tax, post_tax
+                ))
 
         if invoices_to_insert:
             cursor.executemany("""
@@ -691,7 +709,7 @@ def sync_claim_invoices_from_sheet(sheet_url=None):
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, invoices_to_insert)
             conn.commit()
-            print(f"[*] Đồng bộ Hóa Đơn Truy Thu thành công: Đã nạp {len(invoices_to_insert)} dòng hóa đơn!", flush=True)
+            print(f"[*] Đồng bộ Hóa Đơn Truy Thu thành công: Đã nạp {len(invoices_to_insert)} dòng hóa đơn vào CSDL!", flush=True)
 
         conn.close()
         return {'success': True, 'count': len(invoices_to_insert)}

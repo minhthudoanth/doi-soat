@@ -187,6 +187,9 @@
 
 
             <div class="d-flex align-items-center gap-3">
+                <div id="tele-status-container" class="d-flex align-items-center">
+                    <span class="badge bg-light text-muted border small"><i class="fa-brands fa-telegram me-1"></i> Telegram: Đang kiểm tra...</span>
+                </div>
                 <span class="badge-mono-border small"><i class="fa-solid fa-circle text-dark me-1 small"></i> Đang Giám Sát</span>
                 <button class="btn btn-sm btn-outline-black px-3" onclick="refreshData()">
                     <i class="fa-solid fa-rotate me-1"></i> Làm mới
@@ -407,6 +410,9 @@
                                 </button>
                             </div>
                             <div class="d-flex align-items-center gap-2">
+                                <button class="btn btn-sm btn-dark fw-bold px-3 shadow-sm" onclick="markAllAuditProcessed()" title="Đánh dấu đã xử lý toàn bộ các case đang hiển thị">
+                                    <i class="fa-solid fa-check-circle me-1"></i> Đã xử lý tất cả
+                                </button>
                                 <button class="btn btn-sm btn-outline-success fw-bold px-3 shadow-sm" onclick="dismissAllItems('audit')" title="Đánh dấu đã check tất cả">
                                     <i class="fa-solid fa-check-double me-1"></i> Đã check tất cả
                                 </button>
@@ -416,6 +422,51 @@
                                 <input type="text" id="search-audit-group" class="form-control form-control-sm" style="width: 260px;" placeholder="Tìm theo Mã PT, ST, Tên hàng, Mã SKU..." onkeyup="filterAuditGroup()">
                             </div>
 
+                        </div>
+
+                        <!-- BANNER TIẾN ĐỘ XỬ LÝ ĐỐI SOÁT REAL-TIME -->
+                        <div class="card border mb-3 shadow-sm bg-white" style="border-radius: 8px;">
+                            <div class="card-body p-3">
+                                <div class="row align-items-center g-3">
+                                    <!-- Cột trái: Thanh tiến độ tổng quát -->
+                                    <div class="col-lg-5 col-md-12">
+                                        <div class="d-flex justify-content-between align-items-center mb-1">
+                                            <span class="small fw-bold text-dark text-uppercase font-monospace" style="font-size: 0.78rem;">
+                                                <i class="fa-solid fa-bars-progress text-primary me-1"></i>Tiến Độ Xử Lý Đối Soát
+                                                <span class="badge bg-success-subtle text-success border border-success-subtle ms-1 font-monospace" style="font-size: 0.68rem;">
+                                                    <i class="fa-solid fa-circle text-success me-1 animate-pulse" style="font-size: 6px;"></i>REALTIME
+                                                </span>
+                                            </span>
+                                            <span class="fw-bold font-monospace small text-primary" id="audit-progress-text">0/0 (0%)</span>
+                                        </div>
+                                        <div class="progress" style="height: 10px; border-radius: 5px; background-color: #e9ecef;">
+                                            <div id="audit-progress-bar" class="progress-bar bg-dark progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                                        </div>
+                                        <div class="d-flex justify-content-between align-items-center mt-1" style="font-size: 0.72rem;">
+                                            <span class="text-muted"><i class="fa-solid fa-check-double text-success me-1"></i>Đã Check: <b id="audit-checked-stat" class="text-dark">0/0 (0%)</b></span>
+                                            <span class="text-muted"><i class="fa-regular fa-clock text-warning me-1"></i>Cập nhật lúc: <b id="audit-last-updated" class="text-dark">Vừa xong</b></span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Cột phải: Các thẻ lọc nhanh theo tiến độ -->
+                                    <div class="col-lg-7 col-md-12">
+                                        <div class="d-flex flex-wrap gap-2 justify-content-lg-end align-items-center">
+                                            <button class="btn btn-sm btn-outline-dark fw-bold active px-2 py-1 font-monospace" id="btn-progress-all" onclick="selectProgressFilter('')" style="font-size: 0.75rem;">
+                                                Tất cả (<span id="audit-stat-total">0</span>)
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-success fw-bold px-2 py-1 font-monospace" id="btn-progress-done" onclick="selectProgressFilter('Đã xử lý')" style="font-size: 0.75rem;">
+                                                <i class="fa-solid fa-check me-1"></i>Đã Xử Lý (<span id="audit-stat-done">0</span>)
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-primary fw-bold px-2 py-1 font-monospace" id="btn-progress-waiting" onclick="selectProgressFilter('waiting_store')" style="font-size: 0.75rem;">
+                                                <i class="fa-solid fa-hourglass-half me-1"></i>Chờ ST Phản Hồi (<span id="audit-stat-waiting">0</span>)
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-danger fw-bold px-2 py-1 font-monospace" id="btn-progress-pending" onclick="selectProgressFilter('Chờ xử lý')" style="font-size: 0.75rem;">
+                                                <i class="fa-solid fa-triangle-exclamation me-1"></i>Chờ Xử Lý (<span id="audit-stat-pending">0</span>)
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
                         <div class="table-responsive">
@@ -429,7 +480,7 @@
                                         <th style="width: 160px;">Tên Hàng</th>
                                         <th style="width: 85px;">Loại</th>
                                         <th style="width: 140px;">Số Lượng / Lệch</th>
-                                        <th style="min-width: 260px;">ST Nhận Dư & Group Báo Tin</th>
+                                        <th style="min-width: 260px;" id="th-audit-status">ST Nhận Dư & Group Báo Tin</th>
                                         <th style="width: 90px; text-align: center;">Đã Check</th>
                                         <th style="width: 110px; text-align: center;">Xử Lý</th>
                                     </tr>
@@ -1041,11 +1092,11 @@
                         <div class="mb-3">
                             <label class="form-label fw-bold text-dark small text-uppercase">Kho Áp Dụng:</label>
                             <select class="form-select form-select-sm fw-bold" id="doc-input-warehouse" onchange="onDocWarehouseChange()">
+                                <option value="KHO TỔNG (SEEDLOG)">KHO TỔNG (SEEDLOG)</option>
+                                <option value="KHO ĐÔNG">KHO ĐÔNG</option>
+                                <option value="KHO MÁT">KHO MÁT</option>
                                 <option value="KHO MEATFISH">KHO MEATFISH (Thịt Cá)</option>
-                                <option value="KHO SEEDLOG">KHO SEEDLOG</option>
-                                <option value="KHO ĐÔNG MÁT">KHO ĐÔNG MÁT</option>
-                                <option value="KHO RAU CỦ KRC">KHO RAU CỦ (KRC)</option>
-                                <option value="KHO TỔNG DC">KHO TỔNG (DC)</option>
+                                <option value="KHO RAU CỦ">KHO RAU CỦ (KRC)</option>
                             </select>
                         </div>
 
@@ -1167,42 +1218,111 @@
                             <i class="fa-solid fa-file-invoice-dollar me-1"></i> BẢNG TỔNG HỢP HÓA ĐƠN TRUY THU CLAIM CÁC KHO (NGUỒN GOOGLE SHEET)
                         </div>
                         <div class="small text-muted" style="font-size: 0.75rem;">
-                            Nguồn: <a href="https://docs.google.com/spreadsheets/d/1YfpVHQbowoSj6lN-8KW0d1UmCKy4sy2PesB7g9yNG4M/edit?gid=0#gid=0" target="_blank" class="text-decoration-none font-monospace">1YfpVHQbowoSj6lN-8KW0d1UmCKy4sy2PesB7g9yNG4M (Tab gid=0)</a>
+                            Nguồn: <a href="https://docs.google.com/spreadsheets/d/1WfXxYmuc8gY0BUMMM2lABFUvYkjZjgdbTi3dQBrIpVo/edit?gid=0#gid=0" target="_blank" class="text-decoration-none font-monospace">1WfXxYmuc8gY0BUMMM2lABFUvYkjZjgdbTi3dQBrIpVo (Tab gid=0)</a>
                         </div>
                     </div>
 
                     <div class="d-flex align-items-center gap-2">
+                        <div class="d-flex align-items-center gap-1">
+                            <span class="small fw-bold text-muted text-uppercase" style="font-size: 0.75rem;"><i class="fa-regular fa-calendar me-1"></i> Kỳ Hóa Đơn:</span>
+                            <select class="form-select form-select-sm fw-bold font-monospace border-dark" id="select-invoice-month-filter" style="width: 155px;" onchange="onInvoiceMonthFilterChanged(this.value)">
+                                <option value="08">Tháng 08/2026</option>
+                                <option value="07" selected>Tháng 07/2026</option>
+                                <option value="06">Tháng 06/2026</option>
+                                <option value="05">Tháng 05/2026</option>
+                                <option value="04">Tháng 04/2026</option>
+                                <option value="03">Tháng 03/2026</option>
+                                <option value="02">Tháng 02/2026</option>
+                                <option value="01">Tháng 01/2026</option>
+                                <option value="all">Tất Cả Các Tháng</option>
+                            </select>
+                        </div>
                         <button class="btn btn-sm btn-outline-dark fw-semibold" id="btn-sync-doc-invoices" onclick="syncDocInvoicesFromSheet()">
                             <i class="fa-solid fa-rotate me-1"></i> Đồng Bộ Lại Từ Sheet
                         </button>
                     </div>
                 </div>
 
-                <!-- CARDS TỔNG HỢP TỪNG KHO -->
+                <!-- CARDS TỔNG HỢP TỪNG KHO THEO THÁNG ĐƯỢC CHỌN -->
                 <div class="p-3 bg-light border-bottom">
                     <div class="row g-3" id="doc-wh-summary-cards">
-                        <div class="col-md-6">
-                            <div class="p-3 bg-white border rounded shadow-sm d-flex justify-content-between align-items-center">
-                                <div>
-                                    <div class="small fw-bold text-muted text-uppercase">KHO MEATFISH (THỊT CÁ) - T07/2026</div>
-                                    <div class="fs-5 fw-bold text-danger font-monospace" id="card-mf-amt">170,618,353 đ <span class="small text-muted fw-normal font-sans-serif" style="font-size: 0.75rem;">(Chưa VAT)</span></div>
-                                    <div class="small text-muted font-monospace">Gồm VAT: <strong class="text-dark">179,239,232 đ</strong> | 1 HĐ</div>
-                                </div>
-                                <button class="btn btn-sm btn-black fw-semibold px-3" onclick="loadWarehouseToForm('KHO MEATFISH', '07', '2026')">
-                                    Chọn Nhập Mẫu
+                        <!-- SẼ ĐƯỢC RENDER TỰ ĐỘNG THEO THÁNG QUA JS -->
+                    </div>
+                </div>
+
+                <!-- THANH BỘ LỌC HÓA ĐƠN CHI TIẾT (FILTER TOOLBAR) -->
+                <div class="p-3 bg-white border-bottom shadow-sm">
+                    <div class="row g-2 align-items-center">
+                        <!-- Lọc theo Kho -->
+                        <div class="col-md-3 col-sm-6">
+                            <label class="form-label fw-bold text-dark small text-uppercase mb-1" style="font-size: 0.72rem;">
+                                <i class="fa-solid fa-warehouse me-1 text-primary"></i> Kho:
+                            </label>
+                            <select class="form-select form-select-sm fw-bold border-secondary-subtle" id="table-filter-wh" onchange="applyTableFilters()">
+                                <option value="all">Tất Cả Kho (All)</option>
+                                <option value="SL">KHO TỔNG (SEEDLOG)</option>
+                                <option value="KD">KHO ĐÔNG</option>
+                                <option value="KM">KHO MÁT</option>
+                                <option value="DM">KHO ĐÔNG MÁT (ABA Bình Tân)</option>
+                                <option value="MF">KHO MEATFISH (Thịt Cá)</option>
+                                <option value="RC">KHO RAU CỦ (KRC)</option>
+                                <option value="KHAC">KHO KHÁC (ITL / Mùa Vụ)</option>
+                            </select>
+                        </div>
+
+                        <!-- Lọc theo Tháng -->
+                        <div class="col-md-2 col-sm-6">
+                            <label class="form-label fw-bold text-dark small text-uppercase mb-1" style="font-size: 0.72rem;">
+                                <i class="fa-regular fa-calendar me-1 text-danger"></i> Kỳ Tháng:
+                            </label>
+                            <select class="form-select form-select-sm fw-bold font-monospace border-secondary-subtle" id="table-filter-month" onchange="onTableFilterMonthChanged(this.value)">
+                                <option value="all">Tất Cả Tháng</option>
+                                <option value="08">Tháng 08/2026</option>
+                                <option value="07" selected>Tháng 07/2026</option>
+                                <option value="06">Tháng 06/2026</option>
+                                <option value="05">Tháng 05/2026</option>
+                                <option value="04">Tháng 04/2026</option>
+                                <option value="03">Tháng 03/2026</option>
+                                <option value="02">Tháng 02/2026</option>
+                                <option value="01">Tháng 01/2026</option>
+                            </select>
+                        </div>
+
+                        <!-- Tìm kiếm nhanh -->
+                        <div class="col-md-5 col-sm-12">
+                            <label class="form-label fw-bold text-dark small text-uppercase mb-1" style="font-size: 0.72rem;">
+                                <i class="fa-solid fa-magnifying-glass me-1 text-muted"></i> Tìm Kiếm Nhanh:
+                            </label>
+                            <div class="input-group input-group-sm">
+                                <input type="text" class="form-control font-monospace" id="table-filter-keyword" placeholder="Nhập số HĐ (463, 1126...), mã CO, nội dung..." onkeyup="applyTableFilters()">
+                                <button class="btn btn-outline-secondary" type="button" onclick="document.getElementById('table-filter-keyword').value=''; applyTableFilters();" title="Xóa tìm kiếm">
+                                    <i class="fa-solid fa-xmark"></i>
                                 </button>
                             </div>
                         </div>
-                        <div class="col-md-6">
-                            <div class="p-3 bg-white border rounded shadow-sm d-flex justify-content-between align-items-center">
-                                <div>
-                                    <div class="small fw-bold text-muted text-uppercase">KHO SEEDLOG - T07/2026</div>
-                                    <div class="fs-5 fw-bold text-danger font-monospace" id="card-sl-amt">59,774,727 đ <span class="small text-muted fw-normal font-sans-serif" style="font-size: 0.75rem;">(Chưa VAT)</span></div>
-                                    <div class="small text-muted font-monospace">Gồm VAT: <strong class="text-dark">64,558,843 đ</strong> | 5 HĐ (5 biên bản)</div>
-                                </div>
-                                <button class="btn btn-sm btn-black fw-semibold px-3" onclick="loadWarehouseToForm('KHO SEEDLOG', '07', '2026')">
-                                    Chọn Nhập Mẫu
-                                </button>
+
+                        <!-- Nút Reset -->
+                        <div class="col-md-2 col-sm-12 d-flex align-items-end justify-content-md-end">
+                            <button class="btn btn-sm btn-outline-dark fw-semibold w-100" onclick="resetTableFilters()">
+                                <i class="fa-solid fa-arrow-rotate-left me-1"></i> Đặt Lại Lọc
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- DÒNG BADGES THỐNG KÊ REALTIME KHI LỌC -->
+                    <div class="d-flex flex-wrap align-items-center justify-content-between mt-2 pt-2 border-top gap-2" style="font-size: 0.8rem;">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="text-muted fw-semibold">Đang hiển thị:</span>
+                            <span class="badge bg-black text-white font-monospace" id="table-filter-badge-count">0 hóa đơn</span>
+                        </div>
+                        <div class="d-flex align-items-center gap-3 font-monospace">
+                            <div>
+                                <span class="text-muted">Tổng Chưa VAT:</span>
+                                <strong class="text-dark ms-1" id="table-filter-badge-pre">0 đ</strong>
+                            </div>
+                            <div>
+                                <span class="text-muted">Tổng Gồm VAT:</span>
+                                <strong class="text-danger ms-1" id="table-filter-badge-post">0 đ</strong>
                             </div>
                         </div>
                     </div>
@@ -1210,20 +1330,21 @@
 
                 <!-- BẢNG CHI TIẾT CÁC HÓA ĐƠN ĐỒNG BỘ -->
                 <div class="table-responsive" style="max-height: 420px; overflow-y: auto;">
-                    <table class="table table-hover table-custom mb-0">
+                    <table class="table table-hover table-custom mb-0 align-middle">
                         <thead class="sticky-top bg-white">
                             <tr>
                                 <th style="width: 60px; text-align: center;">Tháng</th>
                                 <th style="width: 140px;">Kho</th>
-                                <th style="width: 110px;">Ngày HĐ</th>
+                                <th style="width: 105px;">Ngày HĐ</th>
                                 <th>Nội Dung Biên Bản / Hóa Đơn</th>
-                                <th style="width: 130px; text-align: center;">Phiếu Hủy CO</th>
-                                <th style="width: 140px; text-align: right;">Chưa VAT (VNĐ)</th>
-                                <th style="width: 140px; text-align: right; color: #dc2626;">Gồm VAT (VNĐ)</th>
+                                <th style="width: 120px; text-align: center;">Phiếu Hủy CO</th>
+                                <th style="width: 135px; text-align: right;">Chưa VAT (VNĐ)</th>
+                                <th style="width: 135px; text-align: right; color: #dc2626;">Gồm VAT (VNĐ)</th>
+                                <th style="width: 85px; text-align: center;">Thao Tác</th>
                             </tr>
                         </thead>
                         <tbody id="doc-invoices-tbody">
-                            <tr><td colspan="7" class="text-center py-4 text-muted">Đang tải danh sách hóa đơn từ Google Sheet...</td></tr>
+                            <tr><td colspan="8" class="text-center py-4 text-muted">Đang tải danh sách hóa đơn từ Google Sheet...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -1609,20 +1730,59 @@
                 _cacheHash.auditGroup = hash;
                 allAuditGroupList = data;
                 
-                let cntThieu = 0, cntThua = 0;
-                allAuditGroupList.forEach(r => {
-                    if (r.issue_type === 'Thiếu') cntThieu++;
-                    else if (r.issue_type === 'Thừa') cntThua++;
-                });
-
-                if (document.getElementById('audit-cnt-all')) document.getElementById('audit-cnt-all').innerText = allAuditGroupList.length;
-                if (document.getElementById('audit-cnt-thieu')) document.getElementById('audit-cnt-thieu').innerText = cntThieu;
-                if (document.getElementById('audit-cnt-thua')) document.getElementById('audit-cnt-thua').innerText = cntThua;
-                if (document.getElementById('badge-audit-count')) document.getElementById('badge-audit-count').innerText = allAuditGroupList.length;
-
+                updateAuditProgressUI();
                 filterAuditGroup();
             } catch (e) {
                 console.error("Lỗi loadAuditGroupMessages:", e);
+            }
+        }
+
+        function updateAuditProgressUI() {
+            let cntThieu = 0, cntThua = 0;
+            let cntDone = 0, cntChecked = 0, cntWaiting = 0, cntPending = 0;
+            allAuditGroupList.forEach(r => {
+                if (r.issue_type === 'Thiếu') cntThieu++;
+                else if (r.issue_type === 'Thừa') cntThua++;
+
+                if (r.process_status === 'Đã xử lý' || r.process_status === 'Hoàn Thành') cntDone++;
+                else if (r.sent_alert_time) cntWaiting++;
+                else cntPending++;
+
+                if (r.is_checked) cntChecked++;
+            });
+
+            const total = allAuditGroupList.length;
+            const pctDone = total > 0 ? Math.round((cntDone / total) * 100) : 0;
+            const pctChecked = total > 0 ? Math.round((cntChecked / total) * 100) : 0;
+
+            if (document.getElementById('audit-cnt-all')) document.getElementById('audit-cnt-all').innerText = total;
+            if (document.getElementById('audit-cnt-thieu')) document.getElementById('audit-cnt-thieu').innerText = cntThieu;
+            if (document.getElementById('audit-cnt-thua')) document.getElementById('audit-cnt-thua').innerText = cntThua;
+            if (document.getElementById('badge-audit-count')) document.getElementById('badge-audit-count').innerText = total;
+
+            // Cập nhật Banner Tiến Độ Xử Lý Real-time
+            if (document.getElementById('audit-progress-text')) {
+                document.getElementById('audit-progress-text').innerText = `${cntDone}/${total} (${pctDone}%)`;
+            }
+            if (document.getElementById('audit-progress-bar')) {
+                document.getElementById('audit-progress-bar').style.width = `${pctDone}%`;
+                document.getElementById('audit-progress-bar').setAttribute('aria-valuenow', pctDone);
+                if (pctDone === 100) {
+                    document.getElementById('audit-progress-bar').className = 'progress-bar bg-success progress-bar-striped';
+                } else {
+                    document.getElementById('audit-progress-bar').className = 'progress-bar bg-dark progress-bar-striped progress-bar-animated';
+                }
+            }
+            if (document.getElementById('audit-checked-stat')) {
+                document.getElementById('audit-checked-stat').innerText = `${cntChecked}/${total} (${pctChecked}%)`;
+            }
+            if (document.getElementById('audit-stat-total')) document.getElementById('audit-stat-total').innerText = total;
+            if (document.getElementById('audit-stat-done')) document.getElementById('audit-stat-done').innerText = cntDone;
+            if (document.getElementById('audit-stat-waiting')) document.getElementById('audit-stat-waiting').innerText = cntWaiting;
+            if (document.getElementById('audit-stat-pending')) document.getElementById('audit-stat-pending').innerText = cntPending;
+            if (document.getElementById('audit-last-updated')) {
+                const now = new Date();
+                document.getElementById('audit-last-updated').innerText = now.toLocaleTimeString('vi-VN');
             }
         }
 
@@ -1631,6 +1791,18 @@
             document.getElementById('btn-audit-all').classList.toggle('active', !type);
             document.getElementById('btn-audit-thieu').classList.toggle('active', type === 'Thiếu');
             document.getElementById('btn-audit-thua').classList.toggle('active', type === 'Thừa');
+
+            const thStatus = document.getElementById('th-audit-status');
+            if (thStatus) {
+                if (type === 'Thiếu') {
+                    thStatus.innerText = 'Trạng Thái Báo ST & Hạn Phản Hồi';
+                } else if (type === 'Thừa') {
+                    thStatus.innerText = 'ST Nhận Dư & Thông Tin PT Gốc';
+                } else {
+                    thStatus.innerText = 'ST Nhận Dư & Group Báo Tin';
+                }
+            }
+
             filterAuditGroup();
         }
 
@@ -1644,14 +1816,10 @@
 
             let html = '';
             rows.forEach(r => {
+                // Cột MÃ PT: Chỉ hiển thị duy nhất mã PT của ST đang ghi nhận thiếu (bỏ hoàn toàn dòng Gốc: PT... bên dưới)
                 const ptBadge = (r.pt_code && r.pt_code !== '---')
                     ? `<span class="badge bg-black text-white font-monospace">${r.pt_code}</span>`
                     : '<span class="text-muted small">---</span>';
-
-                let ptCombinedDisplay = ptBadge;
-                if (r.pt_goc_st_du && r.pt_goc_st_du !== r.pt_code) {
-                    ptCombinedDisplay += `<div class="mt-1"><span class="badge bg-light text-muted border font-monospace" style="font-size: 0.7rem;" title="Mã PT gốc giao đến ST"><i class="fa-solid fa-file-lines me-1"></i>Gốc: ${r.pt_goc_st_du}</span></div>`;
-                }
 
                 const typeBadge = r.issue_type === 'Thiếu' 
                     ? '<span class="badge bg-light text-danger border border-danger">🔴 Thiếu</span>'
@@ -1665,10 +1833,10 @@
 
                 let duInfo = '';
                 const deadlineBadge = r.deadline_str 
-                    ? `<span class="badge bg-danger-subtle text-danger border border-danger-subtle font-monospace ms-1" style="font-size: 0.7rem;" title="Hạn chót ST phản hồi xác nhận"><i class="fa-regular fa-clock me-1"></i>${r.deadline_str}</span>` 
+                    ? `<span class="badge bg-danger-subtle text-danger border border-danger font-monospace ms-1" style="font-size: 0.72rem;" title="Hạn chót ST phản hồi xác nhận"><i class="fa-regular fa-clock me-1"></i>${r.deadline_str}</span>` 
                     : '';
 
-                if (r.issue_type === 'Thừa' && r.st_du !== '---') {
+                if (r.issue_type === 'Thừa') {
                     const caseJsonStr = encodeURIComponent(JSON.stringify(r));
                     const groupBadge = r.target_group_title 
                         ? `<span class="badge bg-light text-primary border border-primary-subtle font-monospace" style="font-size: 0.725rem;" title="Group Telegram sẽ nhận cảnh báo"><i class="fa-brands fa-telegram me-1"></i>${r.target_group_title}</span>` 
@@ -1695,54 +1863,47 @@
                         `;
                     }
 
-                    const ptGocNote = r.kdb_pt_goc || (r.pt_goc_st_du ? `PT gốc: ${r.pt_goc_st_du}` : 'PT gốc: Không có');
-                    const addDuNote = r.kdb_add_du || 'ST chưa add dư';
-                    const isPtGocCo = ptGocNote.includes('có mã') || ptGocNote.includes('SL:');
-                    const isAddDuCo = addDuNote.includes('PT bổ sung') || addDuNote.includes('SL:');
-
-                    const ptGocBadgeClass = isPtGocCo ? 'bg-success-subtle text-success border border-success' : 'bg-light text-muted border';
-                    const addDuBadgeClass = isAddDuCo ? 'bg-primary-subtle text-primary border border-primary' : 'bg-warning-subtle text-dark border border-warning';
+                    // Hiển thị PT gốc của ST nhận dư và kết quả kiểm tra mã hàng
+                    let ptGocBadgeClass = 'bg-light text-muted border';
+                    let ptGocText = r.pt_goc_note || (r.pt_goc_st_du ? `PT gốc ${r.st_du}: ${r.pt_goc_st_du}` : `Chưa tìm thấy PT gốc ngày ${r.date}`);
+                    if (r.pt_goc_status === 'has_sku') {
+                        ptGocBadgeClass = 'bg-success-subtle text-success border border-success';
+                    } else if (r.pt_goc_status === 'no_sku') {
+                        ptGocBadgeClass = 'bg-warning-subtle text-dark border border-warning';
+                    }
 
                     duInfo = `
                         <div class="d-flex flex-column gap-1">
                             <div class="d-flex align-items-center justify-content-between gap-1 flex-wrap">
                                 <div class="d-flex align-items-center gap-1">
-                                    <span class="badge badge-mono-border fw-bold">ST nhận dư: ${r.st_du}</span>
+                                    <span class="badge badge-mono-border fw-bold">ST nhận dư: ${r.st_du || '---'}</span>
                                     ${groupBadge}
                                 </div>
                                 ${actionBtn}
                             </div>
-                            <div id="kdb-container-${r.id}" class="d-flex align-items-center gap-1 flex-wrap mt-1" style="font-size: 0.725rem;">
-                                <span class="badge ${ptGocBadgeClass} fw-medium font-monospace py-1" title="Kết quả kiểm tra trong phiếu gốc KRC">
-                                    <i class="fa-solid fa-file-invoice me-1"></i>${ptGocNote}
-                                </span>
-                                <span class="badge ${addDuBadgeClass} fw-medium font-monospace py-1" title="Kết quả kiểm tra Thẻ kho KDB (Kho Chênh Lệch)">
-                                    <i class="fa-solid fa-receipt me-1"></i>${addDuNote}
+                            <div class="d-flex align-items-center gap-1 flex-wrap mt-1" style="font-size: 0.725rem;">
+                                <span class="badge ${ptGocBadgeClass} fw-medium font-monospace py-1" title="Kiểm tra đối soát chuyển hàng của ST nhận dư">
+                                    <i class="fa-solid fa-file-invoice me-1"></i>${ptGocText}
                                 </span>
                             </div>
                         </div>
                     `;
                 } else if (r.issue_type === 'Thiếu') {
-                    const groupBadge = r.target_group_title 
-                        ? `<span class="badge bg-primary-subtle text-primary border font-monospace" style="font-size: 0.725rem;" title="Group Telegram KRC của Siêu thị bị thiếu"><i class="fa-brands fa-telegram me-1"></i>${r.target_group_title}</span>` 
-                        : `<span class="badge bg-light text-muted border font-monospace" style="font-size: 0.725rem;">Chưa xác định group</span>`;
-
+                    // TAB HÀNG THIẾU: Không cần PT ST dư, chỉ hiển thị trạng thái đã gửi ST check chưa và deadline phản hồi
                     const caseJsonStr = encodeURIComponent(JSON.stringify(r));
-
                     if (r.sent_alert_time) {
                         duInfo = `
                             <div class="d-flex flex-column gap-1">
                                 <div class="d-flex align-items-center justify-content-between gap-1 flex-wrap">
-                                    ${groupBadge}
                                     <div class="d-flex align-items-center gap-1">
-                                        <span class="badge bg-success-subtle text-success border border-success px-2 py-1 font-monospace fw-bold" style="font-size: 0.725rem;" title="Đã gửi tin nhắn báo ST">
+                                        <span class="badge bg-success-subtle text-success border border-success px-2 py-1 font-monospace fw-bold" style="font-size: 0.725rem;" title="Đã gửi tin nhắn báo ST thiếu check xác nhận">
                                             <i class="fa-solid fa-check-double me-1"></i>${r.sent_alert_time}
                                         </span>
                                         ${deadlineBadge}
                                     </div>
                                 </div>
                                 <span class="small text-muted" style="font-size: 0.72rem;">
-                                    <i class="fa-solid fa-check text-success me-1"></i>Đã chuyển tiếp tin nhắn qua ST
+                                    <i class="fa-solid fa-check text-success me-1"></i>Đã gửi cho ST check xác nhận tồn
                                 </span>
                             </div>
                         `;
@@ -1750,12 +1911,13 @@
                         duInfo = `
                             <div class="d-flex flex-column gap-1">
                                 <div class="d-flex align-items-center justify-content-between gap-1 flex-wrap">
-                                    ${groupBadge}
                                     <div class="d-flex align-items-center gap-1">
                                         <button class="btn btn-sm btn-dark py-0 px-2 fw-semibold" onclick="openSurplusAlertModal('${caseJsonStr}')" style="font-size: 0.75rem; border-radius: 4px; white-space: nowrap;">
-                                            <i class="fa-solid fa-paper-plane me-1"></i>Báo KRC (Thiếu)
+                                            <i class="fa-solid fa-paper-plane me-1"></i>Báo ST (Thiếu)
                                         </button>
-                                        ${deadlineBadge}
+                                        <span class="badge bg-warning-subtle text-dark border border-warning" style="font-size: 0.7rem;">
+                                            <i class="fa-solid fa-hourglass-half me-1"></i>Chưa gửi cho ST check
+                                        </span>
                                     </div>
                                 </div>
                                 <span class="small text-muted" style="font-size: 0.72rem;">
@@ -1774,16 +1936,9 @@
                 const statusBtnText = isProcessed ? '<i class="fa-solid fa-check me-1"></i>Đã xử lý' : 'Chờ xử lý';
                 
                 const idMartBadge = r.sheet_id_mart ? `<span class="badge bg-secondary-subtle text-dark border me-1 font-monospace" style="font-size: 0.72rem;">${r.sheet_id_mart}</span>` : '';
-                const phieuBsBadge = r.sheet_phieu_bs ? `
-                    <div class="mt-1">
-                        <span class="badge bg-warning-subtle text-dark border font-monospace" style="font-size: 0.725rem;" title="Phiếu bổ sung / PT dư ghi nhận trên Tab DS ST">
-                            <i class="fa-solid fa-receipt text-warning me-1"></i>Phiếu BS: ${r.sheet_phieu_bs}
-                        </span>
-                    </div>
-                ` : '';
 
                 const noteDisplay = r.status_note ? `
-                    <div class="mt-1 p-1 bg-light border rounded small text-dark fst-italic" style="font-size: 0.725rem;" title="Thông tin phản hồi lần về từ tin nhắn Reply">
+                    <div class="mt-1 p-1 bg-light border rounded small text-dark fst-italic" style="font-size: 0.725rem;" title="Thông tin phản hồi từ tin nhắn Reply">
                         <i class="fa-solid fa-comments text-primary me-1"></i>${r.status_note}
                     </div>
                 ` : '';
@@ -1793,10 +1948,9 @@
                         <td class="small text-muted fw-semibold">${r.date}</td>
                         <td class="fw-semibold text-dark small">
                             <div>${idMartBadge}${r.st_name}</div>
-                            ${phieuBsBadge}
                             ${noteDisplay}
                         </td>
-                        <td>${ptCombinedDisplay}</td>
+                        <td>${ptBadge}</td>
                         <td class="small font-monospace">${r.sku_code}</td>
                         <td class="small fw-semibold text-dark">${r.item_name}</td>
                         <td>${typeBadge}</td>
@@ -1814,46 +1968,7 @@
                 `;
             });
             tbody.innerHTML = html;
-
-            // Kích hoạt async check KDB cho các case nhận dư chưa có cache
-            rows.forEach(r => {
-                if (r.issue_type === 'Thừa' && r.st_du !== '---' && r.sku_code !== '---') {
-                    if (r.kdb_pt_goc === 'PT gốc: Đang kiểm tra' || !r.kdb_pt_goc) {
-                        asyncCheckKdbSurplus(r.id, r.st_du, r.sku_code, r.date);
-                    }
-                }
-            });
         }
-
-        async function asyncCheckKdbSurplus(rowId, store, sku, date) {
-            try {
-                const params = new URLSearchParams({ store: store, sku: sku, date: date });
-                const res = await fetch(`/api/cases/check_surplus?${params.toString()}`);
-                const data = await res.json();
-                const container = document.getElementById(`kdb-container-${rowId}`);
-                if (container && data) {
-                    const ptGocNote = data.pt_goc || 'PT gốc: Không có mã';
-                    const addDuNote = data.add_du || 'ST chưa add dư';
-                    const isPtGocCo = ptGocNote.includes('có mã') || ptGocNote.includes('SL:');
-                    const isAddDuCo = addDuNote.includes('PT bổ sung') || addDuNote.includes('SL:');
-
-                    const ptGocBadgeClass = isPtGocCo ? 'bg-success-subtle text-success border border-success' : 'bg-light text-muted border';
-                    const addDuBadgeClass = isAddDuCo ? 'bg-primary-subtle text-primary border border-primary' : 'bg-warning-subtle text-dark border border-warning';
-
-                    container.innerHTML = `
-                        <span class="badge ${ptGocBadgeClass} fw-medium font-monospace py-1" title="Kết quả kiểm tra trong phiếu gốc KRC">
-                            <i class="fa-solid fa-file-invoice me-1"></i>${ptGocNote}
-                        </span>
-                        <span class="badge ${addDuBadgeClass} fw-medium font-monospace py-1" title="Kết quả kiểm tra Thẻ kho KDB (Kho Chênh Lệch)">
-                            <i class="fa-solid fa-receipt me-1"></i>${addDuNote}
-                        </span>
-                    `;
-                }
-            } catch (e) {
-                console.error("Lỗi asyncCheckKdbSurplus:", e);
-            }
-        }
-
 
         async function toggleAuditCaseChecked(msgId, isChecked) {
             try {
@@ -1864,6 +1979,7 @@
                 });
                 const item = allAuditGroupList.find(x => x.msg_id == msgId);
                 if (item) item.is_checked = isChecked ? 1 : 0;
+                updateAuditProgressUI();
             } catch (e) {
                 console.error("Lỗi toggleAuditCaseChecked:", e);
             }
@@ -1881,11 +1997,37 @@
                 if (data.success) {
                     const item = allAuditGroupList.find(x => x.msg_id == msgId);
                     if (item) item.process_status = nextStatus;
+                    updateAuditProgressUI();
                     filterAuditGroup();
                 }
             } catch (e) {
                 console.error("Lỗi toggleAuditProcessStatus:", e);
             }
+        }
+
+        let currentFilteredAuditRows = [];
+        let currentProgressFilter = '';
+
+        function selectProgressFilter(filterKey) {
+            currentProgressFilter = filterKey;
+            ['btn-progress-all', 'btn-progress-done', 'btn-progress-waiting', 'btn-progress-pending'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.classList.remove('active');
+            });
+            if (!filterKey) {
+                const b = document.getElementById('btn-progress-all');
+                if (b) b.classList.add('active');
+            } else if (filterKey === 'Đã xử lý') {
+                const b = document.getElementById('btn-progress-done');
+                if (b) b.classList.add('active');
+            } else if (filterKey === 'waiting_store') {
+                const b = document.getElementById('btn-progress-waiting');
+                if (b) b.classList.add('active');
+            } else if (filterKey === 'Chờ xử lý') {
+                const b = document.getElementById('btn-progress-pending');
+                if (b) b.classList.add('active');
+            }
+            filterAuditGroup();
         }
 
         function filterAuditGroup() {
@@ -1900,9 +2042,56 @@
                     || (r.st_du && r.st_du.toLowerCase().includes(query))
                     || (r.target_group_title && r.target_group_title.toLowerCase().includes(query));
                 const matchType = !currentAuditType || r.issue_type === currentAuditType;
-                return matchQuery && matchType;
+
+                let matchProgress = true;
+                if (currentProgressFilter === 'Đã xử lý') {
+                    matchProgress = (r.process_status === 'Đã xử lý');
+                } else if (currentProgressFilter === 'Chờ xử lý') {
+                    matchProgress = (r.process_status !== 'Đã xử lý' && !r.sent_alert_time);
+                } else if (currentProgressFilter === 'waiting_store') {
+                    matchProgress = (r.sent_alert_time && r.process_status !== 'Đã xử lý');
+                }
+
+                return matchQuery && matchType && matchProgress;
             });
+            currentFilteredAuditRows = filtered;
             renderAuditGroupTable(filtered);
+        }
+
+        async function markAllAuditProcessed() {
+            const rowsToProcess = (currentFilteredAuditRows && currentFilteredAuditRows.length > 0) ? currentFilteredAuditRows : allAuditGroupList;
+            if (!rowsToProcess || rowsToProcess.length === 0) {
+                alert('Không có case nào để xử lý!');
+                return;
+            }
+            const count = rowsToProcess.length;
+            if (!confirm(`Bạn có chắc chắn muốn chuyển trạng thái ĐÃ XỬ LÝ cho toàn bộ ${count} case đang hiển thị không?`)) {
+                return;
+            }
+
+            const msgIds = rowsToProcess.map(r => r.msg_id);
+            try {
+                const res = await fetch('/api/cases/audit/mark_all_processed', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ msg_ids: msgIds })
+                });
+                const d = await res.json();
+                if (d.success) {
+                    msgIds.forEach(mid => {
+                        const item = allAuditGroupList.find(x => x.msg_id == mid);
+                        if (item) item.process_status = 'Đã xử lý';
+                    });
+                    updateAuditProgressUI();
+                    filterAuditGroup();
+                    alert(`✅ Đã chuyển thành công ${count} case sang trạng thái ĐÃ XỬ LÝ!`);
+                } else {
+                    alert('⚠️ ' + (d.error || 'Lỗi cập nhật!'));
+                }
+            } catch (e) {
+                console.error("Lỗi markAllAuditProcessed:", e);
+                alert('❌ Lỗi kết nối máy chủ!');
+            }
         }
 
         const surplusCheckCache = {};
@@ -2650,12 +2839,17 @@
 
         function onDocWarehouseChange() {
             const w = document.getElementById('doc-input-warehouse').value;
+            const m = document.getElementById('doc-input-month') ? document.getElementById('doc-input-month').value : '08';
             if (w.includes('MEAT')) {
-                document.getElementById('doc-input-month').value = '07';
-                document.getElementById('doc-input-date').value = '31/07/2026';
-            } else if (w.includes('SEEDLOG')) {
-                document.getElementById('doc-input-month').value = '07';
-                document.getElementById('doc-input-date').value = '17/08/2026';
+                document.getElementById('doc-input-date').value = (m === '08') ? '31/08/2026' : '31/07/2026';
+            } else if (w.includes('SEEDLOG') || w.includes('TỔNG')) {
+                document.getElementById('doc-input-date').value = (m === '08') ? '31/08/2026' : '17/08/2026';
+            } else if (w.includes('ĐÔNG')) {
+                document.getElementById('doc-input-date').value = (m === '08') ? '31/08/2026' : '30/07/2026';
+            } else if (w.includes('MÁT')) {
+                document.getElementById('doc-input-date').value = (m === '08') ? '31/08/2026' : '30/07/2026';
+            } else {
+                document.getElementById('doc-input-date').value = (m === '08') ? '31/08/2026' : '30/07/2026';
             }
             autoFillDocData();
         }
@@ -2682,52 +2876,310 @@
             await autoFillDocData();
         }
 
+        let allDocInvoicesSummary = [];
+        let allDocInvoicesRecords = [];
+
         async function fetchDocInvoicesList() {
+            const selectFilter = document.getElementById('select-invoice-month-filter');
+            const selectedMonth = selectFilter ? selectFilter.value : '07';
             const tbody = document.getElementById('doc-invoices-tbody');
-            if (tbody) tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-muted"><span class="spinner-border spinner-border-sm me-2"></span>Đang tải dữ liệu từ Google Sheet...</td></tr>';
+            if (tbody) tbody.innerHTML = '<tr><td colspan="8" class="text-center py-4 text-muted"><span class="spinner-border spinner-border-sm me-2"></span>Đang tải dữ liệu từ Google Sheet...</td></tr>';
             try {
                 const res = await fetch('/api/documents/invoices');
                 const data = await res.json();
                 if (data.success && data.records) {
-                    renderDocInvoicesTable(data.records);
-                    if (data.summary) {
-                        data.summary.forEach(s => {
-                            if (s.warehouse_code === 'MF') {
-                                if (document.getElementById('card-mf-amt')) {
-                                    document.getElementById('card-mf-amt').innerHTML = `${new Intl.NumberFormat('vi-VN').format(s.total_pre_tax)} đ <span class="small text-muted fw-normal font-sans-serif" style="font-size: 0.75rem;">(Chưa VAT)</span>`;
-                                }
-                            } else if (s.warehouse_code === 'SL') {
-                                if (document.getElementById('card-sl-amt')) {
-                                    document.getElementById('card-sl-amt').innerHTML = `${new Intl.NumberFormat('vi-VN').format(s.total_pre_tax)} đ <span class="small text-muted fw-normal font-sans-serif" style="font-size: 0.75rem;">(Chưa VAT)</span>`;
-                                }
-                            }
-                        });
+                    allDocInvoicesRecords = data.records;
+                    allDocInvoicesSummary = data.summary || [];
+                    
+                    // Render summary cards
+                    if (selectedMonth !== 'all') {
+                        const mStr = selectedMonth.padStart(2, '0');
+                        renderDocWarehouseSummaryCards(allDocInvoicesSummary.filter(s => s.month === mStr), selectedMonth);
+                    } else {
+                        renderDocWarehouseSummaryCards(allDocInvoicesSummary, 'all');
                     }
+                    // Apply table filters and render table
+                    applyTableFilters();
                 }
             } catch (e) {
                 console.error("Lỗi fetchDocInvoicesList:", e);
-                if (tbody) tbody.innerHTML = `<tr><td colspan="7" class="text-center py-4 text-danger">Lỗi tải dữ liệu: ${e.message}</td></tr>`;
+                if (tbody) tbody.innerHTML = `<tr><td colspan="8" class="text-center py-4 text-danger">Lỗi tải dữ liệu: ${e.message}</td></tr>`;
             }
+        }
+
+        function onInvoiceMonthFilterChanged(monthVal) {
+            const tfm = document.getElementById('table-filter-month');
+            if (tfm) tfm.value = monthVal;
+            
+            if (monthVal !== 'all') {
+                const mStr = monthVal.padStart(2, '0');
+                renderDocWarehouseSummaryCards(allDocInvoicesSummary.filter(s => s.month === mStr), monthVal);
+            } else {
+                renderDocWarehouseSummaryCards(allDocInvoicesSummary, 'all');
+            }
+            applyTableFilters();
+        }
+
+        function onTableFilterMonthChanged(monthVal) {
+            const topSelect = document.getElementById('select-invoice-month-filter');
+            if (topSelect) topSelect.value = monthVal;
+            
+            if (monthVal !== 'all') {
+                const mStr = monthVal.padStart(2, '0');
+                renderDocWarehouseSummaryCards(allDocInvoicesSummary.filter(s => s.month === mStr), monthVal);
+            } else {
+                renderDocWarehouseSummaryCards(allDocInvoicesSummary, 'all');
+            }
+            applyTableFilters();
+        }
+
+        function applyTableFilters() {
+            const whFilter = document.getElementById('table-filter-wh') ? document.getElementById('table-filter-wh').value : 'all';
+            const monthFilter = document.getElementById('table-filter-month') ? document.getElementById('table-filter-month').value : 'all';
+            const keyword = document.getElementById('table-filter-keyword') ? document.getElementById('table-filter-keyword').value.trim().toLowerCase() : '';
+
+            let records = allDocInvoicesRecords || [];
+
+            // Lọc theo kỳ tháng
+            if (monthFilter !== 'all') {
+                const mStr = monthFilter.padStart(2, '0');
+                records = records.filter(r => r.month === mStr);
+            }
+
+            // Lọc theo kho
+            if (whFilter !== 'all') {
+                if (whFilter === 'SL') {
+                    records = records.filter(r => r.warehouse_code === 'SL' || (r.warehouse_name && (r.warehouse_name.includes('SEEDLOG') || r.warehouse_name.includes('TỔNG'))));
+                } else if (whFilter === 'KD') {
+                    records = records.filter(r => r.warehouse_code === 'KD' || (r.warehouse_name && r.warehouse_name.includes('KHO ĐÔNG')) || (r.warehouse_code === 'DM' && r.content && r.content.toLowerCase().includes('đông')));
+                } else if (whFilter === 'KM') {
+                    records = records.filter(r => r.warehouse_code === 'KM' || (r.warehouse_name && r.warehouse_name.includes('KHO MÁT')) || (r.warehouse_code === 'DM' && r.content && r.content.toLowerCase().includes('mát')));
+                } else if (whFilter === 'DM') {
+                    records = records.filter(r => ['DM', 'KD', 'KM'].includes(r.warehouse_code) || (r.warehouse_name && (r.warehouse_name.includes('BÌNH TÂN') || r.warehouse_name.includes('ĐÔNG MÁT'))));
+                } else if (whFilter === 'MF') {
+                    records = records.filter(r => r.warehouse_code === 'MF' || (r.warehouse_name && r.warehouse_name.includes('MEAT')));
+                } else if (whFilter === 'RC') {
+                    records = records.filter(r => r.warehouse_code === 'RC' || (r.warehouse_name && r.warehouse_name.includes('RAU')));
+                } else if (whFilter === 'KHAC') {
+                    records = records.filter(r => !['SL', 'MF', 'RC', 'DM', 'KD', 'KM'].includes(r.warehouse_code));
+                }
+            }
+
+            // Lọc theo từ khóa tìm kiếm nhanh (số HĐ, mã CO, nội dung, tên kho)
+            if (keyword) {
+                records = records.filter(r => {
+                    const inv = (r.invoice_number || '').toLowerCase();
+                    const co = (r.co_number || '').toLowerCase();
+                    const desc = (r.content || '').toLowerCase();
+                    const wh = (r.warehouse_name || '').toLowerCase();
+                    return inv.includes(keyword) || co.includes(keyword) || desc.includes(keyword) || wh.includes(keyword);
+                });
+            }
+
+            // Render bảng
+            renderDocInvoicesTable(records);
+
+            // Cập nhật thẻ thống kê trực tiếp
+            const totalPre = records.reduce((sum, r) => sum + (r.pre_tax || 0), 0);
+            const totalPost = records.reduce((sum, r) => sum + (r.post_tax || 0), 0);
+
+            const bCount = document.getElementById('table-filter-badge-count');
+            const bPre = document.getElementById('table-filter-badge-pre');
+            const bPost = document.getElementById('table-filter-badge-post');
+
+            if (bCount) bCount.innerText = `${records.length} hóa đơn`;
+            if (bPre) bPre.innerText = `${new Intl.NumberFormat('vi-VN').format(totalPre)} đ`;
+            if (bPost) bPost.innerText = `${new Intl.NumberFormat('vi-VN').format(totalPost)} đ`;
+        }
+
+        function resetTableFilters() {
+            if (document.getElementById('table-filter-wh')) document.getElementById('table-filter-wh').value = 'all';
+            if (document.getElementById('table-filter-month')) document.getElementById('table-filter-month').value = 'all';
+            if (document.getElementById('table-filter-keyword')) document.getElementById('table-filter-keyword').value = '';
+            const topSelect = document.getElementById('select-invoice-month-filter');
+            if (topSelect) topSelect.value = 'all';
+            renderDocWarehouseSummaryCards(allDocInvoicesSummary, 'all');
+            applyTableFilters();
+        }
+
+        function loadSingleInvoiceToForm(whName, month, date, preTax, postTax, invNumber, coNumber) {
+            let matchedWh = 'KHO TỔNG (SEEDLOG)';
+            if (whName.includes('MEAT') || whName.includes('THỊT')) {
+                matchedWh = 'KHO MEATFISH';
+            } else if (whName.includes('RAU')) {
+                matchedWh = 'KHO RAU CỦ';
+            } else if (whName.includes('ĐÔNG') && !whName.includes('MÁT')) {
+                matchedWh = 'KHO ĐÔNG';
+            } else if (whName.includes('MÁT') && !whName.includes('ĐÔNG')) {
+                matchedWh = 'KHO MÁT';
+            } else if (whName.includes('BÌNH TÂN') || whName.includes('ĐÔNG MÁT')) {
+                matchedWh = 'KHO ĐÔNG';
+            } else if (whName.includes('SEEDLOG') || whName.includes('TỔNG')) {
+                matchedWh = 'KHO TỔNG (SEEDLOG)';
+            }
+
+            const sel = document.getElementById('doc-input-warehouse');
+            if (sel) {
+                for (let opt of sel.options) {
+                    if (opt.value === matchedWh || opt.text.includes(matchedWh)) {
+                        sel.value = opt.value;
+                        break;
+                    }
+                }
+            }
+            if (document.getElementById('doc-input-month')) document.getElementById('doc-input-month').value = month.toString().padStart(2, '0');
+            if (document.getElementById('doc-input-date') && date && date !== '-') document.getElementById('doc-input-date').value = date;
+            
+            const isPostVat = document.getElementById('doc-input-vat') && document.getElementById('doc-input-vat').value === 'Đã gồm VAT';
+            const chosenAmt = isPostVat ? postTax : preTax;
+            if (document.getElementById('doc-input-amount')) {
+                document.getElementById('doc-input-amount').value = Math.round(chosenAmt);
+                onDocAmountInput();
+            }
+            updateDocPreview();
+            const formCard = document.getElementById('doc-input-warehouse');
+            if (formCard) formCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        function renderDocWarehouseSummaryCards(summaryList, selectedMonth) {
+            const container = document.getElementById('doc-wh-summary-cards');
+            if (!container) return;
+
+            if (selectedMonth === '08') {
+                // THÁNG 08/2026: Dữ liệu thực tế và đối soát chuẩn bị ra quyết định
+                container.innerHTML = `
+                    <div class="col-md-6 col-xl-3">
+                        <div class="p-3 bg-white border rounded shadow-sm d-flex flex-column justify-content-between h-100">
+                            <div>
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle small fw-bold">THÁNG 08/2026</span>
+                                    <span class="badge bg-secondary-subtle text-dark border small">Số liệu Đối soát</span>
+                                </div>
+                                <div class="small fw-bold text-dark text-uppercase mt-1">KHO RAU CỦ (FRESH)</div>
+                                <div class="fs-5 fw-bold text-danger font-monospace my-1">84,084,551 đ <span class="small text-muted fw-normal" style="font-size: 0.7rem;">(Chưa VAT)</span></div>
+                                <div class="small text-muted font-monospace mb-2">SL chênh lệch: <strong>4,592.4</strong> | 4,244 đơn</div>
+                            </div>
+                            <button class="btn btn-sm btn-black fw-semibold w-100 mt-2" onclick="loadWarehouseToForm('KHO RAU CỦ', '08', '2026')">
+                                <i class="fa-solid fa-file-signature me-1"></i> Chọn Nhập Mẫu
+                            </button>
+                        </div>
+                    </div>
+                    <div class="col-md-6 col-xl-3">
+                        <div class="p-3 bg-white border rounded shadow-sm d-flex flex-column justify-content-between h-100">
+                            <div>
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle small fw-bold">THÁNG 08/2026</span>
+                                    <span class="badge bg-secondary-subtle text-dark border small">Quyết định mẫu</span>
+                                </div>
+                                <div class="small fw-bold text-dark text-uppercase mt-1">KHO MEATFISH (THỊT CÁ)</div>
+                                <div class="fs-5 fw-bold text-danger font-monospace my-1">170,618,353 đ <span class="small text-muted fw-normal" style="font-size: 0.7rem;">(Chưa VAT)</span></div>
+                                <div class="small text-muted font-monospace mb-2">Gồm VAT: <strong>179,239,232 đ</strong> | 3,191 items</div>
+                            </div>
+                            <button class="btn btn-sm btn-black fw-semibold w-100 mt-2" onclick="loadWarehouseToForm('KHO MEATFISH', '08', '2026')">
+                                <i class="fa-solid fa-file-signature me-1"></i> Chọn Nhập Mẫu
+                            </button>
+                        </div>
+                    </div>
+                    <div class="col-md-6 col-xl-3">
+                        <div class="p-3 bg-white border rounded shadow-sm d-flex flex-column justify-content-between h-100">
+                            <div>
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle small fw-bold">THÁNG 08/2026</span>
+                                    <span class="badge bg-secondary-subtle text-dark border small">Quyết định mẫu</span>
+                                </div>
+                                <div class="small fw-bold text-dark text-uppercase mt-1">KHO TỔNG (SEEDLOG)</div>
+                                <div class="fs-5 fw-bold text-danger font-monospace my-1">94,434,064 đ <span class="small text-muted fw-normal" style="font-size: 0.7rem;">(Chưa VAT)</span></div>
+                                <div class="small text-muted font-monospace mb-2">Gồm VAT: <strong>101,789,916 đ</strong> | 3,324 items</div>
+                            </div>
+                            <button class="btn btn-sm btn-black fw-semibold w-100 mt-2" onclick="loadWarehouseToForm('KHO TỔNG (SEEDLOG)', '08', '2026')">
+                                <i class="fa-solid fa-file-signature me-1"></i> Chọn Nhập Mẫu
+                            </button>
+                        </div>
+                    </div>
+                    <div class="col-md-6 col-xl-3">
+                        <div class="p-3 bg-white border rounded shadow-sm d-flex flex-column justify-content-between h-100">
+                            <div>
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle small fw-bold">THÁNG 08/2026</span>
+                                    <span class="badge bg-secondary-subtle text-dark border small">Quyết định mẫu</span>
+                                </div>
+                                <div class="small fw-bold text-dark text-uppercase mt-1">KHO ĐÔNG / KHO MÁT (ABA)</div>
+                                <div class="fs-5 fw-bold text-danger font-monospace my-1">208,792,989 đ <span class="small text-muted fw-normal" style="font-size: 0.7rem;">(Chưa VAT)</span></div>
+                                <div class="small text-muted font-monospace mb-2">Gồm VAT: <strong>222,749,667 đ</strong> | 2,500 items</div>
+                            </div>
+                            <div class="d-flex gap-1 mt-2">
+                                <button class="btn btn-sm btn-black fw-semibold flex-fill" onclick="loadWarehouseToForm('KHO ĐÔNG', '08', '2026')">
+                                    <i class="fa-solid fa-snowflake me-1"></i> Kho Đông
+                                </button>
+                                <button class="btn btn-sm btn-outline-dark fw-semibold flex-fill" onclick="loadWarehouseToForm('KHO MÁT', '08', '2026')">
+                                    <i class="fa-solid fa-temperature-half me-1"></i> Kho Mát
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+
+            if (!summaryList || summaryList.length === 0) {
+                container.innerHTML = `
+                    <div class="col-12">
+                        <div class="p-3 bg-white border rounded text-center text-muted small">
+                            Không có hóa đơn truy thu nào trong kỳ tháng được chọn.
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = summaryList.map(s => {
+                const mText = `T${s.month}/2026`;
+                return `
+                    <div class="col-md-6 col-xl-3">
+                        <div class="p-3 bg-white border rounded shadow-sm d-flex flex-column justify-content-between h-100">
+                            <div>
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <span class="badge bg-dark-subtle text-dark border small fw-bold">${mText}</span>
+                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle small font-monospace">${s.invoice_count} HĐ</span>
+                                </div>
+                                <div class="small fw-bold text-dark text-uppercase mt-1">${s.warehouse_name}</div>
+                                <div class="fs-5 fw-bold text-danger font-monospace my-1">${new Intl.NumberFormat('vi-VN').format(s.total_pre_tax)} đ <span class="small text-muted fw-normal" style="font-size: 0.7rem;">(Chưa VAT)</span></div>
+                                <div class="small text-muted font-monospace mb-2">Gồm VAT: <strong class="text-dark">${new Intl.NumberFormat('vi-VN').format(s.total_post_tax)} đ</strong></div>
+                            </div>
+                            <button class="btn btn-sm btn-black fw-semibold w-100 mt-2" onclick="loadWarehouseToForm('${s.warehouse_name}', '${s.month}', '2026')">
+                                <i class="fa-solid fa-file-signature me-1"></i> Chọn Nhập Mẫu
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
         }
 
         function renderDocInvoicesTable(records) {
             const tbody = document.getElementById('doc-invoices-tbody');
             if (!tbody) return;
             if (!records || records.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-muted">Chưa có dòng hóa đơn nào được đồng bộ.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="8" class="text-center py-4 text-muted">Không tìm thấy hóa đơn nào phù hợp với bộ lọc.</td></tr>';
                 return;
             }
 
             tbody.innerHTML = records.map(r => {
+                const whBadgeColor = r.warehouse_code === 'SL' ? 'bg-dark' : (r.warehouse_code === 'MF' ? 'bg-primary' : (r.warehouse_code === 'RC' ? 'bg-success' : 'bg-secondary'));
+                const escWh = (r.warehouse_name || '').replace(/'/g, "\\'");
                 return `
                     <tr>
                         <td class="text-center font-monospace fw-bold">${r.month}</td>
-                        <td><span class="badge bg-black text-white">${r.warehouse_name}</span></td>
+                        <td><span class="badge ${whBadgeColor} text-white">${r.warehouse_name}</span></td>
                         <td class="font-monospace small text-muted">${r.invoice_date || '-'}</td>
                         <td class="small fw-semibold text-dark">${r.content}</td>
                         <td class="text-center"><span class="badge bg-light text-dark border font-monospace">${r.co_number || '-'}</span></td>
                         <td class="text-end font-monospace fw-semibold">${new Intl.NumberFormat('vi-VN').format(r.pre_tax)} đ</td>
                         <td class="text-end font-monospace fw-bold text-danger">${new Intl.NumberFormat('vi-VN').format(r.post_tax)} đ</td>
+                        <td class="text-center">
+                            <button class="btn btn-xs btn-outline-dark fw-semibold py-0 px-2" style="font-size: 0.72rem;" onclick="loadSingleInvoiceToForm('${escWh}', '${r.month}', '${r.invoice_date || ''}', ${r.pre_tax || 0}, ${r.post_tax || 0}, '${r.invoice_number || ''}', '${r.co_number || ''}')" title="Chọn đưa vào mẫu chứng từ">
+                                <i class="fa-solid fa-arrow-up-from-bracket me-1"></i>Chọn
+                            </button>
+                        </td>
                     </tr>
                 `;
             }).join('');
@@ -3072,16 +3524,40 @@
         }
 
         function loadWarehouseToForm(warehouse, month, year) {
-            document.getElementById('doc-input-warehouse').value = warehouse;
-            document.getElementById('doc-input-month').value = month;
+            const sel = document.getElementById('doc-input-warehouse');
+            if (sel) {
+                let matchedVal = '';
+                for (let opt of sel.options) {
+                    if (opt.value === warehouse || (warehouse.includes('SEEDLOG') && opt.value.includes('SEEDLOG')) ||
+                        (warehouse.includes('TỔNG') && opt.value.includes('TỔNG')) ||
+                        (warehouse.includes('ĐÔNG') && !warehouse.includes('MÁT') && opt.value === 'KHO ĐÔNG') ||
+                        (warehouse.includes('MÁT') && !warehouse.includes('ĐÔNG') && opt.value === 'KHO MÁT') ||
+                        (warehouse.includes('MEAT') && opt.value.includes('MEAT')) ||
+                        (warehouse.includes('RAU') && opt.value.includes('RAU'))) {
+                        matchedVal = opt.value;
+                        break;
+                    }
+                }
+                if (matchedVal) {
+                    sel.value = matchedVal;
+                } else {
+                    sel.value = warehouse;
+                }
+            }
+            document.getElementById('doc-input-month').value = month.toString().padStart(2, '0');
             document.getElementById('doc-input-year').value = year;
             if (warehouse.includes('MEAT')) {
-                document.getElementById('doc-input-date').value = '31/07/2026';
-            } else if (warehouse.includes('SEEDLOG')) {
-                document.getElementById('doc-input-date').value = '17/08/2026';
+                document.getElementById('doc-input-date').value = (month === '08') ? '31/08/2026' : '31/07/2026';
+            } else if (warehouse.includes('SEEDLOG') || warehouse.includes('TỔNG')) {
+                document.getElementById('doc-input-date').value = (month === '08') ? '31/08/2026' : '17/08/2026';
+            } else if (warehouse.includes('RAU')) {
+                document.getElementById('doc-input-date').value = (month === '08') ? '31/08/2026' : '30/07/2026';
+            } else {
+                document.getElementById('doc-input-date').value = (month === '08') ? '31/08/2026' : '30/07/2026';
             }
             autoFillDocData();
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+            const formCard = document.getElementById('doc-input-warehouse');
+            if (formCard) formCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
 
         let currentAuditSubTab = 'v1';
@@ -4416,6 +4892,12 @@
         }
 
         function refreshData(isBackground = true) {
+            // Luôn cập nhật tiến độ và case mới realtime cho Đối Soát nếu đang mở sub-tab
+            const auditPane = document.getElementById('audit-group-pane');
+            if (auditPane && (auditPane.classList.contains('show') || auditPane.classList.contains('active'))) {
+                loadAuditGroupMessages(isBackground);
+            }
+
             if (activeModule === 'tele') {
                 fetchStats();
                 const activeTabEl = document.querySelector('#scmTab .nav-link.active');
@@ -4443,6 +4925,7 @@
 
         window.onload = () => {
             fetchStats();
+            checkTelegramStatus();
             loadTaggedMessages(false);
             fetchStoreIssues(false);
             loadAuditGroupMessages(false);
@@ -4459,10 +4942,11 @@
                 });
             });
 
-            // Polling chu kỳ 8s nhẹ nhàng êm ái, không làm đơ giật giao diện
+            // Polling chu kỳ 5s cập nhật case và tiến độ xử lý theo thời gian thực (Real-time Live)
             setInterval(() => {
                 refreshData(true);
-            }, 8000);
+                checkTelegramStatus();
+            }, 5000);
         };
 
 
@@ -4555,6 +5039,193 @@
                 btn.innerHTML = '<i class="fa-solid fa-rotate me-1"></i> Đồng bộ từ Sheet';
             }
         }
+
+        // ================================================================
+        // TELEGRAM REALTIME & LOGIN MANAGEMENT
+        // ================================================================
+        let isTelegramQrPolling = false;
+        let qrPollTimer = null;
+
+        async function checkTelegramStatus(force = false) {
+            try {
+                const res = await fetch(`/api/telegram/status${force ? '?refresh=1' : ''}`);
+                const data = await res.json();
+                renderTelegramStatus(data);
+            } catch (e) {
+                console.error("Lỗi checkTelegramStatus:", e);
+            }
+        }
+
+        function renderTelegramStatus(data) {
+            const container = document.getElementById('tele-status-container');
+            if (!container) return;
+
+            if (data.is_authorized) {
+                const userName = data.user ? (data.user.first_name + ' ' + (data.user.last_name || '')).trim() : 'Đã kết nối';
+                const runningDot = data.is_running 
+                    ? '<i class="fa-solid fa-circle text-success me-1 animate-pulse" style="font-size: 8px;"></i>' 
+                    : '<i class="fa-solid fa-circle text-warning me-1" style="font-size: 8px;" title="Listener đang tự động kích hoạt"></i>';
+                
+                container.innerHTML = `
+                    <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1 small fw-semibold font-monospace" title="Tài khoản Telegram: ${userName}">
+                        ${runningDot}<i class="fa-brands fa-telegram me-1"></i>${userName}
+                    </span>
+                `;
+            } else {
+                container.innerHTML = `
+                    <button class="btn btn-sm btn-outline-danger px-2 py-1 fw-bold font-monospace shadow-sm" onclick="openTelegramLoginModal()" title="Bấm để kết nối tài khoản Telegram stream realtime">
+                        <i class="fa-brands fa-telegram me-1"></i>Kết nối Telegram
+                    </button>
+                `;
+            }
+        }
+
+        function openTelegramLoginModal() {
+            const el = document.getElementById('telegramLoginModal');
+            if (el) {
+                const modal = new bootstrap.Modal(el);
+                modal.show();
+            }
+        }
+
+        async function sendTelePhoneCode() {
+            const phoneInput = document.getElementById('tele-input-phone');
+            const phone = phoneInput ? phoneInput.value.trim() : '';
+            const statusEl = document.getElementById('tele-phone-status');
+            const btn = document.getElementById('btn-tele-send-code');
+
+            if (!phone) {
+                alert('Vui lòng nhập số điện thoại Telegram!');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+            statusEl.innerHTML = '<span class="text-primary small"><i class="fa-solid fa-spinner fa-spin me-1"></i> Đang yêu cầu mã xác nhận từ Telegram...</span>';
+
+            try {
+                const res = await fetch('/api/telegram/send_code', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ phone })
+                });
+                const d = await res.json();
+                if (d.success) {
+                    document.getElementById('tele-phone-step-1').style.display = 'none';
+                    document.getElementById('tele-phone-step-2').style.display = 'block';
+                    document.getElementById('tele-display-phone').innerText = d.phone;
+                    statusEl.innerHTML = '';
+                    document.getElementById('tele-input-code').focus();
+                } else {
+                    statusEl.innerHTML = `<span class="text-danger small">❌ Lỗi: ${d.error || 'Không thể gửi mã'}</span>`;
+                }
+            } catch (e) {
+                statusEl.innerHTML = `<span class="text-danger small">❌ Lỗi kết nối: ${e.message}</span>`;
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = 'Gửi mã';
+            }
+        }
+
+        async function verifyTelePhoneCode() {
+            const phone = document.getElementById('tele-display-phone').innerText;
+            const code = document.getElementById('tele-input-code').value.trim();
+            const password = document.getElementById('tele-input-password').value.trim();
+            const statusEl = document.getElementById('tele-phone-status');
+            const btn = document.getElementById('btn-tele-verify-code');
+
+            if (!code) {
+                alert('Vui lòng nhập mã OTP 5 số!');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Đang xác thực...';
+
+            try {
+                const res = await fetch('/api/telegram/verify_code', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ phone, code, password })
+                });
+                const d = await res.json();
+                if (d.need_password) {
+                    document.getElementById('tele-2fa-container').style.display = 'block';
+                    document.getElementById('tele-input-password').focus();
+                    statusEl.innerHTML = '<span class="text-warning small fw-bold">⚠️ Vui lòng nhập mật khẩu bảo mật 2 lớp (2FA)!</span>';
+                } else if (d.success) {
+                    statusEl.innerHTML = `<span class="text-success small fw-bold">✅ Đăng nhập thành công: ${d.user}! Đang kích hoạt Realtime...</span>`;
+                    setTimeout(() => {
+                        const modalInstance = bootstrap.Modal.getInstance(document.getElementById('telegramLoginModal'));
+                        if (modalInstance) modalInstance.hide();
+                        checkTelegramStatus(true);
+                        refreshData(false);
+                    }, 1500);
+                } else {
+                    statusEl.innerHTML = `<span class="text-danger small">❌ Lỗi: ${d.error || 'Mã không đúng'}</span>`;
+                }
+            } catch (e) {
+                statusEl.innerHTML = `<span class="text-danger small">❌ Lỗi: ${e.message}</span>`;
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-check-circle me-1"></i> Xác nhận Đăng nhập';
+            }
+        }
+
+        async function startTeleQrFlow() {
+            const container = document.getElementById('tele-qr-container');
+            container.innerHTML = '<div class="spinner-border spinner-border-sm text-primary mb-2"></div><div class="small text-muted">Đang tạo mã QR bảo mật...</div>';
+            if (qrPollTimer) clearInterval(qrPollTimer);
+
+            try {
+                const res = await fetch('/api/telegram/qr_init');
+                const d = await res.json();
+                if (d.status === 'success') {
+                    container.innerHTML = `<div class="alert alert-success py-2 small mb-0">✅ Tài khoản đã được đăng nhập: <b>${d.user}</b></div>`;
+                    checkTelegramStatus(true);
+                    return;
+                }
+                if (d.qr_img) {
+                    container.innerHTML = `
+                        <img src="${d.qr_img}" alt="QR Code" class="img-fluid rounded border shadow-sm p-1 bg-white mb-2" style="max-width: 220px;">
+                        <div class="small fw-bold text-dark"><i class="fa-solid fa-qrcode me-1"></i>Quét mã bằng app Telegram trên điện thoại</div>
+                    `;
+                    // Bắt đầu poll trạng thái quét
+                    qrPollTimer = setInterval(async () => {
+                        try {
+                            const stRes = await fetch('/api/telegram/qr_status');
+                            const st = await stRes.json();
+                            if (st.status === 'success') {
+                                clearInterval(qrPollTimer);
+                                container.innerHTML = `<div class="alert alert-success py-2 small mb-0">✅ Quét mã thành công! Đã đăng nhập: <b>${st.user}</b></div>`;
+                                setTimeout(() => {
+                                    const modalInstance = bootstrap.Modal.getInstance(document.getElementById('telegramLoginModal'));
+                                    if (modalInstance) modalInstance.hide();
+                                    checkTelegramStatus(true);
+                                    refreshData(false);
+                                }, 1500);
+                            } else if (st.status === 'expired') {
+                                clearInterval(qrPollTimer);
+                                container.innerHTML = '<div class="alert alert-warning py-2 small mb-0">⚠️ Mã QR đã hết hạn. <button class="btn btn-sm btn-link p-0 text-dark fw-bold" onclick="startTeleQrFlow()">Bấm để tạo mã mới</button></div>';
+                            }
+                        } catch (err) {}
+                    }, 2500);
+                } else {
+                    container.innerHTML = `<div class="alert alert-danger py-2 small mb-0">❌ Không thể khởi tạo QR: ${d.error || 'Lỗi'}</div>`;
+                }
+            } catch (e) {
+                container.innerHTML = `<div class="alert alert-danger py-2 small mb-0">❌ Lỗi kết nối: ${e.message}</div>`;
+            }
+        }
+
+        async function launchDesktopLoginWindow() {
+            try {
+                await fetch('/api/telegram/launch_desktop', { method: 'POST' });
+                alert('🖥️ Đã mở cửa sổ Đăng Nhập Telegram trên màn hình Desktop của bạn! Vui lòng kiểm tra cửa sổ đen vừa xuất hiện.');
+            } catch (e) {
+                alert('Lỗi: ' + e.message);
+            }
+        }
     </script>
 
     <!-- MODAL TRA CỨU DANH SÁCH SIÊU THỊ (TAB DS ST) -->
@@ -4599,6 +5270,91 @@
                 </div>
                 <div class="modal-footer bg-white py-2">
                     <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Đóng</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL KẾT NỐI TELEGRAM (REALTIME STREAM) -->
+    <div class="modal fade" id="telegramLoginModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header bg-black text-white py-3">
+                    <div class="d-flex align-items-center gap-2">
+                        <i class="fa-brands fa-telegram fs-4 text-primary"></i>
+                        <h6 class="modal-title fw-bold mb-0">KẾT NỐI TÀI KHOẢN TELEGRAM</h6>
+                    </div>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4 bg-light">
+                    <!-- Nav tabs for QR vs Phone -->
+                    <ul class="nav nav-pills nav-fill mb-3" id="teleLoginTab" role="tablist">
+                        <li class="nav-item">
+                            <button class="nav-link active fw-bold small" id="tele-tab-phone" data-bs-toggle="pill" data-bs-target="#tele-pane-phone" type="button">
+                                <i class="fa-solid fa-phone me-1"></i> Số Điện Thoại & OTP
+                            </button>
+                        </li>
+                        <li class="nav-item">
+                            <button class="nav-link fw-bold small" id="tele-tab-qr" data-bs-toggle="pill" data-bs-target="#tele-pane-qr" type="button" onclick="startTeleQrFlow()">
+                                <i class="fa-solid fa-qrcode me-1"></i> Quét Mã QR
+                            </button>
+                        </li>
+                    </ul>
+
+                    <div class="tab-content bg-white p-3 rounded border shadow-sm">
+                        <!-- Tab Phone -->
+                        <div class="tab-pane fade show active" id="tele-pane-phone">
+                            <div id="tele-phone-step-1">
+                                <label class="form-label fw-semibold small">Nhập số điện thoại Telegram:</label>
+                                <div class="input-group mb-2">
+                                    <span class="input-group-text bg-light"><i class="fa-solid fa-phone"></i></span>
+                                    <input type="text" id="tele-input-phone" class="form-control font-monospace" placeholder="+84... hoặc 09...">
+                                    <button class="btn btn-dark fw-bold" id="btn-tele-send-code" onclick="sendTelePhoneCode()">
+                                        Gửi mã
+                                    </button>
+                                </div>
+                                <div class="form-text text-muted small">
+                                    <i class="fa-solid fa-info-circle me-1"></i> Telegram sẽ gửi mã OTP 5 số vào Telegram Desktop hoặc điện thoại của bạn.
+                                </div>
+                            </div>
+
+                            <div id="tele-phone-step-2" style="display: none;">
+                                <div class="alert alert-info py-2 small mb-2">
+                                    <i class="fa-solid fa-paper-plane me-1"></i> Mã OTP đã được gửi đến Telegram của <b id="tele-display-phone"></b>. Vui lòng kiểm tra app Telegram!
+                                </div>
+                                <label class="form-label fw-semibold small">Nhập mã OTP (5 số):</label>
+                                <input type="text" id="tele-input-code" class="form-control font-monospace text-center fs-5 fw-bold mb-2" placeholder="12345" maxlength="8">
+                                
+                                <div id="tele-2fa-container" style="display: none;" class="mb-2">
+                                    <label class="form-label fw-semibold small">Mật khẩu bảo mật 2 lớp (2FA):</label>
+                                    <input type="password" id="tele-input-password" class="form-control mb-1" placeholder="Nhập mật khẩu 2FA nếu có...">
+                                </div>
+
+                                <button class="btn btn-dark w-100 fw-bold py-2 mt-1" id="btn-tele-verify-code" onclick="verifyTelePhoneCode()">
+                                    <i class="fa-solid fa-check-circle me-1"></i> Xác nhận Đăng nhập
+                                </button>
+                            </div>
+                            <div id="tele-phone-status" class="mt-2"></div>
+                        </div>
+
+                        <!-- Tab QR -->
+                        <div class="tab-pane fade text-center" id="tele-pane-qr">
+                            <div id="tele-qr-container" class="py-2">
+                                <div class="spinner-border spinner-border-sm text-primary mb-2"></div>
+                                <div class="small text-muted">Đang tạo mã QR...</div>
+                            </div>
+                            <div class="small text-muted mt-2">
+                                Mở Telegram điện thoại: <b>Cài đặt &gt; Thiết bị &gt; Liên kết thiết bị</b> và quét mã trên.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-3 text-center">
+                        <span class="text-muted small">Hoặc mở cửa sổ console trên máy tính: </span>
+                        <button class="btn btn-link btn-sm p-0 fw-semibold text-dark text-decoration-underline" onclick="launchDesktopLoginWindow()">
+                            Mở DANG_NHAP_TELEGRAM.bat
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
