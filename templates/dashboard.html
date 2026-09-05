@@ -2661,10 +2661,6 @@
             const filtered = allStoresList.filter(s => activeCids.has(s.chat_id));
             renderStoreCheckboxes(filtered);
         }
-            const activeCids = new Set(currentBatchAlerts.map(a => a.chat_id).filter(Boolean));
-            const filtered = allStoresList.filter(s => activeCids.has(s.chat_id));
-            renderStoreCheckboxes(filtered);
-        }
 
         async function applyTemplate(type) {
             currentBatchType = type;

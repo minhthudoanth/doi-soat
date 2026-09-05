@@ -88,7 +88,7 @@ def format_date_to_d_format(date_str):
     return date_clean
 
 
-def generate_discrepancy_table_image(store_id, items, date_str=""):
+def generate_discrepancy_table_image(store_id, items, date_str="", force=False):
     """
     Vẽ ảnh bảng danh sách mã hàng thiếu theo đúng chuẩn Hình 1:
     - Thanh Header màu cam nổi bật (#F26522), chữ trắng in đậm:
@@ -97,6 +97,14 @@ def generate_discrepancy_table_image(store_id, items, date_str=""):
     - Định dạng số lượng: ví dụ 10,00 hoặc 5,00
     - Lưu file vào static/exports/chenh_lech/
     """
+    safe_date = re.sub(r'[^\w]', '_', date_str) if date_str else 'today'
+    filename = f"dc_thieu_{store_id}_{safe_date}.png"
+    filepath = os.path.join(EXPORT_DIR, filename)
+    rel_url = f"/static/exports/chenh_lech/{filename}"
+
+    if not force and os.path.exists(filepath):
+        return filepath, rel_url
+
     from PIL import Image, ImageDraw, ImageFont
 
     def get_font(size, bold=False):
@@ -210,12 +218,7 @@ def generate_discrepancy_table_image(store_id, items, date_str=""):
     draw.rectangle([padding_x, 8, image_width - padding_x, curr_y], outline='#e8e8e8', width=1)
 
     # Lưu ảnh ra đĩa
-    safe_date = re.sub(r'[^\w]', '_', date_str) if date_str else 'today'
-    filename = f"dc_thieu_{store_id}_{safe_date}.png"
-    filepath = os.path.join(EXPORT_DIR, filename)
     img.save(filepath, format='PNG', optimize=True)
-
-    rel_url = f"/static/exports/chenh_lech/{filename}"
     return filepath, rel_url
 
 
