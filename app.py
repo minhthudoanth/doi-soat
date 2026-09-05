@@ -3189,14 +3189,17 @@ if __name__ == '__main__':
         """
         from datetime import datetime, timezone, timedelta
         vn_tz = timezone(timedelta(hours=7))
-        last_run_date = None
-        print("[*] Khoi dong Luong Tu Dong Quet & Nhac Phieu Hau Kiem 09:00 AM...", flush=True)
+        # Nếu khởi động bot khi đã qua 09:00 sáng thì đánh dấu đã qua, chỉ chạy vào đúng 09:00 sáng hôm sau
+        now_init = datetime.now(vn_tz)
+        last_run_date = now_init.strftime('%d/%m/%Y') if now_init.hour >= 9 else None
+        print(f"[*] Khoi dong Luong Tu Dong Quet & Nhac Phieu Hau Kiem (Chi chay luc dung 09:00 AM) - last_run_date={last_run_date}...", flush=True)
         time.sleep(10)
         while True:
             try:
                 now_vn = datetime.now(vn_tz)
                 today_str = now_vn.strftime('%d/%m/%Y')
-                if now_vn.hour == 9 and now_vn.minute >= 0 and last_run_date != today_str:
+                # Chỉ chạy đúng vào khung giờ 09:00 sáng (phút 0)
+                if now_vn.hour == 9 and now_vn.minute == 0 and last_run_date != today_str:
                     print(f"[*] [09:00 AM] Kich hoat tien trinh nhac nho phieu Hau kiem ngay {today_str}...", flush=True)
                     last_run_date = today_str
                     from hk_service import execute_auto_daily_hk_reminder

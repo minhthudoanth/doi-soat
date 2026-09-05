@@ -5,6 +5,7 @@ import urllib.request
 from datetime import datetime, timezone, timedelta
 import sqlite3
 import random
+import asyncio
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 if BASE_DIR not in sys.path:
