@@ -216,9 +216,7 @@
                 <button class="btn btn-sm btn-outline-dark px-3 py-2 fw-bold text-uppercase" id="btn-module-docs" onclick="switchModule('docs')">
                     CHỨNG TỪ
                 </button>
-                <button class="btn btn-sm btn-outline-dark px-3 py-2 fw-bold text-uppercase" id="btn-module-discrepancy" onclick="switchModule('discrepancy')">
-                    <i class="fa-solid fa-scale-unbalanced-flip me-1 text-warning"></i> CHECK CHÊNH LỆCH
-                </button>
+
 
 
 
@@ -496,89 +494,166 @@
 
                     </div>
 
-                    <!-- TAB 4: GỬI TIN NHẮN ST TỰ ĐỘNG -->
+                    <!-- TAB 4: GỬI TIN NHẮN ST TỰ ĐỘNG (TÍCH HỢP CHECK CHÊNH LỆCH & REMIND) -->
                     <div class="tab-pane fade" id="broadcast-pane" role="tabpanel">
-                        <div class="row g-4">
-                            <!-- Cột trái: Chọn Siêu Thị -->
-                            <div class="col-lg-5">
-                                <div class="p-3 border rounded bg-light">
-                                    <div class="d-flex justify-content-between align-items-center mb-2">
-                                        <h6 class="fw-bold mb-0 text-dark"><i class="fa-solid fa-store me-1"></i> Chọn Siêu Thị Nhận Tin</h6>
+                        <!-- THANH CÔNG CỤ CHỌN MẪU PHÁT SÓNG -->
+                        <div class="p-3 border rounded mb-3 bg-white shadow-sm">
+                            <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+                                <div class="d-flex flex-wrap align-items-center gap-2">
+                                    <span class="small fw-bold text-muted text-uppercase me-1"><i class="fa-solid fa-list-check me-1 text-primary"></i> Mẫu tin phát sóng:</span>
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <button type="button" class="btn btn-black fw-bold px-3 py-2" id="btn-tmpl-dc" onclick="applyTemplate(2)">
+                                            <i class="fa-solid fa-scale-unbalanced-flip me-1 text-warning"></i> 1. Check Chênh Lệch (DC Giao Thiếu)
+                                        </button>
+                                        <button type="button" class="btn btn-outline-dark fw-bold px-3 py-2" id="btn-tmpl-hk" onclick="applyTemplate(1)">
+                                            <i class="fa-solid fa-bell me-1 text-primary"></i> 2. Remind Phiếu Hậu Kiểm
+                                        </button>
+                                        <button type="button" class="btn btn-outline-dark fw-bold px-3 py-2" id="btn-tmpl-custom" onclick="applyTemplate(3)">
+                                            <i class="fa-solid fa-pen-to-square me-1"></i> 3. Soạn Tin Tùy Chỉnh
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div class="d-flex flex-wrap align-items-center gap-2">
+                                    <span class="badge bg-light text-dark border py-2 px-3 small" title="Hệ thống chỉ gửi tin khi bạn bấm nút Gửi, không tự ý bắn tin">
+                                        <i class="fa-solid fa-shield-halved text-success me-1"></i> Chế độ: Chỉ gửi khi bạn bấm nút
+                                    </span>
+                                    <button class="btn btn-sm btn-outline-secondary py-2 px-3 fw-bold" onclick="openRecallHistoryModal()" title="Xem lịch sử các đợt tin đã gửi và thu hồi tin">
+                                        <i class="fa-solid fa-clock-rotate-left me-1"></i> Lịch Sử & Thu Hồi
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- KHU VỰC NỘI DUNG CHÍNH (2 CỘT CHUẨN, KHÔNG BỊ CO LẸP) -->
+                        <div class="row g-3">
+                            <!-- CỘT TRÁI: CHỌN SIÊU THỊ -->
+                            <div class="col-lg-4 col-md-5">
+                                <div class="p-3 border rounded bg-white shadow-sm h-100 d-flex flex-column">
+                                    <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom">
+                                        <h6 class="fw-bold mb-0 text-dark small text-uppercase">
+                                            <i class="fa-solid fa-store me-1 text-primary"></i> Danh Sách Siêu Thị
+                                        </h6>
                                         <span class="badge bg-black text-white" id="selected-stores-count">Đã chọn: 0 ST</span>
                                     </div>
-                                    
+
                                     <!-- Quick Filter Buttons -->
                                     <div class="d-flex flex-wrap gap-1 mb-2">
-                                        <button class="btn btn-sm btn-outline-dark py-1 px-2" style="font-size: 0.75rem;" onclick="selectAllStores(true)">Chọn tất cả</button>
-                                        <button class="btn btn-sm btn-outline-dark py-1 px-2" style="font-size: 0.75rem;" onclick="selectStoresByDept('KRC')">Chỉ KRC</button>
-                                        <button class="btn btn-sm btn-outline-dark py-1 px-2" style="font-size: 0.75rem;" onclick="selectStoresByDept('Đông Mát Thịt Cá')">Chỉ Đông Mát</button>
-                                        <button class="btn btn-sm btn-outline-dark py-1 px-2" style="font-size: 0.75rem;" onclick="selectStoresByDept('DC')">Chỉ DC</button>
-                                        <button class="btn btn-sm btn-outline-secondary py-1 px-2" style="font-size: 0.75rem;" onclick="selectAllStores(false)">Bỏ chọn hết</button>
+                                        <button class="btn btn-xs btn-outline-dark py-1 px-2 small" onclick="selectAllStores(true)">Tất cả</button>
+                                        <button class="btn btn-xs btn-outline-dark py-1 px-2 small" id="btn-filter-active-only" onclick="filterOnlyBatchStores()">Chỉ ST trong đợt</button>
+                                        <button class="btn btn-xs btn-outline-dark py-1 px-2 small" onclick="selectStoresByDept('KRC')">KRC</button>
+                                        <button class="btn btn-xs btn-outline-dark py-1 px-2 small" onclick="selectStoresByDept('Đông Mát Thịt Cá')">Đông Mát</button>
+                                        <button class="btn btn-xs btn-outline-secondary py-1 px-2 small" onclick="selectAllStores(false)">Bỏ chọn</button>
                                     </div>
 
                                     <!-- Search Store Input -->
                                     <div class="mb-2">
-                                        <input type="text" id="search-store-list" class="form-control form-control-sm" placeholder="Tìm tên ST, mã ST (A178, BCG...)" onkeyup="filterStoreList()">
+                                        <div class="input-group input-group-sm">
+                                            <span class="input-group-text bg-light border-end-0"><i class="fa-solid fa-magnifying-glass text-muted"></i></span>
+                                            <input type="text" id="search-store-list" class="form-control border-start-0" placeholder="Tìm tên ST, mã ST..." onkeyup="filterStoreList()">
+                                        </div>
                                     </div>
 
                                     <!-- Stores Checkbox Container (Scrollable) -->
-                                    <div class="border rounded bg-white p-2" style="max-height: 440px; overflow-y: auto;" id="stores-checkbox-container">
+                                    <div class="border rounded bg-light p-2 flex-grow-1" style="max-height: 520px; overflow-y: auto;" id="stores-checkbox-container">
                                         <div class="text-center py-4 text-muted">Đang tải danh sách Siêu thị...</div>
                                     </div>
                                 </div>
                             </div>
 
-                            <!-- Cột phải: Soạn Nội Dung & Gửi -->
-                            <div class="col-lg-7">
-                                <div class="p-3 border rounded bg-light h-100 d-flex flex-column justify-content-between">
-                                <div>
-                                    <div class="d-flex justify-content-between align-items-center mb-2">
-                                        <div class="d-flex gap-2 align-items-center">
-                                            <span class="badge bg-white text-dark border py-1 px-2" style="font-size: 0.78rem;" title="Hệ thống chỉ gửi tin khi bạn bấm nút Gửi bên dưới, tuyệt đối không tự ý bắn tin"><i class="fa-solid fa-lock text-success me-1"></i> Chế độ: Chỉ gửi khi bạn bấm gửi</span>
-                                            <button class="btn btn-sm btn-outline-secondary py-1 px-2" style="font-size: 0.8rem;" onclick="openRecallHistoryModal()" title="Xem lịch sử các đợt tin đã gửi và thu hồi tin">
-                                                <i class="fa-solid fa-clock-rotate-left me-1"></i> Lịch Sử & Thu Hồi
+                            <!-- CỘT PHẢI: CHI TIẾT NỘI DUNG, KPI & XEM TRƯỚC HÌNH ẢNH / TIN NHẮN -->
+                            <div class="col-lg-8 col-md-7">
+                                <div class="p-3 border rounded bg-white shadow-sm h-100 d-flex flex-column justify-content-between">
+                                    
+                                    <!-- SUB-VIEW 1: CHECK CHÊNH LỆCH DC GIAO THIẾU (MẪU 2) -->
+                                    <div id="pane-mode-discrepancy" style="display: block;">
+                                        <!-- Control bar cho Check Chênh Lệch -->
+                                        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3 pb-2 border-bottom">
+                                            <div class="d-flex align-items-center gap-2">
+                                                <label class="small fw-bold text-dark text-nowrap mb-0"><i class="fa-regular fa-calendar me-1 text-primary"></i> Ngày chuyển hàng:</label>
+                                                <select id="broadcast-disc-date-select" class="form-select form-select-sm fw-bold font-monospace" style="min-width: 130px;" onchange="onBroadcastDiscDateChange()">
+                                                    <option value="">Đang tải ngày...</option>
+                                                </select>
+                                            </div>
+
+                                            <div class="d-flex align-items-center gap-2">
+                                                <button class="btn btn-sm btn-outline-dark py-1 px-3 fw-bold" id="btn-sync-disc-pane" onclick="syncBroadcastDiscSheet()" title="Đồng bộ dữ liệu mới nhất từ Google Sheet">
+                                                    <i class="fa-solid fa-rotate me-1"></i> Đồng bộ Google Sheet
+                                                </button>
+                                                <select id="broadcast-disc-store-picker" class="form-select form-select-sm fw-bold font-monospace" style="max-width: 250px;" onchange="onBroadcastDiscStorePick(this.value)">
+                                                    <option value="">Chọn xem trước ST...</option>
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        <!-- KPI Cards nhỏ gọn -->
+                                        <div class="row g-2 mb-3">
+                                            <div class="col-sm-3 col-6">
+                                                <div class="p-2 border rounded bg-light text-center">
+                                                    <div class="small text-muted fw-bold text-uppercase" style="font-size: 0.72rem;">ST Thiếu Hàng</div>
+                                                    <div class="fs-5 fw-bold" id="bcast-kpi-stores" style="color: #F26522;">0</div>
+                                                </div>
+                                            </div>
+                                            <div class="col-sm-3 col-6">
+                                                <div class="p-2 border rounded bg-light text-center">
+                                                    <div class="small text-muted fw-bold text-uppercase" style="font-size: 0.72rem;">SKU Giao Thiếu</div>
+                                                    <div class="fs-5 fw-bold text-dark" id="bcast-kpi-items">0</div>
+                                                </div>
+                                            </div>
+                                            <div class="col-sm-3 col-6">
+                                                <div class="p-2 border rounded bg-light text-center">
+                                                    <div class="small text-muted fw-bold text-uppercase" style="font-size: 0.72rem;">Tổng SL Chuyển</div>
+                                                    <div class="fs-5 fw-bold text-primary" id="bcast-kpi-qty">0.00</div>
+                                                </div>
+                                            </div>
+                                            <div class="col-sm-3 col-6">
+                                                <div class="p-2 border rounded bg-light text-center">
+                                                    <div class="small text-muted fw-bold text-uppercase" style="font-size: 0.72rem;">Map Telegram</div>
+                                                    <div class="fs-5 fw-bold text-success" id="bcast-kpi-tele">0 / 0</div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Preview Container (Ảnh bảng cam + Tin nhắn) -->
+                                        <div id="broadcast-disc-preview-box" class="p-2 bg-light border rounded mb-3">
+                                            <div class="text-center py-4 text-muted">
+                                                <div class="spinner-border spinner-border-sm text-warning me-1"></div> Đang tải dữ liệu DC giao thiếu...
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- SUB-VIEW 2: REMIND HẬU KIỂM HOẶC TÙY CHỈNH (MẪU 1 & MẪU 3) -->
+                                    <div id="pane-mode-general" style="display: none;">
+                                        <!-- Message Textarea -->
+                                        <div class="mb-3">
+                                            <label class="form-label small text-muted fw-semibold mb-1">Nội dung tin nhắn (gửi trực tiếp qua Telegram):</label>
+                                            <textarea id="broadcast-message-text" class="form-control font-monospace" rows="6" placeholder="Nhập nội dung cần gửi đến các Siêu thị được chọn tại đây..." oninput="updateMessagePreview()"></textarea>
+                                        </div>
+
+                                        <!-- Preview Box -->
+                                        <div class="mb-3 p-3 border rounded bg-light">
+                                            <div class="small text-muted fw-bold mb-1"><i class="fa-solid fa-eye me-1"></i> Xem trước tin nhắn (Preview):</div>
+                                            <div id="broadcast-preview-content" class="small text-dark font-monospace text-wrap" style="white-space: pre-wrap; min-height: 40px;">(Chưa có nội dung soạn thảo)</div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Bottom Action Bar: Status & Nút Gửi -->
+                                    <div class="pt-3 border-top d-flex flex-wrap justify-content-between align-items-center gap-2">
+                                        <div id="broadcast-status-msg" class="small fw-semibold"></div>
+                                        <div class="d-flex flex-wrap gap-2 align-items-center ms-auto">
+                                            <button class="btn btn-outline-danger fw-bold px-3 py-2" id="btn-recall-broadcast" onclick="recallLastBroadcast()" title="Thu hồi toàn bộ tin nhắn của đợt vừa gửi gần nhất đối với tất cả các group ST">
+                                                <i class="fa-solid fa-rotate-left me-1"></i> THU HỒI TIN VỪA GỬI
+                                            </button>
+                                            <button class="btn btn-black fw-bold px-4 py-2 shadow-sm" id="btn-send-broadcast" onclick="sendBroadcastMessage()">
+                                                <i class="fa-solid fa-paper-plane me-1 text-warning"></i> GỬI TIN NHẮN TỨC THÌ
                                             </button>
                                         </div>
-                                    
-                                    <label class="form-label small text-muted fw-semibold mb-1">Mẫu tin soạn nhanh:</label>
-                                    <div class="d-flex flex-wrap gap-1">
-                                        <button class="btn btn-sm btn-outline-dark py-1 px-2 small fw-semibold" onclick="applyTemplate(1)">Remind Done phiếu hậu kiểm</button>
-                                        <button class="btn btn-sm btn-outline-dark py-1 px-2 small fw-semibold" onclick="applyTemplate(2)">Đối soát chênh lệch</button>
-                                        <button class="btn btn-sm btn-outline-dark py-1 px-2 small fw-semibold" onclick="applyTemplate(3)">Tùy chỉnh</button>
                                     </div>
 
-                                    <!-- Message Textarea -->
-                                    <div class="mb-3 mt-2">
-                                        <label class="form-label small text-muted fw-semibold mb-1">Nội dung tin nhắn (gửi trực tiếp qua Telegram):</label>
-                                        <textarea id="broadcast-message-text" class="form-control font-monospace" rows="7" placeholder="Nhập nội dung cần gửi đến các Siêu thị được chọn tại đây..." oninput="updateMessagePreview()"></textarea>
-                                    </div>
-
-                                    <!-- Preview Box -->
-                                    <div class="mb-3 p-3 border rounded bg-white">
-                                        <div class="small text-muted fw-bold mb-1"><i class="fa-solid fa-eye me-1"></i> Xem trước tin nhắn (Preview):</div>
-                                        <div id="broadcast-preview-content" class="small text-dark font-monospace text-wrap" style="white-space: pre-wrap; min-height: 40px;">(Chưa có nội dung soạn thảo)</div>
-                                    </div>
-                                </div>
-
-                                <!-- Send Button & Status & Recall Button -->
-                                <div class="d-flex justify-content-between align-items-center pt-2 border-top">
-                                    <div id="broadcast-status-msg" class="small fw-semibold"></div>
-                                    <div class="d-flex gap-2">
-                                        <button class="btn btn-outline-danger fw-bold px-3 py-2" id="btn-recall-broadcast" onclick="recallLastBroadcast()" title="Thu hồi toàn bộ tin nhắn của đợt vừa gửi gần nhất đối với tất cả các group ST">
-                                            <i class="fa-solid fa-rotate-left me-1"></i> THU HỒI TIN VỪA GỬI
-                                        </button>
-                                        <button class="btn btn-black px-4 py-2" id="btn-send-broadcast" onclick="sendBroadcastMessage()">
-                                            <i class="fa-solid fa-paper-plane me-1"></i> GỬI TIN NHẮN TỨC THÌ
-                                        </button>
-                                    </div>
-                                </div>
                                 </div>
                             </div>
                         </div>
                     </div>
-
-
-
                 </div>
             </div>
         </div>
@@ -1358,135 +1433,7 @@
             </div>
         </div> <!-- ĐÓNG SECTION DOCS -->
 
-        <!-- MỤC 5: CHECK CHÊNH LỆCH & GỬI THÔNG BÁO DC GIAO THIẾU -->
-        <div id="section-discrepancy" style="display: none;">
-            <div class="card-custom p-3 bg-white border mb-4">
-                <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 pb-3 border-bottom">
-                    <div>
-                        <h5 class="fw-bold mb-1 text-dark text-uppercase d-flex align-items-center">
-                            <span class="badge me-2" style="background-color: #F26522; color: #fff;"><i class="fa-solid fa-scale-unbalanced-flip"></i></span>
-                            Check Chênh Lệch - Thông Báo DC Giao Thiếu
-                        </h5>
-                        <p class="small text-muted mb-0">
-                            Thống kê siêu thị có lỗi <strong>"DC giao thiếu"</strong> sau khi đổ dữ liệu, kết xuất ảnh bảng cam chuẩn [Hình 1] và gửi Telegram kèm tin nhắn mẫu [Hình 2].
-                        </p>
-                    </div>
-
-                    <!-- THANH ĐIỀU KHIỂN -->
-                    <div class="d-flex flex-wrap align-items-center gap-2">
-                        <div class="d-flex align-items-center bg-light border rounded px-2 py-1">
-                            <label class="small fw-bold text-dark text-nowrap me-2 mb-0">
-                                <i class="fa-regular fa-calendar me-1 text-primary"></i> Ngày chuyển:
-                            </label>
-                            <select id="discrepancy-date-select" class="form-select form-select-sm fw-bold font-monospace border-0 bg-transparent" style="min-width: 125px;" onchange="onDiscrepancyDateChange()">
-                                <option value="">Đang tải...</option>
-                            </select>
-                        </div>
-
-                        <button class="btn btn-sm btn-outline-dark px-3 py-2 fw-bold" id="btn-sync-discrepancy" onclick="syncDiscrepancySheet()" title="Đồng bộ lại từ Google Sheet để lấy dữ liệu mới nhất">
-                            <i class="fa-solid fa-rotate me-1"></i> Đồng bộ Google Sheet
-                        </button>
-
-                        <div class="input-group input-group-sm" style="max-width: 240px;">
-                            <span class="input-group-text bg-light border-end-0"><i class="fa-solid fa-magnifying-glass text-muted"></i></span>
-                            <input type="text" class="form-control border-start-0" id="discrepancy-search" placeholder="Tìm ST, mã hàng..." oninput="filterDiscrepancyList()">
-                        </div>
-
-                        <select id="discrepancy-filter-status" class="form-select form-select-sm" style="max-width: 170px;" onchange="filterDiscrepancyList()">
-                            <option value="all">Tất cả Siêu Thị</option>
-                            <option value="connected">Đã map Telegram</option>
-                            <option value="not_connected">Chưa map Telegram</option>
-                        </select>
-                    </div>
-                </div>
-
-                <!-- KHỐI KPI THỐNG KÊ -->
-                <div class="row g-3 mt-1 mb-3">
-                    <div class="col-md-3 col-sm-6">
-                        <div class="p-3 rounded border bg-light d-flex align-items-center justify-content-between">
-                            <div>
-                                <div class="text-muted small text-uppercase fw-bold">Siêu Thị Thiếu Hàng</div>
-                                <div class="fs-4 fw-bold mt-1" id="kpi-disc-stores" style="color: #F26522;">0</div>
-                            </div>
-                            <span class="p-3 rounded-circle" style="background-color: #ffeae1; color: #F26522;">
-                                <i class="fa-solid fa-store fs-5"></i>
-                            </span>
-                        </div>
-                    </div>
-                    <div class="col-md-3 col-sm-6">
-                        <div class="p-3 rounded border bg-light d-flex align-items-center justify-content-between">
-                            <div>
-                                <div class="text-muted small text-uppercase fw-bold">Mặt Hàng (SKU) Thiếu</div>
-                                <div class="fs-4 fw-bold text-dark mt-1" id="kpi-disc-items">0</div>
-                            </div>
-                            <span class="p-3 rounded-circle bg-dark-subtle text-dark">
-                                <i class="fa-solid fa-boxes-stacked fs-5"></i>
-                            </span>
-                        </div>
-                    </div>
-                    <div class="col-md-3 col-sm-6">
-                        <div class="p-3 rounded border bg-light d-flex align-items-center justify-content-between">
-                            <div>
-                                <div class="text-muted small text-uppercase fw-bold">Tổng SL Chuyển Thiếu</div>
-                                <div class="fs-4 fw-bold text-primary mt-1" id="kpi-disc-qty">0.00</div>
-                            </div>
-                            <span class="p-3 rounded-circle bg-primary-subtle text-primary">
-                                <i class="fa-solid fa-calculator fs-5"></i>
-                            </span>
-                        </div>
-                    </div>
-                    <div class="col-md-3 col-sm-6">
-                        <div class="p-3 rounded border bg-light d-flex align-items-center justify-content-between">
-                            <div>
-                                <div class="text-muted small text-uppercase fw-bold">Map Nhóm Telegram</div>
-                                <div class="fs-4 fw-bold text-success mt-1" id="kpi-disc-tele">0 / 0</div>
-                            </div>
-                            <span class="p-3 rounded-circle bg-success-subtle text-success">
-                                <i class="fa-brands fa-telegram fs-5"></i>
-                            </span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- THANH HÀNH ĐỘNG GỬI BATCH -->
-                <div class="p-3 bg-light border rounded d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
-                    <div class="d-flex align-items-center gap-3">
-                        <div class="form-check mb-0">
-                            <input class="form-check-input" type="checkbox" id="chk-select-all-disc" onchange="toggleSelectAllDiscrepancy(this)" checked>
-                            <label class="form-check-label fw-bold text-dark small" for="chk-select-all-disc">
-                                Chọn tất cả (<span id="txt-selected-disc-count">0</span> ST)
-                            </label>
-                        </div>
-                        <span class="badge bg-white text-muted border font-monospace small" id="badge-disc-date-label">Ngày: --</span>
-                    </div>
-
-                    <div class="d-flex align-items-center gap-2">
-                        <button class="btn btn-sm btn-black fw-bold px-4 py-2" id="btn-send-selected-disc" onclick="sendSelectedDiscrepancies()">
-                            <i class="fa-solid fa-paper-plane me-1 text-warning"></i> GỬI THÔNG BÁO CHO CÁC ST ĐÃ CHỌN (<span id="btn-send-count">0</span> ST)
-                        </button>
-                    </div>
-                </div>
-
-                <!-- KHUNG TIẾN TRÌNH GỬI -->
-                <div id="discrepancy-progress-container" class="mb-3 p-3 bg-light border rounded" style="display: none;">
-                    <div class="d-flex justify-content-between small fw-bold mb-1">
-                        <span id="disc-progress-status"><i class="fa-solid fa-spinner fa-spin me-1"></i> Đang gửi tin nhắn & ảnh bảng đến các Siêu thị...</span>
-                        <span id="disc-progress-pct">0%</span>
-                    </div>
-                    <div class="progress" style="height: 8px;">
-                        <div class="progress-bar progress-bar-striped progress-bar-animated bg-success" id="disc-progress-bar" style="width: 0%;"></div>
-                    </div>
-                </div>
-
-                <!-- DANH SÁCH CARDS CÁC SIÊU THỊ -->
-                <div id="discrepancy-cards-container" class="d-flex flex-column gap-3">
-                    <div class="text-center py-5 text-muted">
-                        <div class="spinner-border text-primary mb-2" role="status"></div>
-                        <div>Đang tải dữ liệu chênh lệch DC giao thiếu...</div>
-                    </div>
-                </div>
-            </div>
-        </div> <!-- ĐÓNG SECTION DISCREPANCY -->
+        
 
         <!-- MODAL PHÓNG TO ẢNH BẢNG CHECK CHÊNH LỆCH -->
         <div class="modal fade" id="imagePreviewModal" tabindex="-1" aria-hidden="true">
@@ -2647,17 +2594,63 @@
         }
 
         let currentBatchAlerts = null;
-        let currentBatchType = null;
+        let currentBatchType = 2; // Mặc định mở Mẫu 2: Check Chênh Lệch
+        let bcastDiscData = null;
+        let bcastCurrentSelectedSid = null;
+
+        async function initBroadcastTab() {
+            if (allStoresList.length === 0) {
+                await loadAllStoresForBroadcast();
+            }
+            // Mặc định kích hoạt Mẫu 2: Check Chênh Lệch (DC Giao Thiếu)
+            applyTemplate(2);
+        }
+
+        function filterOnlyBatchStores() {
+            if (!currentBatchAlerts || currentBatchAlerts.length === 0) {
+                alert("Hiện tại chưa có danh sách siêu thị trong đợt phát sóng!");
+                return;
+            }
+            const activeCids = new Set(currentBatchAlerts.map(a => a.chat_id).filter(Boolean));
+            const filtered = allStoresList.filter(s => activeCids.has(s.chat_id));
+            renderStoreCheckboxes(filtered);
+        }
 
         async function applyTemplate(type) {
-
             currentBatchType = type;
             currentBatchAlerts = null;
+
+            const btnDc = document.getElementById('btn-tmpl-dc');
+            const btnHk = document.getElementById('btn-tmpl-hk');
+            const btnCustom = document.getElementById('btn-tmpl-custom');
+            const paneDisc = document.getElementById('pane-mode-discrepancy');
+            const paneGen = document.getElementById('pane-mode-general');
             const textarea = document.getElementById('broadcast-message-text');
             const preview = document.getElementById('broadcast-preview-content');
 
-            if (type === 1) {
-                // Mẫu 1: Remind done phiếu hậu kiểm (Chuẩn theo Hình 1 & Hình 2)
+            // Reset nút active
+            if (btnDc) btnDc.className = 'btn btn-outline-dark fw-bold px-3 py-2';
+            if (btnHk) btnHk.className = 'btn btn-outline-dark fw-bold px-3 py-2';
+            if (btnCustom) btnCustom.className = 'btn btn-outline-dark fw-bold px-3 py-2';
+
+            if (type === 2) {
+                // ==========================================
+                // MẪU 2: CHECK CHÊNH LỆCH (DC GIAO THIẾU)
+                // ==========================================
+                if (btnDc) btnDc.className = 'btn btn-black fw-bold px-3 py-2';
+                if (paneDisc) paneDisc.style.display = 'block';
+                if (paneGen) paneGen.style.display = 'none';
+
+                await loadBroadcastDiscrepancy();
+
+            } else if (type === 1) {
+                // ==========================================
+                // MẪU 1: REMIND DONE PHIẾU HẬU KIỂM
+                // ==========================================
+                if (btnHk) btnHk.className = 'btn btn-black fw-bold px-3 py-2';
+                if (paneDisc) paneDisc.style.display = 'none';
+                if (paneGen) paneGen.style.display = 'block';
+
                 preview.innerHTML = '<span class="text-primary"><span class="spinner-border spinner-border-sm me-1"></span> Đang kiểm tra danh sách phiếu Hậu kiểm chưa done từ KRC & KRCBT...</span>';
                 textarea.value = "RAU\n05.09\nSiêu thị kiểm tra HOÀN THÀNH phiếu HẬU KIỂM HÀNG RAU gấp nhé team\n\n[Dòng tag Quản lý ST (SM -> SL/TC/GSM - Không tag Hà Trang Smartlog)]";
 
@@ -2677,19 +2670,18 @@
                         filterStoreList();
                         if (data.batch_list.length > 0) {
                             const sample = data.batch_list[0];
-                            let imgHtml = sample.image_url ? `<div class="mt-2 text-center p-2 bg-light border rounded"><div class="small text-muted mb-1 fw-bold"><i class="fa-solid fa-image me-1 text-primary"></i> Hình ảnh bảng phiếu (Chuẩn format Hình 1: STT | Mã phiếu | Phiếu chuyển | Nơi chuyển | Nơi nhận | Trạng thái | SKU | Số lượng):</div><img src="${sample.image_url}?t=${Date.now()}" class="img-fluid rounded border shadow-sm" style="max-height: 220px;" alt="Thẻ phiếu hậu kiểm" /></div>` : '';
+                            let imgHtml = sample.image_url ? `<div class="mt-2 text-center p-2 bg-white border rounded"><div class="small text-muted mb-1 fw-bold"><i class="fa-solid fa-image me-1 text-primary"></i> Ảnh bảng phiếu hậu kiểm (Chuẩn Hình 1):</div><img src="${sample.image_url}?t=${Date.now()}" class="img-fluid rounded border shadow-sm" style="max-height: 220px;" alt="Thẻ phiếu hậu kiểm" /></div>` : '';
                             
                             preview.innerHTML = `<div class="d-flex justify-content-between align-items-center mb-2">
                                 <span class="badge bg-danger px-2 py-1"><i class="fa-solid fa-triangle-exclamation me-1"></i> Có ${data.batch_list.length} Siêu thị đang treo phiếu Hậu kiểm (${data.total_tickets || data.batch_list.length} phiếu)</span>
-                                <span class="small text-muted">Ngày: <strong>${data.date || 'Hôm nay'}</strong></span>
+                                <span class="small text-muted font-monospace">Ngày: <strong>${data.date || 'Hôm nay'}</strong></span>
                             </div>
                             <div class="fw-bold text-dark mb-1">Ví dụ nội dung gửi cho ST [${sample.store_name}]:</div>
                             <div class="p-2 bg-white border rounded small mb-2 shadow-sm">
-                                <div class="text-primary fw-bold mb-1"><i class="fa-solid fa-comment-dots me-1"></i> Nội dung tin nhắn (Chuẩn format Hình 2):</div>
+                                <div class="text-primary fw-bold mb-1"><i class="fa-solid fa-comment-dots me-1"></i> Nội dung tin nhắn:</div>
                                 <div class="font-monospace text-dark px-2 py-2 bg-light rounded border" style="white-space: pre-wrap;">${sample.message_text}</div>
                                 ${imgHtml}
-                            </div>
-                            <div class="small text-muted mt-2 fst-italic"><i class="fa-solid fa-shield-halved text-success me-1"></i> Chế độ an toàn: Chỉ gửi đi khi bạn bấm nút "GỬI TIN NHẮN TỨC THÌ" bên dưới.</div>`;
+                            </div>`;
                         } else {
                             preview.innerHTML = '<div class="alert alert-success py-2 mb-0 small"><i class="fa-solid fa-circle-check me-1"></i> Tuyệt vời! Hiện tại không có Siêu thị nào có phiếu Cần hậu kiểm đang treo trong ngày!</div>';
                         }
@@ -2699,39 +2691,14 @@
                     preview.innerHTML = '<span class="text-danger"><i class="fa-solid fa-circle-exclamation me-1"></i> Lỗi khi kiểm tra phiếu Hậu kiểm: ' + e.message + '</span>';
                 }
 
-            } else if (type === 2) {
-                // Mẫu 2: Đối soát chênh lệch DC giao thiếu
-                preview.innerHTML = '<span class="text-primary"><span class="spinner-border spinner-border-sm me-1"></span> Đang lọc danh sách lỗi DC giao thiếu theo từng Siêu thị...</span>';
-                
-                try {
-                    const res = await fetch('/api/messages/prepare_batch_alerts', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ template_type: 2 })
-                    });
-                    const data = await res.json();
-                    if (data.success && data.batch_list) {
-                        currentBatchAlerts = data.batch_list;
-                        selectedStoreIds.clear();
-                        data.batch_list.forEach(b => {
-                            if (b.chat_id) selectedStoreIds.add(b.chat_id);
-                        });
-                        filterStoreList();
-                        
-                        if (data.batch_list.length > 0) {
-                            textarea.value = `RAU CỦ QUẢ\n[${data.date}]\n[Tự động chèn danh sách: Mã hàng - Tên hàng - SL chuyển]\n\nST kiểm tra lại giúp Thư sáng nay có nhập sót SL các mã hàng trên do đếm sót/hàng không đạt chất lượng ST tự trừ thực nhận mà không nhập bên hàng hư hỏng\n\n- Với mã hàng nhận thiếu item(nếu có chụp hình QUÊN up trong phiếu): cung cấp hình ảnh SL thực nhận \n\nNOTE:\n Với hàng dư ST add trực tiếp trong phiếu HẬU KIỂM`;
-                            preview.innerHTML = `<div class="fw-bold mb-2">Ví dụ nội dung gửi cho ST [${data.batch_list[0].store_name}] (${data.batch_list[0].count_items} mã):</div><div class="font-monospace p-2 bg-light border rounded" style="white-space: pre-wrap; font-size: 0.85rem;">${data.batch_list[0].message_text}</div>`;
-                        } else {
-
-                            preview.innerText = "Không có bản ghi DC giao thiếu nào trong ngày!";
-                        }
-                    }
-                } catch (e) {
-                    console.error("Lỗi prepare đối soát DC:", e);
-                }
-
             } else if (type === 3) {
-                // Mẫu 3: Tùy chỉnh
+                // ==========================================
+                // MẪU 3: TÙY CHỈNH
+                // ==========================================
+                if (btnCustom) btnCustom.className = 'btn btn-black fw-bold px-3 py-2';
+                if (paneDisc) paneDisc.style.display = 'none';
+                if (paneGen) paneGen.style.display = 'block';
+
                 currentBatchAlerts = null;
                 textarea.value = "";
                 textarea.placeholder = "Nhập nội dung tùy chỉnh cần gửi đến các Siêu thị được chọn...";
@@ -2740,10 +2707,319 @@
             }
         }
 
+        // ================================================================
+        // LOGIC CHECK CHÊNH LỆCH TRONG TAB GỬI TIN NHẮN
+        // ================================================================
+        async function loadBroadcastDiscrepancy(forceDate) {
+            const dateSelect = document.getElementById('broadcast-disc-date-select');
+            const picker = document.getElementById('broadcast-disc-store-picker');
+            const box = document.getElementById('broadcast-disc-preview-box');
+
+            if (!dateSelect) return;
+
+            // 1. Tải danh sách ngày nếu chưa có
+            if (dateSelect.options.length <= 1) {
+                try {
+                    const rDates = await fetch('/api/discrepancy/dates');
+                    const dDates = await rDates.json();
+                    if (dDates.success && dDates.dates && dDates.dates.length > 0) {
+                        dateSelect.innerHTML = '';
+                        dDates.dates.forEach(d => {
+                            const opt = document.createElement('option');
+                            opt.value = d;
+                            opt.textContent = d;
+                            dateSelect.appendChild(opt);
+                        });
+                        if (!forceDate) forceDate = dDates.dates[0];
+                    }
+                } catch (e) {
+                    console.error("Lỗi tải discrepancy dates:", e);
+                }
+            }
+
+            const targetDate = forceDate || dateSelect.value || '';
+            if (targetDate) dateSelect.value = targetDate;
+
+            if (box) {
+                box.innerHTML = `
+                    <div class="text-center py-4 text-muted">
+                        <div class="spinner-border spinner-border-sm text-warning mb-2" role="status"></div>
+                        <div>Đang lọc dữ liệu DC giao thiếu ngày <strong>${targetDate}</strong>...</div>
+                    </div>`;
+            }
+
+            try {
+                const res = await fetch(`/api/discrepancy/data?date=${encodeURIComponent(targetDate)}`);
+                const data = await res.json();
+                if (!data.success) {
+                    if (box) box.innerHTML = `<div class="alert alert-danger py-3">Lỗi: ${data.error || 'Không tải được dữ liệu'}</div>`;
+                    return;
+                }
+
+                bcastDiscData = data;
+                currentBatchAlerts = data.batch_list;
+
+                // Cập nhật KPIs
+                document.getElementById('bcast-kpi-stores').textContent = data.total_stores || 0;
+                document.getElementById('bcast-kpi-items').textContent = data.total_missing_items || 0;
+                document.getElementById('bcast-kpi-qty').textContent = (data.total_qty_missing || 0).toLocaleString('vi-VN', {minimumFractionDigits: 2});
+
+                let connectedCount = 0;
+                data.batch_list.forEach(b => { if (b.is_chat_connected) connectedCount++; });
+                document.getElementById('bcast-kpi-tele').textContent = `${connectedCount} / ${data.total_stores}`;
+
+                // Cập nhật Store Picker dropdown
+                if (picker) {
+                    picker.innerHTML = '';
+                    data.batch_list.forEach((b, idx) => {
+                        const opt = document.createElement('option');
+                        opt.value = b.store_id;
+                        opt.textContent = `[${b.store_id}] ${b.store_name} (${b.count_items} mã)`;
+                        picker.appendChild(opt);
+                    });
+                }
+
+                // Tự động chọn tất cả ST có group Telegram
+                selectedStoreIds.clear();
+                data.batch_list.forEach(b => {
+                    if (b.chat_id) selectedStoreIds.add(b.chat_id);
+                });
+                filterStoreList();
+
+                // Hiển thị preview ST đầu tiên
+                if (data.batch_list.length > 0) {
+                    bcastCurrentSelectedSid = data.batch_list[0].store_id;
+                    if (picker) picker.value = bcastCurrentSelectedSid;
+                    renderBroadcastDiscPreview(data.batch_list[0]);
+                } else {
+                    if (box) {
+                        box.innerHTML = `
+                            <div class="alert alert-success text-center py-4 mb-0">
+                                <i class="fa-solid fa-circle-check fs-4 mb-2 d-block"></i>
+                                Tuyệt vời! Không có siêu thị nào phát sinh lỗi <strong>DC giao thiếu</strong> trong ngày ${data.date_display}!
+                            </div>`;
+                    }
+                }
+
+            } catch (err) {
+                console.error("Lỗi loadBroadcastDiscrepancy:", err);
+                if (box) box.innerHTML = `<div class="alert alert-danger py-3">Lỗi kết nối: ${err.message}</div>`;
+            }
+        }
+
+        function onBroadcastDiscDateChange() {
+            const dateSelect = document.getElementById('broadcast-disc-date-select');
+            if (dateSelect && dateSelect.value) {
+                loadBroadcastDiscrepancy(dateSelect.value);
+            }
+        }
+
+        function onBroadcastDiscStorePick(sid) {
+            bcastCurrentSelectedSid = sid;
+            if (!bcastDiscData || !bcastDiscData.batch_list) return;
+            const storeAlert = bcastDiscData.batch_list.find(b => b.store_id === sid);
+            if (storeAlert) {
+                renderBroadcastDiscPreview(storeAlert);
+            }
+        }
+
+        function renderBroadcastDiscPreview(storeAlert) {
+            const box = document.getElementById('broadcast-disc-preview-box');
+            if (!box) return;
+
+            const itemsRows = (storeAlert.items || []).map((it, idx) => {
+                const qT = typeof it.qty_transfer === 'number' ? it.qty_transfer.toLocaleString('vi-VN', {minimumFractionDigits: 2}) : it.qty_transfer;
+                const qR = typeof it.qty_receive === 'number' ? it.qty_receive.toLocaleString('vi-VN', {minimumFractionDigits: 2}) : it.qty_receive;
+                const qD = typeof it.qty_diff === 'number' ? it.qty_diff.toLocaleString('vi-VN', {minimumFractionDigits: 2}) : it.qty_diff;
+                return `<tr>
+                    <td class="text-center text-muted">${idx + 1}</td>
+                    <td class="font-monospace fw-bold text-dark">${escapeHtml(it.sku_code || '')}</td>
+                    <td>${escapeHtml(it.item_name || '')}</td>
+                    <td class="text-center font-monospace">${escapeHtml(it.uom || '')}</td>
+                    <td class="text-end font-monospace fw-bold">${qT}</td>
+                    <td class="text-end font-monospace text-muted">${qR}</td>
+                    <td class="text-end font-monospace text-danger fw-bold">-${qD}</td>
+                </tr>`;
+            }).join('');
+
+            const teleStatusBadge = storeAlert.is_chat_connected 
+                ? `<span class="badge bg-success-subtle text-success border border-success-subtle"><i class="fa-brands fa-telegram me-1"></i> ${escapeHtml(storeAlert.chat_title)}</span>`
+                : `<span class="badge bg-danger-subtle text-danger border border-danger-subtle"><i class="fa-solid fa-triangle-exclamation me-1"></i> Chưa map nhóm chat</span>`;
+
+            box.innerHTML = `
+                <div class="d-flex flex-wrap justify-content-between align-items-center mb-2 pb-2 border-bottom">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="badge font-monospace text-white px-2 py-1" style="background-color: #F26522; font-size: 0.85rem;">${escapeHtml(storeAlert.store_id)}</span>
+                        <strong class="text-dark">${escapeHtml(storeAlert.store_name)}</strong>
+                        ${teleStatusBadge}
+                    </div>
+                    <div>
+                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle font-monospace px-2 py-1">
+                            <i class="fa-solid fa-boxes-stacked me-1"></i> ${storeAlert.count_items} mã thiếu
+                        </span>
+                    </div>
+                </div>
+
+                <div class="row g-2">
+                    <!-- ẢNH BẢNG CAM CHUẨN HÌNH 1 -->
+                    <div class="col-lg-6 col-md-12">
+                        <div class="p-2 bg-white rounded border h-100 d-flex flex-column justify-content-between shadow-sm">
+                            <div>
+                                <div class="d-flex justify-content-between align-items-center mb-1 pb-1 border-bottom">
+                                    <div class="small fw-bold text-dark"><i class="fa-solid fa-image text-warning me-1"></i> Ảnh bảng thống kê (Chuẩn Hình 1):</div>
+                                    <button class="btn btn-xs btn-outline-secondary py-0 px-2" onclick="openImageModal('${storeAlert.image_url}')">
+                                        <i class="fa-solid fa-expand me-1"></i> Phóng to
+                                    </button>
+                                </div>
+                                <div class="text-center p-1 my-1">
+                                    <img src="${storeAlert.image_url}?t=${Date.now()}" class="img-fluid rounded border shadow-sm" 
+                                         style="max-height: 210px; cursor: pointer;" 
+                                         onclick="openImageModal('${storeAlert.image_url}')" 
+                                         alt="Bảng thiếu ${storeAlert.store_id}" 
+                                         title="Click để phóng to ảnh bảng" />
+                                </div>
+                            </div>
+                            <div class="text-center small text-muted font-monospace" style="font-size: 0.72rem;">
+                                <i class="fa-solid fa-circle-check text-success me-1"></i> Header cam #F26522 | 5 cột: ID ST - Mã hàng - Tên Hàng - ĐVT - SL chuyển
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TIN NHẮN CHUẨN HÌNH 2 -->
+                    <div class="col-lg-6 col-md-12">
+                        <div class="p-2 bg-white rounded border h-100 d-flex flex-column justify-content-between shadow-sm">
+                            <div>
+                                <div class="d-flex justify-content-between align-items-center mb-1 pb-1 border-bottom">
+                                    <div class="small fw-bold text-primary"><i class="fa-solid fa-comment-dots me-1"></i> Tin nhắn gửi kèm bên dưới ảnh (Chuẩn Hình 2):</div>
+                                    <button class="btn btn-xs btn-outline-secondary py-0 px-2" onclick="copyDiscrepancyMsg(this, \`${escapeJs(storeAlert.message_text)}\`)">
+                                        <i class="fa-solid fa-copy me-1"></i> Copy
+                                    </button>
+                                </div>
+                                <div class="font-monospace p-2 bg-light border rounded small text-dark" 
+                                     style="white-space: pre-wrap; max-height: 170px; overflow-y: auto; font-size: 0.78rem; line-height: 1.35;">${escapeHtml(storeAlert.message_text)}</div>
+                            </div>
+
+                            <div class="d-flex justify-content-between align-items-center pt-2 border-top mt-2">
+                                <span class="small text-muted font-monospace" style="font-size: 0.72rem;">
+                                    Target: <strong>${escapeHtml(storeAlert.chat_title)}</strong>
+                                </span>
+                                <button class="btn btn-sm btn-warning text-white fw-bold px-3 py-1 shadow-sm" 
+                                        id="btn-single-send-${storeAlert.store_id}"
+                                        onclick="sendSingleBroadcastDisc('${storeAlert.store_id}')"
+                                        ${!storeAlert.is_chat_connected ? 'disabled title="Chưa map nhóm chat"' : ''}>
+                                    <i class="fa-solid fa-paper-plane me-1"></i> Gửi riêng ST này
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- BẢNG CHI TIẾT MÃ THIẾU -->
+                <div class="mt-2 bg-white rounded border overflow-hidden">
+                    <div class="p-1 px-2 border-bottom bg-light d-flex justify-content-between align-items-center">
+                        <span class="small fw-bold text-dark" style="font-size: 0.75rem;"><i class="fa-solid fa-list me-1"></i> Danh sách mặt hàng DC giao thiếu:</span>
+                        <span class="badge bg-secondary font-monospace" style="font-size: 0.7rem;">${storeAlert.count_items} dòng</span>
+                    </div>
+                    <div class="table-responsive" style="max-height: 130px; overflow-y: auto;">
+                        <table class="table table-sm table-hover mb-0 align-middle small" style="font-size: 0.75rem;">
+                            <thead class="table-light sticky-top">
+                                <tr>
+                                    <th style="width: 35px;" class="text-center">STT</th>
+                                    <th style="width: 110px;">Mã hàng</th>
+                                    <th>Tên Hàng</th>
+                                    <th style="width: 60px;" class="text-center">ĐVT</th>
+                                    <th style="width: 85px;" class="text-end">SL chuyển</th>
+                                    <th style="width: 80px;" class="text-end">SL nhận</th>
+                                    <th style="width: 85px;" class="text-end text-danger">Chênh lệch</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${itemsRows}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>`;
+        }
+
+        async function sendSingleBroadcastDisc(sid) {
+            if (!bcastDiscData || !bcastDiscData.batch_list) return;
+            const storeAlert = bcastDiscData.batch_list.find(b => b.store_id === sid);
+            if (!storeAlert || !storeAlert.chat_id) {
+                alert(`Siêu thị [${sid}] chưa tìm thấy nhóm Telegram KRC!`);
+                return;
+            }
+
+            if (!confirm(`Bạn có chắc chắn muốn gửi ảnh bảng cam và tin nhắn thông báo DC giao thiếu cho ST [${storeAlert.store_name}] vào nhóm "${storeAlert.chat_title}"?`)) {
+                return;
+            }
+
+            const btn = document.getElementById(`btn-single-send-${sid}`);
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> Đang gửi...';
+            }
+
+            try {
+                const res = await fetch('/api/discrepancy/send', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ alerts: [storeAlert] })
+                });
+                const data = await res.json();
+                if (data.success && data.sent_count > 0) {
+                    if (btn) {
+                        btn.className = 'btn btn-sm btn-success text-white fw-bold px-3 py-1';
+                        btn.innerHTML = '<i class="fa-solid fa-check me-1"></i> Đã gửi thành công!';
+                    }
+                    alert(`✅ Đã gửi thành công thông báo DC giao thiếu đến ST [${storeAlert.store_name}]!`);
+                } else {
+                    const errMsg = (data.failed && data.failed[0] && data.failed[0].error) || data.error || 'Lỗi gửi tin';
+                    alert(`❌ Gửi thất bại: ${errMsg}`);
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.innerHTML = '<i class="fa-solid fa-paper-plane me-1"></i> Thử lại';
+                    }
+                }
+            } catch (e) {
+                alert("Lỗi kết nối máy chủ: " + e.message);
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fa-solid fa-paper-plane me-1"></i> Thử lại';
+                }
+            }
+        }
+
+        async function syncBroadcastDiscSheet() {
+            const btn = document.getElementById('btn-sync-disc-pane');
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> Đang tải từ Google Sheet...';
+            }
+
+            try {
+                const res = await fetch('/api/discrepancy/sync', { method: 'POST' });
+                const data = await res.json();
+                if (data.success) {
+                    alert(`✅ Đồng bộ Google Sheet thành công! Đã làm mới ${data.count || 0} dòng dữ liệu.`);
+                    await loadBroadcastDiscrepancy();
+                } else {
+                    alert(`❌ Đồng bộ thất bại: ${data.error || 'Lỗi không xác định'}`);
+                }
+            } catch (e) {
+                alert("Lỗi khi gọi API đồng bộ: " + e.message);
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fa-solid fa-rotate me-1"></i> Đồng bộ Google Sheet';
+                }
+            }
+        }
+
         function updateMessagePreview() {
             if ((currentBatchType === 1 || currentBatchType === 2) && currentBatchAlerts && currentBatchAlerts.length > 0) return;
-            const text = document.getElementById('broadcast-message-text').value.trim();
+            const text = document.getElementById('broadcast-message-text')?.value.trim() || '';
             const preview = document.getElementById('broadcast-preview-content');
+            if (!preview) return;
             if (text) {
                 preview.innerText = text;
                 preview.style.color = '#111';
