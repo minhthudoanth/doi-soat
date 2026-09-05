@@ -1872,18 +1872,23 @@ def api_send_batch_alerts():
                 from telegram_sender import get_forum_rau_topic_id
                 topic_id = await get_forum_rau_topic_id(client, target)
 
-                # Tin 1: Gửi ảnh kèm Caption (hoặc text nếu không có ảnh, hỗ trợ topic)
-                if img_path and os.path.exists(img_path):
-                    sent_msg1 = await client.send_file(target, img_path, caption=caption, reply_to=topic_id)
-                else:
-                    sent_msg1 = await client.send_message(target, caption, reply_to=topic_id)
-                sent_records.append((batch_id, target, c_title, sent_msg1.id, caption))
+                full_caption = f"{caption}\n{tag_line}" if tag_line else caption
 
-                # Tin 2: Gửi tin nhắn riêng biệt tag quản lý ngay sau đó (Kiểu thứ 2 theo hình)
-                if tag_line:
-                    await asyncio.sleep(0.6)
-                    sent_msg2 = await client.send_message(target, tag_line, reply_to=topic_id)
-                    sent_records.append((batch_id, target, c_title, sent_msg2.id, tag_line))
+                # Gửi ảnh kèm Caption đúng chuẩn Hình 2 (hoặc text nếu không có ảnh, hỗ trợ topic)
+                if img_path and os.path.exists(img_path):
+                    if len(full_caption) <= 1024:
+                        sent_msg = await client.send_file(target, img_path, caption=full_caption, reply_to=topic_id)
+                        sent_records.append((batch_id, target, c_title, sent_msg.id, full_caption))
+                    else:
+                        sent_msg1 = await client.send_file(target, img_path, caption=caption, reply_to=topic_id)
+                        sent_records.append((batch_id, target, c_title, sent_msg1.id, caption))
+                        if tag_line:
+                            await asyncio.sleep(0.6)
+                            sent_msg2 = await client.send_message(target, tag_line, reply_to=topic_id)
+                            sent_records.append((batch_id, target, c_title, sent_msg2.id, tag_line))
+                else:
+                    sent_msg = await client.send_message(target, full_caption, reply_to=topic_id)
+                    sent_records.append((batch_id, target, c_title, sent_msg.id, full_caption))
 
                 success_count += 1
                 await asyncio.sleep(round(random.uniform(1.8, 3.2), 2))
@@ -1894,15 +1899,19 @@ def api_send_batch_alerts():
                     topic_id = await get_forum_rau_topic_id(client, target)
 
                     if img_path and os.path.exists(img_path):
-                        sent_msg1 = await client.send_file(target, img_path, caption=caption, reply_to=topic_id)
+                        if len(full_caption) <= 1024:
+                            sent_msg = await client.send_file(target, img_path, caption=full_caption, reply_to=topic_id)
+                            sent_records.append((batch_id, target, c_title, sent_msg.id, full_caption))
+                        else:
+                            sent_msg1 = await client.send_file(target, img_path, caption=caption, reply_to=topic_id)
+                            sent_records.append((batch_id, target, c_title, sent_msg1.id, caption))
+                            if tag_line:
+                                await asyncio.sleep(0.6)
+                                sent_msg2 = await client.send_message(target, tag_line, reply_to=topic_id)
+                                sent_records.append((batch_id, target, c_title, sent_msg2.id, tag_line))
                     else:
-                        sent_msg1 = await client.send_message(target, caption, reply_to=topic_id)
-                    sent_records.append((batch_id, target, c_title, sent_msg1.id, caption))
-
-                    if tag_line:
-                        await asyncio.sleep(0.6)
-                        sent_msg2 = await client.send_message(target, tag_line, reply_to=topic_id)
-                        sent_records.append((batch_id, target, c_title, sent_msg2.id, tag_line))
+                        sent_msg = await client.send_message(target, full_caption, reply_to=topic_id)
+                        sent_records.append((batch_id, target, c_title, sent_msg.id, full_caption))
 
                     success_count += 1
                 except Exception as e2:

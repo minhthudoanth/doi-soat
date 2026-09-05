@@ -2502,9 +2502,9 @@
             const preview = document.getElementById('broadcast-preview-content');
 
             if (type === 1) {
-                // Mẫu 1: Remind done phiếu hậu kiểm (Kiểu thứ 2 theo hình)
+                // Mẫu 1: Remind done phiếu hậu kiểm (Chuẩn theo Hình 1 & Hình 2)
                 preview.innerHTML = '<span class="text-primary"><span class="spinner-border spinner-border-sm me-1"></span> Đang kiểm tra danh sách phiếu Hậu kiểm chưa done từ KRC & KRCBT...</span>';
-                textarea.value = "ST kiểm tra HOÀN THÀNH phiếu hậu kiểm GẤP nhé\n\n[Tin 2 riêng biệt: Tự động tag quản lý ST]";
+                textarea.value = "RAU\n05.09\nSiêu thị kiểm tra HOÀN THÀNH phiếu HẬU KIỂM HÀNG RAU gấp nhé team\n\n[Dòng tag Quản lý ST (SM -> SL/TC/GSM - Không tag Hà Trang Smartlog)]";
 
                 try {
                     const res = await fetch('/api/messages/prepare_batch_alerts', {
@@ -2522,7 +2522,7 @@
                         filterStoreList();
                         if (data.batch_list.length > 0) {
                             const sample = data.batch_list[0];
-                            let imgHtml = sample.image_url ? `<div class="mt-2 text-center p-2 bg-light border rounded"><div class="small text-muted mb-1 fw-bold"><i class="fa-solid fa-image me-1 text-primary"></i> Hình ảnh bảng phiếu (chỉ gồm bảng thông tin HK - PT - ST):</div><img src="${sample.image_url}?t=${Date.now()}" class="img-fluid rounded border shadow-sm" style="max-height: 220px;" alt="Thẻ phiếu hậu kiểm" /></div>` : '';
+                            let imgHtml = sample.image_url ? `<div class="mt-2 text-center p-2 bg-light border rounded"><div class="small text-muted mb-1 fw-bold"><i class="fa-solid fa-image me-1 text-primary"></i> Hình ảnh bảng phiếu (Chuẩn format Hình 1: STT | Mã phiếu | Phiếu chuyển | Nơi chuyển | Nơi nhận | Trạng thái | SKU | Số lượng):</div><img src="${sample.image_url}?t=${Date.now()}" class="img-fluid rounded border shadow-sm" style="max-height: 220px;" alt="Thẻ phiếu hậu kiểm" /></div>` : '';
                             
                             preview.innerHTML = `<div class="d-flex justify-content-between align-items-center mb-2">
                                 <span class="badge bg-danger px-2 py-1"><i class="fa-solid fa-triangle-exclamation me-1"></i> Có ${data.batch_list.length} Siêu thị đang treo phiếu Hậu kiểm (${data.total_tickets || data.batch_list.length} phiếu)</span>
@@ -2530,13 +2530,9 @@
                             </div>
                             <div class="fw-bold text-dark mb-1">Ví dụ nội dung gửi cho ST [${sample.store_name}]:</div>
                             <div class="p-2 bg-white border rounded small mb-2 shadow-sm">
-                                <div class="text-primary fw-bold mb-1"><i class="fa-solid fa-camera me-1"></i> Tin 1: Gửi hình ảnh + Chú thích (Caption):</div>
-                                <div class="font-monospace text-dark px-2 py-1 bg-light rounded border">${sample.caption || 'ST kiểm tra HOÀN THÀNH phiếu hậu kiểm GẤP nhé'}</div>
+                                <div class="text-primary fw-bold mb-1"><i class="fa-solid fa-comment-dots me-1"></i> Nội dung tin nhắn (Chuẩn format Hình 2):</div>
+                                <div class="font-monospace text-dark px-2 py-2 bg-light rounded border" style="white-space: pre-wrap;">${sample.message_text}</div>
                                 ${imgHtml}
-                            </div>
-                            <div class="p-2 bg-white border rounded small shadow-sm">
-                                <div class="text-success fw-bold mb-1"><i class="fa-solid fa-at me-1"></i> Tin 2: Tin nhắn riêng biệt gửi ngay sau đó (Tag Quản lý ST):</div>
-                                <div class="font-monospace text-dark px-2 py-1 bg-light rounded border" style="white-space: pre-wrap;">${sample.tag_line || '@sm @tc @gsm'}</div>
                             </div>
                             <div class="small text-muted mt-2 fst-italic"><i class="fa-solid fa-shield-halved text-success me-1"></i> Chế độ an toàn: Chỉ gửi đi khi bạn bấm nút "GỬI TIN NHẮN TỨC THÌ" bên dưới.</div>`;
                         } else {
