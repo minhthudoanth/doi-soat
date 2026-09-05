@@ -640,6 +640,31 @@
                                         </div>
                                     </div>
 
+                                    <!-- BẢNG THEO DÕI TIẾN ĐỘ PHÁT SÓNG REAL-TIME -->
+                                    <div id="broadcast-live-progress-container" class="mb-3 p-3 bg-white border rounded shadow-sm" style="display: none; border-left: 4px solid #F26522 !important;">
+                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                            <div class="small fw-bold text-dark" id="bcast-progress-title">
+                                                <i class="fa-solid fa-satellite-dish fa-fade text-primary me-1"></i> Tiến độ phát sóng tin nhắn
+                                            </div>
+                                            <div class="d-flex align-items-center gap-2">
+                                                <span class="badge bg-success" id="bcast-badge-success">Đã gửi: 0</span>
+                                                <span class="badge bg-danger" id="bcast-badge-failed" style="display: none;">Lỗi: 0</span>
+                                                <span class="badge bg-dark font-monospace" id="bcast-badge-pct">0%</span>
+                                            </div>
+                                        </div>
+                                        <div class="progress mb-2" style="height: 14px; border-radius: 6px; background-color: #f0f0f0;">
+                                            <div id="bcast-progress-bar" class="progress-bar progress-bar-striped progress-bar-animated bg-primary" role="progressbar" style="width: 0%;"></div>
+                                        </div>
+                                        <div class="d-flex justify-content-between align-items-center small text-muted font-monospace mb-2" style="font-size: 0.74rem;">
+                                            <span id="bcast-progress-status-text" class="text-truncate" style="max-width: 75%;">Đang kết nối Telegram...</span>
+                                            <span id="bcast-progress-counts" class="fw-bold text-dark">0 / 0 ST</span>
+                                        </div>
+                                        <!-- Live action log stream -->
+                                        <div id="bcast-live-log-box" class="bg-light border rounded p-2 font-monospace" style="max-height: 130px; overflow-y: auto; font-size: 0.72rem; line-height: 1.45;">
+                                            <div class="text-muted fst-italic">Nhật ký phát sóng từng ST sẽ hiển thị trực tiếp tại đây...</div>
+                                        </div>
+                                    </div>
+
                                     <!-- Bottom Action Bar: Status & Nút Gửi -->
                                     <div class="pt-3 border-top d-flex flex-wrap justify-content-between align-items-center gap-2">
                                         <div id="broadcast-status-msg" class="small fw-semibold"></div>
@@ -3132,6 +3157,93 @@
             }
         }
 
+        let bcastPollTimer = null;
+
+        function startBroadcastProgressTracking() {
+            const container = document.getElementById('broadcast-live-progress-container');
+            if (container) {
+                container.style.display = 'block';
+                container.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+
+            const pBar = document.getElementById('bcast-progress-bar');
+            const pPct = document.getElementById('bcast-badge-pct');
+            const pStatus = document.getElementById('bcast-progress-status-text');
+            const pCounts = document.getElementById('bcast-progress-counts');
+            const bSuccess = document.getElementById('bcast-badge-success');
+            const bFailed = document.getElementById('bcast-badge-failed');
+            const logBox = document.getElementById('bcast-live-log-box');
+
+            if (pBar) {
+                pBar.className = 'progress-bar progress-bar-striped progress-bar-animated bg-primary';
+                pBar.style.width = '3%';
+            }
+            if (pPct) pPct.textContent = '0%';
+            if (pStatus) pStatus.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> Đang khởi động phiên Telegram...';
+            if (pCounts) pCounts.textContent = '0 ST';
+            if (bSuccess) bSuccess.textContent = 'Đã gửi: 0';
+            if (bFailed) bFailed.style.display = 'none';
+            if (logBox) logBox.innerHTML = '<div class="text-primary"><i class="fa-solid fa-circle-notch fa-spin me-1"></i> Đang kết nối máy chủ Telegram...</div>';
+
+            if (bcastPollTimer) clearInterval(bcastPollTimer);
+
+            bcastPollTimer = setInterval(async () => {
+                try {
+                    const res = await fetch('/api/broadcast/progress');
+                    const p = await res.json();
+
+                    if (!p) return;
+
+                    if (pBar) pBar.style.width = `${Math.max(p.percent, 3)}%`;
+                    if (pPct) pPct.textContent = `${p.percent}%`;
+                    if (pStatus) pStatus.innerHTML = p.status_text || 'Đang gửi...';
+                    if (pCounts) pCounts.textContent = `${p.current} / ${p.total} ST`;
+                    if (bSuccess) bSuccess.textContent = `Đã gửi: ${p.success_count}`;
+
+                    if (bFailed) {
+                        if (p.failed_count > 0) {
+                            bFailed.style.display = 'inline-block';
+                            bFailed.textContent = `Lỗi: ${p.failed_count}`;
+                        } else {
+                            bFailed.style.display = 'none';
+                        }
+                    }
+
+                    if (logBox && p.logs && p.logs.length > 0) {
+                        logBox.innerHTML = p.logs.map(l => {
+                            let color = '#2b2b2b';
+                            if (l.includes('✅')) color = '#198754; font-weight: bold;';
+                            else if (l.includes('☕') || l.includes('⏳')) color = '#d97706; font-weight: bold;';
+                            else if (l.includes('⚠️') || l.includes('❌')) color = '#dc3545; font-weight: bold;';
+                            return `<div class="py-0" style="color: ${color};">${escapeHtml(l)}</div>`;
+                        }).join('');
+                        logBox.scrollTop = logBox.scrollHeight;
+                    }
+
+                    if (!p.is_running && p.current >= p.total && p.total > 0) {
+                        clearInterval(bcastPollTimer);
+                        bcastPollTimer = null;
+                        if (pBar) {
+                            pBar.className = 'progress-bar bg-success';
+                            pBar.style.width = '100%';
+                        }
+                        if (pPct) pPct.textContent = '100%';
+                    }
+                } catch (e) {
+                    console.error("Lỗi poll progress:", e);
+                }
+            }, 800);
+        }
+
+        function stopBroadcastProgressTracking() {
+            setTimeout(() => {
+                if (bcastPollTimer) {
+                    clearInterval(bcastPollTimer);
+                    bcastPollTimer = null;
+                }
+            }, 3000);
+        }
+
         async function sendBroadcastMessage() {
             const msg = document.getElementById('broadcast-message-text').value.trim();
             const chatIds = Array.from(selectedStoreIds);
@@ -3153,6 +3265,7 @@
                 btn.disabled = true;
                 btn.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span> Đang gửi tin đến ${alertsToSend.length} ST...`;
                 statusMsg.innerHTML = `<span class="text-primary">⏳ Đang gửi tin nhắn qua Telegram (có Smart Delay chống spam)...</span>`;
+                startBroadcastProgressTracking();
 
                 try {
                     const res = await fetch('/api/messages/send_batch_alerts', {
@@ -3176,6 +3289,8 @@
                     btn.innerHTML = '<i class="fa-solid fa-paper-plane me-1"></i> Gửi Tin Nhắn Hàng Loạt';
                     console.error("Lỗi sendBatchAlerts:", e);
                     alert("Lỗi kết nối máy chủ: " + e.message);
+                } finally {
+                    stopBroadcastProgressTracking();
                 }
                 return;
             }
@@ -3192,6 +3307,7 @@
             btn.disabled = true;
             btn.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span> Đang gửi tin đến ${chatIds.length} ST...`;
             statusMsg.innerHTML = `<span class="text-primary">⏳ Đang gửi tin nhắn qua Telegram...</span>`;
+            startBroadcastProgressTracking();
 
             try {
                 const res = await fetch('/api/messages/send', {
@@ -3216,6 +3332,8 @@
                 btn.innerHTML = '<i class="fa-solid fa-paper-plane me-1"></i> GỬI TIN NHẮN TỨC THÌ';
                 console.error("Lỗi sendBroadcastMessage:", e);
                 alert("Lỗi kết nối máy chủ: " + e.message);
+            } finally {
+                stopBroadcastProgressTracking();
             }
         }
 

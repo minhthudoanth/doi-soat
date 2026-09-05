@@ -1832,6 +1832,11 @@ def api_discrepancy_sync():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@app.route('/api/broadcast/progress', methods=['GET'])
+def api_broadcast_progress():
+    from progress_tracker import get_broadcast_progress
+    return jsonify(get_broadcast_progress())
+
 @app.route('/api/messages/send_batch_alerts', methods=['POST'])
 def api_send_batch_alerts():
     data = request.json or {}
@@ -1845,6 +1850,7 @@ def api_send_batch_alerts():
     import sqlite3
     from telethon import errors, TelegramClient
     from config import SESSION_NAME, API_ID, API_HASH, DB_PATH
+    from progress_tracker import reset_broadcast_progress, update_broadcast_progress, finish_broadcast_progress
     
     async def do_batch():
         client = TelegramClient(SESSION_NAME, API_ID, API_HASH)
@@ -1854,6 +1860,8 @@ def api_send_batch_alerts():
             return {"success": False, "error": "Chưa đăng nhập Telegram"}
             
         batch_id = datetime.now().strftime('BATCH_%Y%m%d_%H%M%S')
+        reset_broadcast_progress(len(alerts), batch_id)
+
         success_count = 0
         failed = []
         sent_records = []
@@ -1865,6 +1873,7 @@ def api_send_batch_alerts():
             tag_line = (a.get('tag_line') or '').strip()
             img_path = a.get('image_path')
             c_title = a.get('chat_title') or f"ST_{cid}"
+            sid = a.get('store_id') or "ST"
             if not cid:
                 continue
             try:
@@ -1878,6 +1887,9 @@ def api_send_batch_alerts():
                     full_caption = f"{caption}\n\n{tag_line}"
                 else:
                     full_caption = caption
+
+                now_t = datetime.now().strftime('%H:%M:%S')
+                update_broadcast_progress(idx, len(alerts), f"[{sid}] {c_title}", f"Đang gửi {idx+1}/{len(alerts)}: [{sid}] {c_title}...", success_count, len(failed))
 
                 # 1. Giả lập hành vi người thật: gửi action Typing / Uploading Photo trước khi gửi
                 try:
@@ -1905,6 +1917,8 @@ def api_send_batch_alerts():
                     sent_records.append((batch_id, target, c_title, sent_msg.id, full_caption))
 
                 success_count += 1
+                now_t = datetime.now().strftime('%H:%M:%S')
+                update_broadcast_progress(idx + 1, len(alerts), f"[{sid}] {c_title}", f"Đã gửi {idx+1}/{len(alerts)} ST: [{sid}] {c_title}", success_count, len(failed), log_entry=f"[{now_t}] ✅ [{sid}] {c_title} - Gửi thành công")
 
                 # 3. Smart Jitter Delay (ngẫu nhiên 2.5s - 4.2s + độ trễ thích ứng)
                 delay_sec = round(random.uniform(2.5, 4.2) + adaptive_delay, 2)
@@ -1913,12 +1927,16 @@ def api_send_batch_alerts():
                 # 2. Cơ chế nghỉ giải lao (Batch Chunking & Smart Cooldown): cứ 15 ST nghỉ 12s - 18s
                 if (idx + 1) % 15 == 0 and (idx + 1) < len(alerts):
                     cooldown = round(random.uniform(12.0, 18.0), 1)
+                    now_t = datetime.now().strftime('%H:%M:%S')
+                    update_broadcast_progress(idx + 1, len(alerts), f"[{sid}] {c_title}", f"⏳ [Anti-Spam] Nghỉ giải lao {cooldown}s sau {idx+1} ST...", success_count, len(failed), log_entry=f"[{now_t}] ☕ Nghỉ giải lao chống SpamBot {cooldown}s...")
                     print(f"[*] [Batch Alerts] Đã gửi {idx+1}/{len(alerts)} ST. Nghỉ giải lao {cooldown}s (Anti-Spam Cooldown)...", flush=True)
                     await asyncio.sleep(cooldown)
 
             except errors.FloodWaitError as e:
                 # 4. Tự động xử lý & thích ứng FloodWait (Auto-Backoff)
                 wait_time = e.seconds + 2
+                now_t = datetime.now().strftime('%H:%M:%S')
+                update_broadcast_progress(idx, len(alerts), f"[{sid}] {c_title}", f"⚠️ Telegram FloodWait: Tạm dừng {wait_time}s...", success_count, len(failed), log_entry=f"[{now_t}] ⚠️ Chờ FloodWait {wait_time}s...")
                 print(f"[!] Gặp FloodWait: Chờ {wait_time}s và tự động tăng độ trễ thích ứng...", flush=True)
                 adaptive_delay += 1.5
                 await asyncio.sleep(wait_time)
@@ -1942,12 +1960,17 @@ def api_send_batch_alerts():
                         sent_records.append((batch_id, target, c_title, sent_msg.id, full_caption))
 
                     success_count += 1
+                    update_broadcast_progress(idx + 1, len(alerts), f"[{sid}] {c_title}", f"Đã gửi lại thành công [{sid}] {c_title}", success_count, len(failed), log_entry=f"[{now_t}] ✅ [{sid}] {c_title} (sau FloodWait) - Thành công")
                 except Exception as e2:
                     failed.append({"chat_id": cid, "error": str(e2)})
+                    update_broadcast_progress(idx + 1, len(alerts), f"[{sid}] {c_title}", f"Lỗi gửi [{sid}]", success_count, len(failed), log_entry=f"[{now_t}] ❌ [{sid}] {c_title} - Lỗi: {e2}")
             except Exception as e:
                 failed.append({"chat_id": cid, "error": str(e)})
-                
+                now_t = datetime.now().strftime('%H:%M:%S')
+                update_broadcast_progress(idx + 1, len(alerts), f"[{sid}] {c_title}", f"Lỗi gửi [{sid}]", success_count, len(failed), log_entry=f"[{now_t}] ❌ [{sid}] {c_title} - Lỗi: {e}")
+
         await client.disconnect()
+        finish_broadcast_progress(success_count, len(failed))
 
         if sent_records:
             try:
@@ -1962,6 +1985,8 @@ def api_send_batch_alerts():
                 conn.close()
             except Exception as err:
                 print(f"[!] Lỗi ghi sent_broadcast_history: {err}", flush=True)
+
+        return {"success": True, "batch_id": batch_id, "sent_count": success_count, "failed_count": len(failed), "failed": failed}
 
         return {"success": True, "batch_id": batch_id, "sent_count": success_count, "failed_count": len(failed), "failed": failed}
 

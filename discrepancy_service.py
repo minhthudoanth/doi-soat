@@ -382,6 +382,9 @@ async def send_discrepancy_telethon(alerts):
         return {"success": False, "sent_count": 0, "error": "Tài khoản Telegram chưa được ủy quyền"}
 
     batch_id = datetime.now().strftime('DC_THIEU_%Y%m%d_%H%M%S')
+    from progress_tracker import reset_broadcast_progress, update_broadcast_progress, finish_broadcast_progress
+    reset_broadcast_progress(len(alerts), batch_id)
+
     success_count = 0
     failed = []
     sent_records = []
@@ -400,6 +403,9 @@ async def send_discrepancy_telethon(alerts):
 
         target = int(cid)
         try:
+            now_t = datetime.now().strftime('%H:%M:%S')
+            update_broadcast_progress(idx, len(alerts), f"[{sid}] {c_title}", f"Đang gửi {idx+1}/{len(alerts)}: [{sid}] {c_title}...", success_count, len(failed))
+
             # Topic forum (nếu có)
             topic_id = await get_forum_rau_topic_id(client, target)
 
@@ -439,6 +445,8 @@ async def send_discrepancy_telethon(alerts):
                 sent_records.append((batch_id, target, c_title, sent_msg.id, msg_text))
 
             success_count += 1
+            now_t = datetime.now().strftime('%H:%M:%S')
+            update_broadcast_progress(idx + 1, len(alerts), f"[{sid}] {c_title}", f"Đã gửi {idx+1}/{len(alerts)} ST: [{sid}] {c_title}", success_count, len(failed), log_entry=f"[{now_t}] ✅ [{sid}] {c_title} - Gửi thành công")
 
             # 3. Smart Jitter Delay (ngẫu nhiên 2.5s - 4.2s + độ trễ thích ứng)
             delay_sec = round(random.uniform(2.5, 4.2) + adaptive_delay, 2)
@@ -447,12 +455,16 @@ async def send_discrepancy_telethon(alerts):
             # 2. Cơ chế nghỉ giải lao (Batch Chunking & Smart Cooldown): cứ 15 ST nghỉ 12s - 18s
             if (idx + 1) % 15 == 0 and (idx + 1) < len(alerts):
                 cooldown = round(random.uniform(12.0, 18.0), 1)
+                now_t = datetime.now().strftime('%H:%M:%S')
+                update_broadcast_progress(idx + 1, len(alerts), f"[{sid}] {c_title}", f"⏳ [Anti-Spam] Nghỉ giải lao {cooldown}s sau {idx+1} ST...", success_count, len(failed), log_entry=f"[{now_t}] ☕ Nghỉ giải lao chống SpamBot {cooldown}s...")
                 print(f"[*] Đã gửi {idx+1}/{len(alerts)} ST. Nghỉ giải lao {cooldown}s (Anti-Spam Cooldown)...", flush=True)
                 await asyncio.sleep(cooldown)
 
         except errors.FloodWaitError as e:
             # 4. Tự động xử lý & thích ứng FloodWait (Auto-Backoff)
             wait_time = e.seconds + 2
+            now_t = datetime.now().strftime('%H:%M:%S')
+            update_broadcast_progress(idx, len(alerts), f"[{sid}] {c_title}", f"⚠️ Telegram FloodWait: Tạm dừng {wait_time}s...", success_count, len(failed), log_entry=f"[{now_t}] ⚠️ Chờ FloodWait {wait_time}s...")
             print(f"[!] Gặp FloodWait: Chờ {wait_time}s và tự động tăng độ trễ thích ứng...", flush=True)
             adaptive_delay += 1.5
             await asyncio.sleep(wait_time)
@@ -464,13 +476,18 @@ async def send_discrepancy_telethon(alerts):
                     sent_msg = await client.send_message(target, msg_text, reply_to=topic_id)
                 sent_records.append((batch_id, target, c_title, sent_msg.id, msg_text))
                 success_count += 1
+                update_broadcast_progress(idx + 1, len(alerts), f"[{sid}] {c_title}", f"Đã gửi lại thành công [{sid}] {c_title}", success_count, len(failed), log_entry=f"[{now_t}] ✅ [{sid}] {c_title} (sau FloodWait) - Thành công")
             except Exception as e2:
                 failed.append({"store_id": sid, "store_name": a.get('store_name'), "error": str(e2)})
+                update_broadcast_progress(idx + 1, len(alerts), f"[{sid}] {c_title}", f"Lỗi gửi [{sid}]", success_count, len(failed), log_entry=f"[{now_t}] ❌ [{sid}] {c_title} - Lỗi: {e2}")
 
         except Exception as e:
             failed.append({"store_id": sid, "store_name": a.get('store_name'), "error": str(e)})
+            now_t = datetime.now().strftime('%H:%M:%S')
+            update_broadcast_progress(idx + 1, len(alerts), f"[{sid}] {c_title}", f"Lỗi gửi [{sid}]", success_count, len(failed), log_entry=f"[{now_t}] ❌ [{sid}] {c_title} - Lỗi: {e}")
 
     await client.disconnect()
+    finish_broadcast_progress(success_count, len(failed))
 
     if sent_records:
         try:

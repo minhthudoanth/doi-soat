@@ -52,6 +52,9 @@ async def send_telegram_messages(chat_ids: list, message_text: str):
         pass
 
     batch_id = datetime.now().strftime('%Y%m%d_%H%M%S')
+    from progress_tracker import reset_broadcast_progress, update_broadcast_progress, finish_broadcast_progress
+    reset_broadcast_progress(len(chat_ids), batch_id)
+
     success_count = 0
     failed = []
     sent_records = []
@@ -61,6 +64,9 @@ async def send_telegram_messages(chat_ids: list, message_text: str):
     for idx, cid in enumerate(chat_ids):
         try:
             target = int(cid)
+            chat_name = store_titles.get(target, f"ST_{target}")
+            now_t = datetime.now().strftime('%H:%M:%S')
+            update_broadcast_progress(idx, len(chat_ids), chat_name, f"Đang gửi {idx+1}/{len(chat_ids)}: {chat_name}...", success_count, len(failed))
 
             # 1. Giả lập hành vi người thật: gửi action Typing trước khi gửi tin
             try:
@@ -74,6 +80,8 @@ async def send_telegram_messages(chat_ids: list, message_text: str):
             success_count += 1
             chat_name = store_titles.get(target, f"ST_{target}")
             sent_records.append((batch_id, target, chat_name, msg.id, message_text))
+            now_t = datetime.now().strftime('%H:%M:%S')
+            update_broadcast_progress(idx + 1, len(chat_ids), chat_name, f"Đã gửi {idx+1}/{len(chat_ids)}: {chat_name}", success_count, len(failed), log_entry=f"[{now_t}] ✅ {chat_name} - Gửi thành công")
 
             # 3. Smart Jitter Delay (2.5s - 4.2s ngẫu nhiên + độ trễ thích ứng)
             delay_sec = round(random.uniform(2.5, 4.2) + adaptive_delay, 2)
@@ -82,12 +90,16 @@ async def send_telegram_messages(chat_ids: list, message_text: str):
             # 2. Cơ chế nghỉ giải lao (Batch Chunking & Smart Cooldown): cứ 15 ST nghỉ 12s - 18s
             if (idx + 1) % 15 == 0 and (idx + 1) < len(chat_ids):
                 cooldown = round(random.uniform(12.0, 18.0), 1)
+                now_t = datetime.now().strftime('%H:%M:%S')
+                update_broadcast_progress(idx + 1, len(chat_ids), chat_name, f"⏳ [Anti-Spam] Nghỉ giải lao {cooldown}s sau {idx+1} ST...", success_count, len(failed), log_entry=f"[{now_t}] ☕ Nghỉ giải lao chống SpamBot {cooldown}s...")
                 print(f"[*] [Broadcast] Đã gửi {idx+1}/{len(chat_ids)} ST. Nghỉ giải lao {cooldown}s (Anti-Spam Cooldown)...", flush=True)
                 await asyncio.sleep(cooldown)
 
         except errors.FloodWaitError as e:
             # 4. Tự động xử lý & thích ứng FloodWait (Auto-Backoff)
             wait_time = e.seconds + 2
+            now_t = datetime.now().strftime('%H:%M:%S')
+            update_broadcast_progress(idx, len(chat_ids), chat_name, f"⚠️ Telegram FloodWait: Tạm dừng {wait_time}s...", success_count, len(failed), log_entry=f"[{now_t}] ⚠️ Chờ FloodWait {wait_time}s...")
             print(f"[!] Gặp FloodWait: Chờ {wait_time}s và tự động tăng độ trễ thích ứng...", flush=True)
             adaptive_delay += 1.5
             await asyncio.sleep(wait_time)
@@ -96,12 +108,17 @@ async def send_telegram_messages(chat_ids: list, message_text: str):
                 success_count += 1
                 chat_name = store_titles.get(target, f"ST_{target}")
                 sent_records.append((batch_id, target, chat_name, msg.id, message_text))
+                update_broadcast_progress(idx + 1, len(chat_ids), chat_name, f"Đã gửi lại thành công: {chat_name}", success_count, len(failed), log_entry=f"[{now_t}] ✅ {chat_name} (sau FloodWait) - Thành công")
             except Exception as e2:
                 failed.append({"chat_id": cid, "error": str(e2)})
+                update_broadcast_progress(idx + 1, len(chat_ids), chat_name, f"Lỗi gửi {chat_name}", success_count, len(failed), log_entry=f"[{now_t}] ❌ {chat_name} - Lỗi: {e2}")
         except Exception as e:
             failed.append({"chat_id": cid, "error": str(e)})
+            now_t = datetime.now().strftime('%H:%M:%S')
+            update_broadcast_progress(idx + 1, len(chat_ids), chat_name, f"Lỗi gửi {chat_name}", success_count, len(failed), log_entry=f"[{now_t}] ❌ {chat_name} - Lỗi: {e}")
 
     await client.disconnect()
+    finish_broadcast_progress(success_count, len(failed))
 
     # Lưu thông tin các tin nhắn đã gửi để phục vụ chức năng thu hồi
     if sent_records:
