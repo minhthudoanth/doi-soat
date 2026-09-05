@@ -271,6 +271,19 @@ def get_discrepancy_data_by_date(date_str=None):
     date_display = format_date_to_d_format(date_str)
     all_stores = get_all_store_chats()
 
+    # Tải toàn bộ cache tag từ store_tag_cache
+    tag_cache_map = {}
+    try:
+        conn_tag = sqlite3.connect(DB_PATH)
+        c_t = conn_tag.cursor()
+        c_t.execute("CREATE TABLE IF NOT EXISTS store_tag_cache (chat_id TEXT PRIMARY KEY, tag_line TEXT, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
+        c_t.execute("SELECT chat_id, tag_line FROM store_tag_cache WHERE tag_line IS NOT NULL AND tag_line != '' AND tag_line != '@sm @tc @gsm'")
+        for r in c_t.fetchall():
+            tag_cache_map[str(r[0])] = r[1]
+        conn_tag.close()
+    except Exception:
+        pass
+
     # Nhóm theo store_id
     grouped = {}
     for r in rows:
@@ -313,8 +326,10 @@ def get_discrepancy_data_by_date(date_str=None):
         # Sinh ảnh bảng màu cam chuẩn theo Hình 1
         img_abs_path, img_rel_url = generate_discrepancy_table_image(sid, items, date_str)
 
-        # Lấy dòng tag quản lý cửa hàng (SM -> SL/TC/GSM, không tag Hà Trang Smartlog)
-        tag_line = "@sm @tc @gsm"
+        # Lấy dòng tag quản lý cửa hàng (ưu tiên từ cache CSDL)
+        tag_line = tag_cache_map.get(str(chat_id)) if chat_id else None
+        if not tag_line:
+            tag_line = "@sm @tc @gsm"
 
         full_msg_preview = f"{msg_template}\n\n{tag_line}" if tag_line else msg_template
 
@@ -389,13 +404,13 @@ async def send_discrepancy_telethon(alerts):
 
             # Lấy tag quản lý real-time nếu có kết nối
             try:
-                tag_str = await get_store_manager_tag_line(target)
+                tag_str = await get_store_manager_tag_line(target, client=client)
                 if tag_str and tag_str != "@sm @tc @gsm":
                     # Thay thế tag mặc định bằng tag thực tế
                     if "@sm @tc @gsm" in msg_text:
                         msg_text = msg_text.replace("@sm @tc @gsm", tag_str)
-            except Exception:
-                pass
+            except Exception as e:
+                print(f"[!] Lỗi lấy tag quản lý cho {sid} ({target}): {e}")
 
             if img_path and os.path.exists(img_path):
                 if len(msg_text) <= 1024:

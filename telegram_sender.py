@@ -349,23 +349,52 @@ async def get_forum_rau_topic_id(client, chat_id):
         print(f"[!] Lỗi tìm topic Rau trong group {chat_id}: {e}")
     return None
 
-async def get_store_manager_tag_line(chat_id):
+async def get_store_manager_tag_line(chat_id, client=None):
     """
     Lấy dòng tag quản lý theo đúng quy tắc ưu tiên:
     1. Tuyệt đối không tag đối tác/vendor (Hà Trang Smartlog @HaTrang290303) và team SCM.
     2. Nếu có SM: Ưu tiên tag SM.
     3. Nếu KHÔNG có SM: Tag SL / TC / GSM.
-    4. Nếu không có ai: Fallback @sm @tc @gsm.
+    4. Định dạng mention chuẩn Telegram: @username hoặc [Họ Tên](tg://user?id=123) để kích hoạt tag thật.
+    5. Tự động lưu cache vào CSDL store_tag_cache để tái sử dụng ngay lập tức.
     """
     if not chat_id:
         return "@sm @tc @gsm"
+
+    # 0. Kiểm tra cache trong CSDL
     try:
-        client = TelegramClient(SESSION_NAME, API_ID, API_HASH)
-        await client.connect()
-        if not await client.is_user_authorized():
-            await client.disconnect()
-            return "@sm @tc @gsm"
-            
+        from database import get_optimized_conn
+        conn_c = get_optimized_conn()
+        c_c = conn_c.cursor()
+        c_c.execute("CREATE TABLE IF NOT EXISTS store_tag_cache (chat_id TEXT PRIMARY KEY, tag_line TEXT, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
+        c_c.execute("SELECT tag_line FROM store_tag_cache WHERE chat_id = ?", (str(chat_id),))
+        r_c = c_c.fetchone()
+        if r_c and r_c[0] and r_c[0] != "@sm @tc @gsm":
+            cached_tag = r_c[0]
+            if client is None:
+                conn_c.close()
+                return cached_tag
+        conn_c.close()
+    except Exception:
+        pass
+
+    should_disconnect = False
+    try:
+        if client is None:
+            import tempfile, shutil
+            temp_dir = tempfile.gettempdir()
+            ts_name = os.path.join(temp_dir, f"temp_tag_{int(time.time()*1000)}")
+            orig_s = os.path.join(BASE_DIR, f"{SESSION_NAME}.session")
+            if os.path.exists(orig_s):
+                shutil.copy2(orig_s, ts_name + ".session")
+                client = TelegramClient(ts_name, API_ID, API_HASH)
+            else:
+                client = TelegramClient(SESSION_NAME, API_ID, API_HASH)
+            await client.connect()
+            should_disconnect = True
+            if not await client.is_user_authorized():
+                return "@sm @tc @gsm"
+
         participants = await client.get_participants(int(chat_id))
         sm_tags = []
         backup_tags = [] # SL, TC, GSM
@@ -379,37 +408,55 @@ async def get_store_manager_tag_line(chat_id):
                 continue
 
             user_str = f"{full_name} {title_rk}".upper()
-            tag_val = f"@{p.username}" if p.username else full_name
+            # Nếu có username thì dùng @username, nếu không dùng cú pháp tg://user?id= để mention thật
+            tag_val = f"@{p.username}" if p.username else f"[{full_name}](tg://user?id={p.id})"
 
             # 1. Kiểm tra SM
-            is_sm = bool(re.search(r'\bSM\b', user_str) or 'CỬA HÀNG TRƯỞNG' in user_str or 'STORE MANAGER' in user_str)
-            if is_sm and not bool(re.search(r'\bGSM\b', user_str)):
+            is_sm = bool(re.search(r'\bSM\d*(?:\(TT\))?\b', user_str) or 'CỬA HÀNG TRƯỞNG' in user_str or 'STORE MANAGER' in user_str)
+            if is_sm and not bool(re.search(r'\bGSM\d*\b', user_str)):
                 sm_tags.append(tag_val)
                 continue
 
-            # 2. Kiểm tra SL, TC, GSM
-            is_backup = bool(re.search(r'\b(SL|TC|GSM|TCTT|TC\(TT\)|TRƯỞNG CA|CHỦ CA|LEAD)\b', user_str))
+            # 2. Kiểm tra SL, TC, GSM (bao gồm GSM27, TC, TCTT...)
+            is_backup = bool(re.search(r'\b(SL\d*|TC\d*|GSM\d*|TCTT\d*|TC\(TT\)|TRƯỞNG CA|CHỦ CA|LEAD)\b', user_str))
             if is_backup:
                 backup_tags.append(tag_val)
-                    
-        await client.disconnect()
 
+        res_tag = "@sm @tc @gsm"
         # Quy tắc: nếu có SM -> tag SM
         if sm_tags:
             seen = set()
             u_sm = [x for x in sm_tags if not (x in seen or seen.add(x))]
-            return " ".join(u_sm)
-
+            res_tag = " ".join(u_sm)
         # Nếu không có SM -> tag SL, TC, GSM
-        if backup_tags:
+        elif backup_tags:
             seen = set()
             u_bk = [x for x in backup_tags if not (x in seen or seen.add(x))]
-            return " ".join(u_bk)
+            res_tag = " ".join(u_bk)
 
-        return "@sm @tc @gsm"
+        # Lưu cache nếu lấy được tag hợp lệ
+        if res_tag and res_tag != "@sm @tc @gsm":
+            try:
+                from database import get_optimized_conn
+                conn_w = get_optimized_conn()
+                c_w = conn_w.cursor()
+                c_w.execute("CREATE TABLE IF NOT EXISTS store_tag_cache (chat_id TEXT PRIMARY KEY, tag_line TEXT, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
+                c_w.execute("INSERT OR REPLACE INTO store_tag_cache (chat_id, tag_line, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)", (str(chat_id), res_tag))
+                conn_w.commit()
+                conn_w.close()
+            except Exception:
+                pass
+
+        return res_tag
     except Exception as e:
         print(f"Lỗi get_store_manager_tag_line: {e}")
         return "@sm @tc @gsm"
+    finally:
+        if should_disconnect and client:
+            try:
+                await client.disconnect()
+            except Exception:
+                pass
 
 async def forward_and_send_surplus_alert(target_chat_id, source_chat_id, msg_id, message_text):
     """

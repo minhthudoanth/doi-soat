@@ -15,7 +15,16 @@ from classifier import classify_message, is_group_excluded
 VN_TZ = timezone(timedelta(hours=7))
 
 async def _do_sync_telegram():
-    client = TelegramClient(SESSION_NAME, API_ID, API_HASH)
+    import tempfile, shutil
+    temp_dir = tempfile.gettempdir()
+    ts_name = os.path.join(temp_dir, f"temp_sync_{int(datetime.now().timestamp()*1000)}")
+    orig_s = os.path.join(BASE_DIR, f"{SESSION_NAME}.session")
+    if os.path.exists(orig_s):
+        shutil.copy2(orig_s, ts_name + ".session")
+        client = TelegramClient(ts_name, API_ID, API_HASH)
+    else:
+        client = TelegramClient(SESSION_NAME, API_ID, API_HASH)
+
     await client.connect()
     if not await client.is_user_authorized():
         await client.disconnect()
