@@ -1759,79 +1759,64 @@ def api_prepare_batch_alerts():
         date_val = res_hk.get('target_date', date_val)
             
     elif template_type == 2:
-        # 2. Đối soát chênh lệch: Lọc DC giao thiếu
-        conn = get_db_connection()
-        c = conn.cursor()
-        
-        if not date_val:
-            c.execute("SELECT transfer_date FROM sheet_audit_records WHERE error_type = 'DC giao thiếu' ORDER BY id DESC LIMIT 1")
-            last_r = c.fetchone()
-            date_val = last_r['transfer_date'] if last_r else '08/22/2026'
-            
-        c.execute("""
-            SELECT transfer_date, store_id, branch_name, sku_code, item_name, uom, qty_transfer, qty_receive, qty_diff, pt_transfer, box_code, to_code
-            FROM sheet_audit_records
-            WHERE error_type = 'DC giao thiếu'
-            AND (transfer_date = ? OR transfer_date LIKE ?)
-            ORDER BY store_id ASC, id ASC
-        """, (date_val, f"%{date_val}%"))
-        rows = c.fetchall()
-        conn.close()
-        
-        st_records = {}
-        for r in rows:
-            sid = r['store_id']
-            if sid not in st_records:
-                st_records[sid] = {'store_id': sid, 'branch_name': r['branch_name'], 'items': []}
-            st_records[sid]['items'].append(r)
-            
-        d_parts = date_val.split('/')
-        date_display = f"{d_parts[1]}/{d_parts[0]}" if len(d_parts) >= 2 else date_val
-        
-        for sid, sdata in st_records.items():
-            target_chat = find_krc_store_chat(sid, all_stores)
-            chat_id = target_chat['chat_id'] if target_chat else None
-            chat_title = target_chat['chat_title'] if target_chat else f"KRC - {sdata['branch_name']}"
-            
-            item_lines = []
-            for item in sdata['items']:
-                uom_str = f" {item['uom']}" if item['uom'] else ""
-                item_lines.append(f"• {item['sku_code']} - {item['item_name']} - SL chuyển: {item['qty_transfer']}{uom_str}")
-            items_str = "\n".join(item_lines)
+        from discrepancy_service import get_discrepancy_data_by_date
+        disc_res = get_discrepancy_data_by_date(date_val)
+        batch_list = disc_res.get('batch_list', [])
+        return jsonify({
+            'success': True,
+            'template_type': template_type,
+            'date': disc_res.get('date_display'),
+            'selected_date': disc_res.get('selected_date'),
+            'total_stores': disc_res.get('total_stores'),
+            'total_missing_items': disc_res.get('total_missing_items'),
+            'total_qty_missing': disc_res.get('total_qty_missing'),
+            'batch_list': batch_list
+        })
 
-
-            
-            tags = "@sm @tc @gsm"
-                    
-            msg_text = f"""RAU CỦ QUẢ
-[{date_display}]
-{items_str}
-
-ST kiểm tra lại giúp Thư sáng nay có nhập sót SL các mã hàng trên do đếm sót/hàng không đạt chất lượng ST tự trừ thực nhận mà không nhập bên hàng hư hỏng
-
-- Với mã hàng nhận thiếu item(nếu có chụp hình QUÊN up trong phiếu): cung cấp hình ảnh SL thực nhận 
-
-NOTE:
- Với hàng dư ST add trực tiếp trong phiếu HẬU KIỂM"""
-
-            if tags:
-                msg_text += f"\n\n{tags}"
-                
-            batch_list.append({
-                'store_key': sid,
-                'store_name': sdata['branch_name'],
-                'chat_id': chat_id,
-                'chat_title': chat_title,
-                'message_text': msg_text,
-                'count_items': len(sdata['items'])
-            })
-            
     return jsonify({
         'success': True,
         'template_type': template_type,
         'date': date_val,
         'batch_list': batch_list
     })
+
+@app.route('/api/discrepancy/dates')
+def api_discrepancy_dates():
+    from discrepancy_service import get_discrepancy_dates
+    dates = get_discrepancy_dates()
+    return jsonify({'success': True, 'dates': dates})
+
+@app.route('/api/discrepancy/data')
+def api_discrepancy_data():
+    date_val = request.args.get('date')
+    from discrepancy_service import get_discrepancy_data_by_date
+    res = get_discrepancy_data_by_date(date_val)
+    return jsonify(res)
+
+@app.route('/api/discrepancy/send', methods=['POST'])
+def api_discrepancy_send():
+    data = request.json or {}
+    alerts = data.get('alerts', [])
+    if not alerts:
+        return jsonify({'success': False, 'error': 'Danh sách gửi trống'})
+    
+    from discrepancy_service import send_discrepancy_telethon
+    import asyncio
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    res = loop.run_until_complete(send_discrepancy_telethon(alerts))
+    loop.close()
+    return jsonify(res)
+
+@app.route('/api/discrepancy/sync', methods=['POST'])
+def api_discrepancy_sync():
+    try:
+        from sheet_sync import sync_sheet_data
+        res = sync_sheet_data()
+        return jsonify(res)
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 
 @app.route('/api/messages/send_batch_alerts', methods=['POST'])
 def api_send_batch_alerts():

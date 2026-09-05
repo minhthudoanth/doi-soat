@@ -216,6 +216,9 @@
                 <button class="btn btn-sm btn-outline-dark px-3 py-2 fw-bold text-uppercase" id="btn-module-docs" onclick="switchModule('docs')">
                     CHỨNG TỪ
                 </button>
+                <button class="btn btn-sm btn-outline-dark px-3 py-2 fw-bold text-uppercase" id="btn-module-discrepancy" onclick="switchModule('discrepancy')">
+                    <i class="fa-solid fa-scale-unbalanced-flip me-1 text-warning"></i> CHECK CHÊNH LỆCH
+                </button>
 
 
 
@@ -1353,6 +1356,158 @@
                     </table>
                 </div>
             </div>
+        </div> <!-- ĐÓNG SECTION DOCS -->
+
+        <!-- MỤC 5: CHECK CHÊNH LỆCH & GỬI THÔNG BÁO DC GIAO THIẾU -->
+        <div id="section-discrepancy" style="display: none;">
+            <div class="card-custom p-3 bg-white border mb-4">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 pb-3 border-bottom">
+                    <div>
+                        <h5 class="fw-bold mb-1 text-dark text-uppercase d-flex align-items-center">
+                            <span class="badge me-2" style="background-color: #F26522; color: #fff;"><i class="fa-solid fa-scale-unbalanced-flip"></i></span>
+                            Check Chênh Lệch - Thông Báo DC Giao Thiếu
+                        </h5>
+                        <p class="small text-muted mb-0">
+                            Thống kê siêu thị có lỗi <strong>"DC giao thiếu"</strong> sau khi đổ dữ liệu, kết xuất ảnh bảng cam chuẩn [Hình 1] và gửi Telegram kèm tin nhắn mẫu [Hình 2].
+                        </p>
+                    </div>
+
+                    <!-- THANH ĐIỀU KHIỂN -->
+                    <div class="d-flex flex-wrap align-items-center gap-2">
+                        <div class="d-flex align-items-center bg-light border rounded px-2 py-1">
+                            <label class="small fw-bold text-dark text-nowrap me-2 mb-0">
+                                <i class="fa-regular fa-calendar me-1 text-primary"></i> Ngày chuyển:
+                            </label>
+                            <select id="discrepancy-date-select" class="form-select form-select-sm fw-bold font-monospace border-0 bg-transparent" style="min-width: 125px;" onchange="onDiscrepancyDateChange()">
+                                <option value="">Đang tải...</option>
+                            </select>
+                        </div>
+
+                        <button class="btn btn-sm btn-outline-dark px-3 py-2 fw-bold" id="btn-sync-discrepancy" onclick="syncDiscrepancySheet()" title="Đồng bộ lại từ Google Sheet để lấy dữ liệu mới nhất">
+                            <i class="fa-solid fa-rotate me-1"></i> Đồng bộ Google Sheet
+                        </button>
+
+                        <div class="input-group input-group-sm" style="max-width: 240px;">
+                            <span class="input-group-text bg-light border-end-0"><i class="fa-solid fa-magnifying-glass text-muted"></i></span>
+                            <input type="text" class="form-control border-start-0" id="discrepancy-search" placeholder="Tìm ST, mã hàng..." oninput="filterDiscrepancyList()">
+                        </div>
+
+                        <select id="discrepancy-filter-status" class="form-select form-select-sm" style="max-width: 170px;" onchange="filterDiscrepancyList()">
+                            <option value="all">Tất cả Siêu Thị</option>
+                            <option value="connected">Đã map Telegram</option>
+                            <option value="not_connected">Chưa map Telegram</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- KHỐI KPI THỐNG KÊ -->
+                <div class="row g-3 mt-1 mb-3">
+                    <div class="col-md-3 col-sm-6">
+                        <div class="p-3 rounded border bg-light d-flex align-items-center justify-content-between">
+                            <div>
+                                <div class="text-muted small text-uppercase fw-bold">Siêu Thị Thiếu Hàng</div>
+                                <div class="fs-4 fw-bold mt-1" id="kpi-disc-stores" style="color: #F26522;">0</div>
+                            </div>
+                            <span class="p-3 rounded-circle" style="background-color: #ffeae1; color: #F26522;">
+                                <i class="fa-solid fa-store fs-5"></i>
+                            </span>
+                        </div>
+                    </div>
+                    <div class="col-md-3 col-sm-6">
+                        <div class="p-3 rounded border bg-light d-flex align-items-center justify-content-between">
+                            <div>
+                                <div class="text-muted small text-uppercase fw-bold">Mặt Hàng (SKU) Thiếu</div>
+                                <div class="fs-4 fw-bold text-dark mt-1" id="kpi-disc-items">0</div>
+                            </div>
+                            <span class="p-3 rounded-circle bg-dark-subtle text-dark">
+                                <i class="fa-solid fa-boxes-stacked fs-5"></i>
+                            </span>
+                        </div>
+                    </div>
+                    <div class="col-md-3 col-sm-6">
+                        <div class="p-3 rounded border bg-light d-flex align-items-center justify-content-between">
+                            <div>
+                                <div class="text-muted small text-uppercase fw-bold">Tổng SL Chuyển Thiếu</div>
+                                <div class="fs-4 fw-bold text-primary mt-1" id="kpi-disc-qty">0.00</div>
+                            </div>
+                            <span class="p-3 rounded-circle bg-primary-subtle text-primary">
+                                <i class="fa-solid fa-calculator fs-5"></i>
+                            </span>
+                        </div>
+                    </div>
+                    <div class="col-md-3 col-sm-6">
+                        <div class="p-3 rounded border bg-light d-flex align-items-center justify-content-between">
+                            <div>
+                                <div class="text-muted small text-uppercase fw-bold">Map Nhóm Telegram</div>
+                                <div class="fs-4 fw-bold text-success mt-1" id="kpi-disc-tele">0 / 0</div>
+                            </div>
+                            <span class="p-3 rounded-circle bg-success-subtle text-success">
+                                <i class="fa-brands fa-telegram fs-5"></i>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- THANH HÀNH ĐỘNG GỬI BATCH -->
+                <div class="p-3 bg-light border rounded d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="form-check mb-0">
+                            <input class="form-check-input" type="checkbox" id="chk-select-all-disc" onchange="toggleSelectAllDiscrepancy(this)" checked>
+                            <label class="form-check-label fw-bold text-dark small" for="chk-select-all-disc">
+                                Chọn tất cả (<span id="txt-selected-disc-count">0</span> ST)
+                            </label>
+                        </div>
+                        <span class="badge bg-white text-muted border font-monospace small" id="badge-disc-date-label">Ngày: --</span>
+                    </div>
+
+                    <div class="d-flex align-items-center gap-2">
+                        <button class="btn btn-sm btn-black fw-bold px-4 py-2" id="btn-send-selected-disc" onclick="sendSelectedDiscrepancies()">
+                            <i class="fa-solid fa-paper-plane me-1 text-warning"></i> GỬI THÔNG BÁO CHO CÁC ST ĐÃ CHỌN (<span id="btn-send-count">0</span> ST)
+                        </button>
+                    </div>
+                </div>
+
+                <!-- KHUNG TIẾN TRÌNH GỬI -->
+                <div id="discrepancy-progress-container" class="mb-3 p-3 bg-light border rounded" style="display: none;">
+                    <div class="d-flex justify-content-between small fw-bold mb-1">
+                        <span id="disc-progress-status"><i class="fa-solid fa-spinner fa-spin me-1"></i> Đang gửi tin nhắn & ảnh bảng đến các Siêu thị...</span>
+                        <span id="disc-progress-pct">0%</span>
+                    </div>
+                    <div class="progress" style="height: 8px;">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated bg-success" id="disc-progress-bar" style="width: 0%;"></div>
+                    </div>
+                </div>
+
+                <!-- DANH SÁCH CARDS CÁC SIÊU THỊ -->
+                <div id="discrepancy-cards-container" class="d-flex flex-column gap-3">
+                    <div class="text-center py-5 text-muted">
+                        <div class="spinner-border text-primary mb-2" role="status"></div>
+                        <div>Đang tải dữ liệu chênh lệch DC giao thiếu...</div>
+                    </div>
+                </div>
+            </div>
+        </div> <!-- ĐÓNG SECTION DISCREPANCY -->
+
+        <!-- MODAL PHÓNG TO ẢNH BẢNG CHECK CHÊNH LỆCH -->
+        <div class="modal fade" id="imagePreviewModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-xl modal-dialog-centered">
+                <div class="modal-content border-0 shadow-lg">
+                    <div class="modal-header bg-black text-white py-2 px-3">
+                        <h6 class="modal-title font-monospace"><i class="fa-solid fa-image me-2 text-warning"></i> Ảnh Bảng Chi Tiết DC Giao Thiếu</h6>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body p-3 text-center bg-light">
+                        <img id="modal-preview-img-tag" src="" class="img-fluid rounded border shadow-sm" alt="Preview ảnh" style="max-height: 80vh;" />
+                    </div>
+                    <div class="modal-footer py-2 bg-white">
+                        <a id="modal-download-img-btn" href="" download class="btn btn-sm btn-outline-dark">
+                            <i class="fa-solid fa-download me-1"></i> Tải ảnh về máy
+                        </a>
+                        <button type="button" class="btn btn-sm btn-black" data-bs-dismiss="modal">Đóng</button>
+                    </div>
+                </div>
+            </div>
+        </div>
         <!-- MODAL LỊCH SỬ GỬI & THU HỒI TIN NHẮN -->
         <div class="modal fade" id="recallHistoryModal" tabindex="-1" aria-hidden="true">
             <div class="modal-dialog modal-lg modal-dialog-centered">
@@ -2822,10 +2977,12 @@
             const btnAudit = document.getElementById('btn-module-audit');
             const btnInv = document.getElementById('btn-module-inventory');
             const btnDocs = document.getElementById('btn-module-docs');
+            const btnDisc = document.getElementById('btn-module-discrepancy');
             const secTele = document.getElementById('section-telegram');
             const secAudit = document.getElementById('section-audit');
             const secInv = document.getElementById('section-inventory');
             const secDocs = document.getElementById('section-docs');
+            const secDisc = document.getElementById('section-discrepancy');
             const liveIndicator = document.getElementById('live-indicator');
             const btnSyncSheet = document.getElementById('btn-sync-sheet');
             const btnConfigSheet = document.getElementById('btn-config-sheet');
@@ -2835,11 +2992,13 @@
             if (btnAudit) btnAudit.className = 'btn btn-sm btn-outline-dark px-3 py-2 fw-bold text-uppercase';
             if (btnInv) btnInv.className = 'btn btn-sm btn-outline-dark px-3 py-2 fw-bold text-uppercase';
             if (btnDocs) btnDocs.className = 'btn btn-sm btn-outline-dark px-3 py-2 fw-bold text-uppercase';
+            if (btnDisc) btnDisc.className = 'btn btn-sm btn-outline-dark px-3 py-2 fw-bold text-uppercase';
             
             if (secTele) secTele.style.display = 'none';
             if (secAudit) secAudit.style.display = 'none';
             if (secInv) secInv.style.display = 'none';
             if (secDocs) secDocs.style.display = 'none';
+            if (secDisc) secDisc.style.display = 'none';
             if (btnSyncSheet) btnSyncSheet.style.display = 'none';
             if (btnConfigSheet) btnConfigSheet.style.display = 'none';
 
@@ -2864,6 +3023,11 @@
                 if (secDocs) secDocs.style.display = 'block';
                 if (liveIndicator) liveIndicator.style.display = 'none';
                 initDocsModule();
+            } else if (mod === 'discrepancy') {
+                if (btnDisc) btnDisc.className = 'btn btn-sm btn-black px-3 py-2 fw-bold text-uppercase';
+                if (secDisc) secDisc.style.display = 'block';
+                if (liveIndicator) liveIndicator.style.display = 'none';
+                initDiscrepancyModule();
             }
         }
 
@@ -5275,7 +5439,461 @@
                 alert('Lỗi: ' + e.message);
             }
         }
-    </script>
+    
+        // ================================================================
+        // JAVASCRIPT MODULE: CHECK CHÊNH LỆCH & DC GIAO THIẾU
+        // ================================================================
+        let discrepancyMasterData = null;
+        let selectedDiscStoreIds = new Set();
+        let isDiscrepancyInitialized = false;
+
+        async function initDiscrepancyModule() {
+            if (!isDiscrepancyInitialized) {
+                isDiscrepancyInitialized = true;
+                await fetchDiscrepancyDates();
+            } else {
+                const dateSelect = document.getElementById('discrepancy-date-select');
+                if (dateSelect && dateSelect.value) {
+                    await loadDiscrepancyData(dateSelect.value);
+                }
+            }
+        }
+
+        async function fetchDiscrepancyDates() {
+            try {
+                const res = await fetch('/api/discrepancy/dates');
+                const data = await res.json();
+                const dateSelect = document.getElementById('discrepancy-date-select');
+                if (!dateSelect) return;
+
+                dateSelect.innerHTML = '';
+                if (data.success && data.dates && data.dates.length > 0) {
+                    data.dates.forEach(d => {
+                        const opt = document.createElement('option');
+                        opt.value = d;
+                        opt.textContent = d;
+                        dateSelect.appendChild(opt);
+                    });
+                    // Mặc định chọn ngày mới nhất
+                    dateSelect.value = data.dates[0];
+                    await loadDiscrepancyData(data.dates[0]);
+                } else {
+                    dateSelect.innerHTML = '<option value="">Chưa có dữ liệu</option>';
+                    document.getElementById('discrepancy-cards-container').innerHTML = 
+                        '<div class="alert alert-warning text-center py-4"><i class="fa-solid fa-triangle-exclamation me-1"></i> Chưa có dữ liệu DC giao thiếu nào trong hệ thống! Vui lòng bấm <strong>Đồng bộ Google Sheet</strong>.</div>';
+                }
+            } catch (e) {
+                console.error("Lỗi fetchDiscrepancyDates:", e);
+            }
+        }
+
+        async function onDiscrepancyDateChange() {
+            const dateSelect = document.getElementById('discrepancy-date-select');
+            if (dateSelect && dateSelect.value) {
+                await loadDiscrepancyData(dateSelect.value);
+            }
+        }
+
+        async function loadDiscrepancyData(targetDate) {
+            const container = document.getElementById('discrepancy-cards-container');
+            if (!container) return;
+
+            container.innerHTML = `
+                <div class="text-center py-5 text-muted">
+                    <div class="spinner-border text-warning mb-2" role="status"></div>
+                    <div>Đang tải và chuẩn bị dữ liệu DC giao thiếu ngày <strong>${targetDate}</strong>...</div>
+                </div>`;
+
+            try {
+                const res = await fetch(`/api/discrepancy/data?date=${encodeURIComponent(targetDate)}`);
+                const data = await res.json();
+
+                if (!data.success) {
+                    container.innerHTML = `<div class="alert alert-danger text-center py-4">Lỗi: ${data.error || 'Không tải được dữ liệu'}</div>`;
+                    return;
+                }
+
+                discrepancyMasterData = data;
+
+                // Cập nhật KPIs
+                document.getElementById('kpi-disc-stores').textContent = data.total_stores || 0;
+                document.getElementById('kpi-disc-items').textContent = data.total_missing_items || 0;
+                document.getElementById('kpi-disc-qty').textContent = (data.total_qty_missing || 0).toLocaleString('vi-VN', {minimumFractionDigits: 2});
+
+                let connectedCount = 0;
+                data.batch_list.forEach(b => {
+                    if (b.is_chat_connected) connectedCount++;
+                });
+                document.getElementById('kpi-disc-tele').textContent = `${connectedCount} / ${data.total_stores}`;
+                document.getElementById('badge-disc-date-label').textContent = `Ngày: ${data.date_display} (${data.selected_date})`;
+
+                // Mặc định chọn tất cả các ST có kết nối Telegram
+                selectedDiscStoreIds.clear();
+                data.batch_list.forEach(b => {
+                    if (b.is_chat_connected) {
+                        selectedDiscStoreIds.add(b.store_id);
+                    }
+                });
+
+                filterDiscrepancyList();
+
+            } catch (e) {
+                console.error("Lỗi loadDiscrepancyData:", e);
+                container.innerHTML = `<div class="alert alert-danger text-center py-4">Lỗi tải dữ liệu: ${e.message}</div>`;
+            }
+        }
+
+        function filterDiscrepancyList() {
+            if (!discrepancyMasterData || !discrepancyMasterData.batch_list) return;
+
+            const q = (document.getElementById('discrepancy-search')?.value || '').toLowerCase().trim();
+            const filterStatus = document.getElementById('discrepancy-filter-status')?.value || 'all';
+
+            const filtered = discrepancyMasterData.batch_list.filter(b => {
+                // Filter text
+                const matchName = b.store_name.toLowerCase().includes(q) || b.store_id.toLowerCase().includes(q);
+                const matchItem = b.items.some(it => 
+                    (it.sku_code || '').toLowerCase().includes(q) || 
+                    (it.item_name || '').toLowerCase().includes(q)
+                );
+                const matchText = matchName || matchItem;
+
+                // Filter status
+                if (filterStatus === 'connected' && !b.is_chat_connected) return false;
+                if (filterStatus === 'not_connected' && b.is_chat_connected) return false;
+
+                return matchText;
+            });
+
+            renderDiscrepancyCards(filtered);
+            updateSelectedDiscUI();
+        }
+
+        function renderDiscrepancyCards(list) {
+            const container = document.getElementById('discrepancy-cards-container');
+            if (!container) return;
+
+            if (list.length === 0) {
+                container.innerHTML = `
+                    <div class="alert alert-light border text-center py-5 text-muted">
+                        <i class="fa-solid fa-circle-check text-success fs-3 mb-2 d-block"></i>
+                        Không có siêu thị nào phù hợp với điều kiện tìm kiếm hoặc không có lỗi DC giao thiếu trong ngày này!
+                    </div>`;
+                return;
+            }
+
+            let html = '';
+            list.forEach((b, idx) => {
+                const isSelected = selectedDiscStoreIds.has(b.store_id);
+                const teleBadge = b.is_chat_connected 
+                    ? `<span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1"><i class="fa-brands fa-telegram me-1"></i> ${escapeHtml(b.chat_title)}</span>`
+                    : `<span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1"><i class="fa-solid fa-triangle-exclamation me-1"></i> Chưa map nhóm chat</span>`;
+
+                const itemsRowsHtml = b.items.map((it, iIdx) => {
+                    const qTransfer = typeof it.qty_transfer === 'number' ? it.qty_transfer.toLocaleString('vi-VN', {minimumFractionDigits: 2}) : it.qty_transfer;
+                    const qReceive = typeof it.qty_receive === 'number' ? it.qty_receive.toLocaleString('vi-VN', {minimumFractionDigits: 2}) : it.qty_receive;
+                    const qDiff = typeof it.qty_diff === 'number' ? it.qty_diff.toLocaleString('vi-VN', {minimumFractionDigits: 2}) : it.qty_diff;
+                    return `
+                        <tr>
+                            <td class="text-center text-muted">${iIdx + 1}</td>
+                            <td class="font-monospace fw-bold text-dark">${escapeHtml(it.sku_code || '')}</td>
+                            <td>${escapeHtml(it.item_name || '')}</td>
+                            <td class="text-center font-monospace">${escapeHtml(it.uom || '')}</td>
+                            <td class="text-end font-monospace fw-bold">${qTransfer}</td>
+                            <td class="text-end font-monospace text-muted">${qReceive}</td>
+                            <td class="text-end font-monospace text-danger fw-bold">-${qDiff}</td>
+                        </tr>`;
+                }).join('');
+
+                html += `
+                <div class="card border rounded shadow-sm overflow-hidden" id="disc-card-${b.store_id}">
+                    <div class="card-header bg-white py-2 px-3 border-bottom d-flex flex-wrap justify-content-between align-items-center gap-2">
+                        <div class="d-flex align-items-center gap-2">
+                            <input class="form-check-input mt-0" type="checkbox" id="chk-disc-${b.store_id}" 
+                                   onchange="toggleSelectStoreDiscrepancy('${b.store_id}', this)" ${isSelected ? 'checked' : ''} />
+                            <span class="badge font-monospace text-white" style="background-color: #F26522; font-size: 0.85rem;">${escapeHtml(b.store_id)}</span>
+                            <span class="fw-bold text-dark">${escapeHtml(b.store_name)}</span>
+                            ${teleBadge}
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle font-monospace px-2 py-1">
+                                <i class="fa-solid fa-boxes-stacked me-1"></i> ${b.count_items} mã thiếu
+                            </span>
+                            <button class="btn btn-sm btn-outline-dark py-1 px-2 text-nowrap" type="button" data-bs-toggle="collapse" data-bs-target="#disc-body-${b.store_id}">
+                                <i class="fa-solid fa-chevron-down"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="collapse show" id="disc-body-${b.store_id}">
+                        <div class="card-body p-3 bg-light">
+                            <div class="row g-3">
+                                <!-- CỘT TRÁI: PREVIEW ẢNH BẢNG CAM CHUẨN HÌNH 1 -->
+                                <div class="col-lg-6 col-md-12">
+                                    <div class="p-2 bg-white rounded border h-100 d-flex flex-column">
+                                        <div class="d-flex justify-content-between align-items-center mb-2 pb-1 border-bottom">
+                                            <div class="small fw-bold text-dark">
+                                                <i class="fa-solid fa-image text-warning me-1"></i> Ảnh bảng thống kê (Chuẩn Hình 1):
+                                            </div>
+                                            <button class="btn btn-xs btn-outline-secondary py-0 px-1 small" onclick="openImageModal('${b.image_url}')">
+                                                <i class="fa-solid fa-expand me-1"></i> Phóng to
+                                            </button>
+                                        </div>
+                                        <div class="text-center my-auto p-2">
+                                            <img src="${b.image_url}?t=${Date.now()}" class="img-fluid rounded border shadow-sm" 
+                                                 style="max-height: 230px; cursor: pointer;" 
+                                                 onclick="openImageModal('${b.image_url}')" 
+                                                 alt="Bảng thiếu ${b.store_id}" 
+                                                 title="Click để phóng to ảnh bảng" />
+                                        </div>
+                                        <div class="text-muted small text-center mt-2 font-monospace" style="font-size: 0.75rem;">
+                                            <i class="fa-solid fa-circle-check text-success me-1"></i> Header cam #F26522 | 5 cột: ID ST - Mã hàng - Tên Hàng - ĐVT - SL chuyển
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- CỘT PHẢI: PREVIEW TIN NHẮN MẪU GỬI KÈM ẢNH -->
+                                <div class="col-lg-6 col-md-12">
+                                    <div class="p-2 bg-white rounded border h-100 d-flex flex-column justify-content-between">
+                                        <div>
+                                            <div class="d-flex justify-content-between align-items-center mb-2 pb-1 border-bottom">
+                                                <div class="small fw-bold text-primary">
+                                                    <i class="fa-solid fa-comment-dots me-1"></i> Nội dung tin nhắn kèm ảnh:
+                                                </div>
+                                                <button class="btn btn-xs btn-outline-secondary py-0 px-2 small" onclick="copyDiscrepancyMsg(this, \`${escapeJs(b.message_text)}\`)">
+                                                    <i class="fa-solid fa-copy me-1"></i> Copy
+                                                </button>
+                                            </div>
+                                            <div class="font-monospace p-2 bg-light border rounded small text-dark mb-2" 
+                                                 style="white-space: pre-wrap; max-height: 180px; overflow-y: auto; font-size: 0.8rem; line-height: 1.4;">${escapeHtml(b.message_text)}</div>
+                                        </div>
+
+                                        <div class="d-flex justify-content-between align-items-center pt-2 border-top">
+                                            <div class="small text-muted font-monospace" style="font-size: 0.75rem;">
+                                                Target: <strong>${escapeHtml(b.chat_title)}</strong>
+                                            </div>
+                                            <button class="btn btn-sm btn-warning text-white fw-bold px-3 py-1 shadow-sm" 
+                                                    id="btn-single-send-${b.store_id}"
+                                                    onclick="sendSingleDiscrepancy('${b.store_id}')"
+                                                    ${!b.is_chat_connected ? 'disabled title="Chưa map nhóm chat"' : ''}>
+                                                <i class="fa-solid fa-paper-plane me-1"></i> Gửi riêng ST này
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- BẢNG CHI TIẾT CÁC MÃ THIẾU -->
+                            <div class="mt-3 bg-white rounded border overflow-hidden">
+                                <div class="p-2 border-bottom bg-light d-flex justify-content-between align-items-center">
+                                    <span class="small fw-bold text-dark"><i class="fa-solid fa-list me-1"></i> Chi tiết các mã hàng DC giao thiếu:</span>
+                                    <span class="badge bg-secondary font-monospace">${b.count_items} dòng</span>
+                                </div>
+                                <div class="table-responsive" style="max-height: 180px; overflow-y: auto;">
+                                    <table class="table table-sm table-hover mb-0 align-middle small">
+                                        <thead class="table-light sticky-top">
+                                            <tr>
+                                                <th style="width: 40px;" class="text-center">STT</th>
+                                                <th style="width: 130px;">Mã hàng</th>
+                                                <th>Tên Hàng</th>
+                                                <th style="width: 70px;" class="text-center">ĐVT</th>
+                                                <th style="width: 95px;" class="text-end">SL chuyển</th>
+                                                <th style="width: 85px;" class="text-end">SL nhận</th>
+                                                <th style="width: 95px;" class="text-end text-danger">Chênh lệch</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            ${itemsRowsHtml}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+            });
+
+            container.innerHTML = html;
+        }
+
+        function toggleSelectAllDiscrepancy(chk) {
+            if (!discrepancyMasterData || !discrepancyMasterData.batch_list) return;
+            selectedDiscStoreIds.clear();
+            if (chk.checked) {
+                discrepancyMasterData.batch_list.forEach(b => {
+                    if (b.is_chat_connected) selectedDiscStoreIds.add(b.store_id);
+                });
+            }
+            filterDiscrepancyList();
+        }
+
+        function toggleSelectStoreDiscrepancy(sid, chk) {
+            if (chk.checked) {
+                selectedDiscStoreIds.add(sid);
+            } else {
+                selectedDiscStoreIds.delete(sid);
+            }
+            updateSelectedDiscUI();
+        }
+
+        function updateSelectedDiscUI() {
+            const count = selectedDiscStoreIds.size;
+            document.getElementById('txt-selected-disc-count').textContent = count;
+            document.getElementById('btn-send-count').textContent = count;
+            const btn = document.getElementById('btn-send-selected-disc');
+            if (btn) btn.disabled = (count === 0);
+        }
+
+        function openImageModal(imgUrl) {
+            const imgTag = document.getElementById('modal-preview-img-tag');
+            const dlBtn = document.getElementById('modal-download-img-btn');
+            if (imgTag) imgTag.src = imgUrl;
+            if (dlBtn) dlBtn.href = imgUrl;
+            const modal = new bootstrap.Modal(document.getElementById('imagePreviewModal'));
+            modal.show();
+        }
+
+        function copyDiscrepancyMsg(btn, text) {
+            navigator.clipboard.writeText(text).then(() => {
+                const orig = btn.innerHTML;
+                btn.innerHTML = '<i class="fa-solid fa-check text-success me-1"></i> Đã copy!';
+                setTimeout(() => { btn.innerHTML = orig; }, 1800);
+            }).catch(e => {
+                alert("Không thể copy: " + e.message);
+            });
+        }
+
+        async function sendSingleDiscrepancy(sid) {
+            if (!discrepancyMasterData || !discrepancyMasterData.batch_list) return;
+            const storeAlert = discrepancyMasterData.batch_list.find(b => b.store_id === sid);
+            if (!storeAlert) return;
+
+            if (!storeAlert.chat_id) {
+                alert(`Siêu thị [${sid}] chưa tìm thấy nhóm Telegram KRC! Không thể gửi.`);
+                return;
+            }
+
+            if (!confirm(`Bạn có chắc chắn muốn gửi ảnh bảng và tin nhắn thông báo DC giao thiếu cho ST [${storeAlert.store_name}] vào nhóm "${storeAlert.chat_title}"?`)) {
+                return;
+            }
+
+            const btn = document.getElementById(`btn-single-send-${sid}`);
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> Đang gửi...';
+            }
+
+            try {
+                const res = await fetch('/api/discrepancy/send', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ alerts: [storeAlert] })
+                });
+                const data = await res.json();
+                if (data.success && data.sent_count > 0) {
+                    if (btn) {
+                        btn.className = 'btn btn-sm btn-success text-white fw-bold px-3 py-1';
+                        btn.innerHTML = '<i class="fa-solid fa-check me-1"></i> Đã gửi thành công!';
+                    }
+                    alert(`Đã gửi thành công thông báo DC giao thiếu đến ST [${storeAlert.store_name}]!`);
+                } else {
+                    const errMsg = (data.failed && data.failed[0] && data.failed[0].error) || data.error || 'Lỗi gửi tin';
+                    alert(`Gửi thất bại: ${errMsg}`);
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.innerHTML = '<i class="fa-solid fa-paper-plane me-1"></i> Thử lại';
+                    }
+                }
+            } catch (e) {
+                alert("Lỗi kết nối khi gửi: " + e.message);
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fa-solid fa-paper-plane me-1"></i> Thử lại';
+                }
+            }
+        }
+
+        async function sendSelectedDiscrepancies() {
+            if (!discrepancyMasterData || !discrepancyMasterData.batch_list) return;
+            const alertsToSend = discrepancyMasterData.batch_list.filter(b => selectedDiscStoreIds.has(b.store_id) && b.is_chat_connected);
+
+            if (alertsToSend.length === 0) {
+                alert("Vui lòng chọn ít nhất 1 Siêu thị đã map nhóm Telegram để gửi!");
+                return;
+            }
+
+            if (!confirm(`XÁC NHẬN PHÁT SÓNG:\n\nBạn có chắc chắn muốn gửi thông báo kèm ảnh bảng cho ${alertsToSend.length} Siêu Thị?\n\n• Mỗi ST sẽ nhận được ảnh bảng màu cam chi tiết các mã thiếu\n• Tin nhắn kèm theo đúng mẫu văn bản chuẩn\n• Cơ chế bảo vệ Anti-Flood và hỗ trợ Forum Topic tự động bật.`)) {
+                return;
+            }
+
+            const btnMain = document.getElementById('btn-send-selected-disc');
+            const progressBox = document.getElementById('discrepancy-progress-container');
+            const progressBar = document.getElementById('disc-progress-bar');
+            const progressStatus = document.getElementById('disc-progress-status');
+            const progressPct = document.getElementById('disc-progress-pct');
+
+            if (btnMain) btnMain.disabled = true;
+            if (progressBox) progressBox.style.display = 'block';
+            if (progressBar) progressBar.style.width = '10%';
+            if (progressPct) progressPct.textContent = '10%';
+
+            try {
+                const res = await fetch('/api/discrepancy/send', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ alerts: alertsToSend })
+                });
+                const data = await res.json();
+
+                if (progressBar) progressBar.style.width = '100%';
+                if (progressPct) progressPct.textContent = '100%';
+
+                if (data.success) {
+                    if (progressStatus) {
+                        progressStatus.innerHTML = `<span class="text-success fw-bold"><i class="fa-solid fa-circle-check me-1"></i> Hoàn thành! Đã gửi thành công ${data.sent_count} / ${alertsToSend.length} Siêu thị.</span>`;
+                    }
+                    alert(`ĐÃ HOÀN THÀNH PHÁT SÓNG:\n\nĐã gửi thành công thông báo DC giao thiếu đến ${data.sent_count} Siêu Thị!\n(Batch ID: ${data.batch_id})`);
+                } else {
+                    if (progressStatus) {
+                        progressStatus.innerHTML = `<span class="text-danger fw-bold"><i class="fa-solid fa-triangle-exclamation me-1"></i> Có lỗi: ${data.error || 'Gửi thất bại'}</span>`;
+                    }
+                    alert("Lỗi khi gửi thông báo: " + (data.error || 'Vui lòng kiểm tra lại'));
+                }
+            } catch (e) {
+                console.error("Lỗi sendSelectedDiscrepancies:", e);
+                alert("Lỗi hệ thống khi gửi: " + e.message);
+            } finally {
+                if (btnMain) btnMain.disabled = false;
+            }
+        }
+
+        async function syncDiscrepancySheet() {
+            const btn = document.getElementById('btn-sync-discrepancy');
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> Đang tải từ Google Sheet...';
+            }
+
+            try {
+                const res = await fetch('/api/discrepancy/sync', { method: 'POST' });
+                const data = await res.json();
+                if (data.success) {
+                    alert(`Đồng bộ Google Sheet thành công! Đã làm mới ${data.count || 0} dòng dữ liệu.`);
+                    await fetchDiscrepancyDates();
+                } else {
+                    alert(`Đồng bộ thất bại: ${data.error || 'Lỗi không xác định'}`);
+                }
+            } catch (e) {
+                alert("Lỗi khi gọi API đồng bộ: " + e.message);
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fa-solid fa-rotate me-1"></i> Đồng bộ Google Sheet';
+                }
+            }
+        }
+
+</script>
 
     <!-- MODAL TRA CỨU DANH SÁCH SIÊU THỊ (TAB DS ST) -->
     <div class="modal fade" id="dsStModal" tabindex="-1" aria-hidden="true">
