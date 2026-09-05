@@ -1857,7 +1857,8 @@ def api_send_batch_alerts():
         success_count = 0
         failed = []
         sent_records = []
-        for a in alerts:
+        adaptive_delay = 0.0
+        for idx, a in enumerate(alerts):
             cid = a.get('chat_id')
             txt = (a.get('message_text') or '').strip()
             caption = a.get('caption') or txt
@@ -1878,6 +1879,15 @@ def api_send_batch_alerts():
                 else:
                     full_caption = caption
 
+                # 1. Giả lập hành vi người thật: gửi action Typing / Uploading Photo trước khi gửi
+                try:
+                    from telethon.tl import types, functions
+                    action = types.SendMessageUploadPhotoAction() if (img_path and os.path.exists(img_path)) else types.SendMessageTypingAction()
+                    await client(functions.messages.SetTypingRequest(peer=target, action=action))
+                    await asyncio.sleep(round(random.uniform(0.6, 1.2), 2))
+                except Exception:
+                    pass
+
                 # Gửi ảnh kèm Caption đúng chuẩn Hình 2 (hoặc text nếu không có ảnh, hỗ trợ topic)
                 if img_path and os.path.exists(img_path):
                     if len(full_caption) <= 1024:
@@ -1895,9 +1905,23 @@ def api_send_batch_alerts():
                     sent_records.append((batch_id, target, c_title, sent_msg.id, full_caption))
 
                 success_count += 1
-                await asyncio.sleep(round(random.uniform(1.8, 3.2), 2))
+
+                # 3. Smart Jitter Delay (ngẫu nhiên 2.5s - 4.2s + độ trễ thích ứng)
+                delay_sec = round(random.uniform(2.5, 4.2) + adaptive_delay, 2)
+                await asyncio.sleep(delay_sec)
+
+                # 2. Cơ chế nghỉ giải lao (Batch Chunking & Smart Cooldown): cứ 15 ST nghỉ 12s - 18s
+                if (idx + 1) % 15 == 0 and (idx + 1) < len(alerts):
+                    cooldown = round(random.uniform(12.0, 18.0), 1)
+                    print(f"[*] [Batch Alerts] Đã gửi {idx+1}/{len(alerts)} ST. Nghỉ giải lao {cooldown}s (Anti-Spam Cooldown)...", flush=True)
+                    await asyncio.sleep(cooldown)
+
             except errors.FloodWaitError as e:
-                await asyncio.sleep(e.seconds + 1)
+                # 4. Tự động xử lý & thích ứng FloodWait (Auto-Backoff)
+                wait_time = e.seconds + 2
+                print(f"[!] Gặp FloodWait: Chờ {wait_time}s và tự động tăng độ trễ thích ứng...", flush=True)
+                adaptive_delay += 1.5
+                await asyncio.sleep(wait_time)
                 try:
                     from telegram_sender import get_forum_rau_topic_id
                     topic_id = await get_forum_rau_topic_id(client, target)

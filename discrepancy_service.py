@@ -385,8 +385,9 @@ async def send_discrepancy_telethon(alerts):
     success_count = 0
     failed = []
     sent_records = []
+    adaptive_delay = 0.0
 
-    for a in alerts:
+    for idx, a in enumerate(alerts):
         cid = a.get('chat_id')
         msg_text = a.get('message_text') or ""
         img_path = a.get('image_path')
@@ -412,6 +413,15 @@ async def send_discrepancy_telethon(alerts):
             except Exception as e:
                 print(f"[!] Lỗi lấy tag quản lý cho {sid} ({target}): {e}")
 
+            # 1. Giả lập hành vi người thật: gửi action Typing / Uploading Photo trước khi gửi
+            try:
+                from telethon.tl import types, functions
+                action = types.SendMessageUploadPhotoAction() if (img_path and os.path.exists(img_path)) else types.SendMessageTypingAction()
+                await client(functions.messages.SetTypingRequest(peer=target, action=action))
+                await asyncio.sleep(round(random.uniform(0.6, 1.2), 2))
+            except Exception:
+                pass
+
             if img_path and os.path.exists(img_path):
                 if len(msg_text) <= 1024:
                     # Gửi ảnh kèm caption là toàn bộ nội dung tin nhắn
@@ -429,11 +439,23 @@ async def send_discrepancy_telethon(alerts):
                 sent_records.append((batch_id, target, c_title, sent_msg.id, msg_text))
 
             success_count += 1
-            await asyncio.sleep(round(random.uniform(2.0, 3.5), 2))
+
+            # 3. Smart Jitter Delay (ngẫu nhiên 2.5s - 4.2s + độ trễ thích ứng)
+            delay_sec = round(random.uniform(2.5, 4.2) + adaptive_delay, 2)
+            await asyncio.sleep(delay_sec)
+
+            # 2. Cơ chế nghỉ giải lao (Batch Chunking & Smart Cooldown): cứ 15 ST nghỉ 12s - 18s
+            if (idx + 1) % 15 == 0 and (idx + 1) < len(alerts):
+                cooldown = round(random.uniform(12.0, 18.0), 1)
+                print(f"[*] Đã gửi {idx+1}/{len(alerts)} ST. Nghỉ giải lao {cooldown}s (Anti-Spam Cooldown)...", flush=True)
+                await asyncio.sleep(cooldown)
 
         except errors.FloodWaitError as e:
-            print(f"[!] Gặp FloodWait: Chờ {e.seconds}s...")
-            await asyncio.sleep(e.seconds + 1)
+            # 4. Tự động xử lý & thích ứng FloodWait (Auto-Backoff)
+            wait_time = e.seconds + 2
+            print(f"[!] Gặp FloodWait: Chờ {wait_time}s và tự động tăng độ trễ thích ứng...", flush=True)
+            adaptive_delay += 1.5
+            await asyncio.sleep(wait_time)
             try:
                 topic_id = await get_forum_rau_topic_id(client, target)
                 if img_path and os.path.exists(img_path):

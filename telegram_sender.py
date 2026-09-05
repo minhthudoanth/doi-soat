@@ -56,20 +56,41 @@ async def send_telegram_messages(chat_ids: list, message_text: str):
     failed = []
     sent_records = []
 
-    for cid in chat_ids:
+    adaptive_delay = 0.0
+
+    for idx, cid in enumerate(chat_ids):
         try:
             target = int(cid)
+
+            # 1. Giả lập hành vi người thật: gửi action Typing trước khi gửi tin
+            try:
+                from telethon.tl import types, functions
+                await client(functions.messages.SetTypingRequest(peer=target, action=types.SendMessageTypingAction()))
+                await asyncio.sleep(round(random.uniform(0.6, 1.2), 2))
+            except Exception:
+                pass
+
             msg = await client.send_message(target, message_text)
             success_count += 1
             chat_name = store_titles.get(target, f"ST_{target}")
             sent_records.append((batch_id, target, chat_name, msg.id, message_text))
 
-            # Delay ngẫu nhiên từ 1.8s - 3.2s để giả lập hành vi người thật, chống Rate Limit
-            delay_sec = round(random.uniform(1.8, 3.2), 2)
+            # 3. Smart Jitter Delay (2.5s - 4.2s ngẫu nhiên + độ trễ thích ứng)
+            delay_sec = round(random.uniform(2.5, 4.2) + adaptive_delay, 2)
             await asyncio.sleep(delay_sec)
+
+            # 2. Cơ chế nghỉ giải lao (Batch Chunking & Smart Cooldown): cứ 15 ST nghỉ 12s - 18s
+            if (idx + 1) % 15 == 0 and (idx + 1) < len(chat_ids):
+                cooldown = round(random.uniform(12.0, 18.0), 1)
+                print(f"[*] [Broadcast] Đã gửi {idx+1}/{len(chat_ids)} ST. Nghỉ giải lao {cooldown}s (Anti-Spam Cooldown)...", flush=True)
+                await asyncio.sleep(cooldown)
+
         except errors.FloodWaitError as e:
-            print(f"[!] Gặp FloodWait: Chờ {e.seconds}s...")
-            await asyncio.sleep(e.seconds + 1)
+            # 4. Tự động xử lý & thích ứng FloodWait (Auto-Backoff)
+            wait_time = e.seconds + 2
+            print(f"[!] Gặp FloodWait: Chờ {wait_time}s và tự động tăng độ trễ thích ứng...", flush=True)
+            adaptive_delay += 1.5
+            await asyncio.sleep(wait_time)
             try:
                 msg = await client.send_message(target, message_text)
                 success_count += 1
@@ -85,7 +106,8 @@ async def send_telegram_messages(chat_ids: list, message_text: str):
     # Lưu thông tin các tin nhắn đã gửi để phục vụ chức năng thu hồi
     if sent_records:
         try:
-            conn = sqlite3.connect(DB_PATH)
+            from database import get_optimized_conn
+            conn = get_optimized_conn()
             c = conn.cursor()
             c.executemany("""
                 INSERT INTO sent_broadcast_history (batch_id, chat_id, chat_title, msg_id, message_text)
