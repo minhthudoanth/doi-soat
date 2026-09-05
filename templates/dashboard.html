@@ -2504,32 +2504,72 @@
             }
         }
 
+        // ================================================================
+        // HÀM TIỆN ÍCH ESCAPE CHỐNG LỖI XSS & LỖI STRING
+        // ================================================================
+        function escapeHtml(str) {
+            if (str === null || str === undefined) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        function escapeJs(str) {
+            if (str === null || str === undefined) return '';
+            return String(str)
+                .replace(/\\/g, '\\\\')
+                .replace(/`/g, '\\`')
+                .replace(/\$/g, '\\$')
+                .replace(/\r/g, '')
+                .replace(/\n/g, '\\n');
+        }
+
         let allStoresList = [];
         let selectedStoreIds = new Set();
+        let currentBatchAlerts = null;
+        let currentBatchType = 2; // Mặc định mở Mẫu 2: Check Chênh Lệch
+        let bcastDiscData = null;
+        let bcastCurrentSelectedSid = null;
 
         async function initBroadcastTab() {
             if (allStoresList.length === 0) {
                 try {
                     const res = await fetch('/api/stores');
                     allStoresList = await res.json();
-                    renderStoreCheckboxes(allStoresList);
-
                 } catch (e) {
                     console.error("Lỗi tải danh sách store:", e);
                 }
             }
+            // Mặc định kích hoạt Mẫu 2: Check Chênh Lệch (DC Giao Thiếu)
+            await applyTemplate(2);
         }
 
         function renderStoreCheckboxes(stores) {
             const container = document.getElementById('stores-checkbox-container');
+            if (!container) return;
             if (!stores || stores.length === 0) {
-                container.innerHTML = '<div class="text-center py-3 text-muted">Không tìm thấy Siêu thị phù hợp!</div>';
+                container.innerHTML = '<div class="text-center py-4 text-muted small"><i class="fa-solid fa-inbox fs-4 mb-2 d-block text-secondary"></i> Không tìm thấy Siêu thị phù hợp!</div>';
                 return;
+            }
+
+            const batchMap = {};
+            if (currentBatchAlerts && currentBatchAlerts.length > 0) {
+                currentBatchAlerts.forEach(a => {
+                    if (a.chat_id) batchMap[a.chat_id] = a;
+                });
             }
 
             let html = '';
             stores.forEach(st => {
                 const isChecked = selectedStoreIds.has(st.chat_id) ? 'checked' : '';
+                const bItem = batchMap[st.chat_id];
+                const badgeExtra = bItem 
+                    ? `<span class="badge bg-danger text-white ms-1" style="font-size: 0.65rem;">${bItem.count_items || 1} mã thiếu</span>` 
+                    : '';
+
                 const deptBadge = st.department === 'KRC' 
                     ? '<span class="badge badge-mono-border me-1" style="font-size: 0.65rem;">KRC</span>'
                     : (st.department === 'DC' 
@@ -2538,21 +2578,36 @@
 
                 html += `
                     <div class="form-check py-1 border-bottom d-flex align-items-center justify-content-between">
-                        <div>
-                            <input class="form-check-input store-chk" type="checkbox" value="${st.chat_id}" id="chk-st-${st.chat_id}" ${isChecked} onchange="toggleStoreSelect(${st.chat_id})">
-                            <label class="form-check-label small fw-semibold text-dark ms-1" for="chk-st-${st.chat_id}" style="cursor: pointer;">
-                                ${st.chat_title}
+                        <div class="d-flex align-items-center flex-grow-1 overflow-hidden" onclick="onPickStoreRow(${st.chat_id})" style="cursor: pointer;">
+                            <input class="form-check-input store-chk me-2 flex-shrink-0" type="checkbox" value="${st.chat_id}" id="chk-st-${st.chat_id}" ${isChecked} onchange="toggleStoreSelect(${st.chat_id}, event)">
+                            <label class="form-check-label small fw-semibold text-dark text-truncate mb-0" for="chk-st-${st.chat_id}" style="cursor: pointer;" title="${escapeHtml(st.chat_title)}">
+                                ${escapeHtml(st.chat_title)}
                             </label>
+                        </div>
+                        <div class="flex-shrink-0 ms-2">
+                            ${deptBadge}
+                            ${badgeExtra}
                         </div>
                     </div>
                 `;
             });
             container.innerHTML = html;
-
             updateSelectedStoresCount();
         }
 
-        function toggleStoreSelect(chatId) {
+        function onPickStoreRow(chatId) {
+            if (currentBatchType === 2 && currentBatchAlerts && currentBatchAlerts.length > 0) {
+                const found = currentBatchAlerts.find(a => a.chat_id === chatId);
+                if (found) {
+                    const picker = document.getElementById('broadcast-disc-store-picker');
+                    if (picker) picker.value = found.store_id;
+                    renderBroadcastDiscPreview(found);
+                }
+            }
+        }
+
+        function toggleStoreSelect(chatId, event) {
+            if (event) event.stopPropagation();
             if (selectedStoreIds.has(chatId)) {
                 selectedStoreIds.delete(chatId);
             } else {
@@ -2564,6 +2619,10 @@
         function updateSelectedStoresCount() {
             const el = document.getElementById('selected-stores-count');
             if (el) el.innerText = `Đã chọn: ${selectedStoreIds.size} / ${allStoresList.length} ST`;
+            const btn = document.getElementById('btn-send-broadcast');
+            if (btn && !btn.disabled) {
+                btn.innerHTML = `<i class="fa-solid fa-paper-plane me-1 text-warning"></i> GỬI TIN NHẮN TỨC THÌ (${selectedStoreIds.size} ST)`;
+            }
         }
 
         function selectAllStores(isCheck) {
@@ -2593,24 +2652,15 @@
             renderStoreCheckboxes(filtered);
         }
 
-        let currentBatchAlerts = null;
-        let currentBatchType = 2; // Mặc định mở Mẫu 2: Check Chênh Lệch
-        let bcastDiscData = null;
-        let bcastCurrentSelectedSid = null;
-
-        async function initBroadcastTab() {
-            if (allStoresList.length === 0) {
-                await loadAllStoresForBroadcast();
-            }
-            // Mặc định kích hoạt Mẫu 2: Check Chênh Lệch (DC Giao Thiếu)
-            applyTemplate(2);
-        }
-
         function filterOnlyBatchStores() {
             if (!currentBatchAlerts || currentBatchAlerts.length === 0) {
                 alert("Hiện tại chưa có danh sách siêu thị trong đợt phát sóng!");
                 return;
             }
+            const activeCids = new Set(currentBatchAlerts.map(a => a.chat_id).filter(Boolean));
+            const filtered = allStoresList.filter(s => activeCids.has(s.chat_id));
+            renderStoreCheckboxes(filtered);
+        }
             const activeCids = new Set(currentBatchAlerts.map(a => a.chat_id).filter(Boolean));
             const filtered = allStoresList.filter(s => activeCids.has(s.chat_id));
             renderStoreCheckboxes(filtered);
