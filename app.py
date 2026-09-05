@@ -183,12 +183,26 @@ def parse_full_audit(text, created_at=""):
                 item_name = cleaned
                 break
                 
-    if not item_name or item_name.startswith('KFM') or item_name == st_name:
-        api_name = lookup_product_name_by_barcode(sku_code)
-        if api_name:
-            item_name = api_name
-        elif not item_name:
-            item_name = f"Mã {sku_code}" if sku_code else '---'
+    if not item_name or item_name.startswith('KFM') or item_name == st_name or item_name.startswith('Mã '):
+        # 1. Tra cứu trực tiếp từ CSDL sheet_audit_records (nhanh và chuẩn 100%)
+        if sku_code and sku_code != '---':
+            try:
+                conn_lk = get_db_connection()
+                c_lk = conn_lk.cursor()
+                c_lk.execute("SELECT item_name FROM sheet_audit_records WHERE sku_code = ? OR sku_code LIKE ? LIMIT 1", (sku_code, f"%{sku_code}%"))
+                row_lk = c_lk.fetchone()
+                if row_lk and row_lk['item_name']:
+                    item_name = row_lk['item_name']
+                conn_lk.close()
+            except Exception:
+                pass
+
+        if not item_name or item_name.startswith('KFM') or item_name == st_name or item_name.startswith('Mã '):
+            api_name = lookup_product_name_by_barcode(sku_code)
+            if api_name:
+                item_name = api_name
+            elif not item_name:
+                item_name = f"Mã {sku_code}" if sku_code else '---'
 
     # 5. Số lượng / Chênh lệch
     cl_match = re.search(r'chuyển\s*([\d,\.]+)\s*nhận\s*([\d,\.]+)\s*(?:và\s+)?(?:cl|chênh lệch)\s*([\d,\.]+)', text, re.IGNORECASE)
@@ -2107,6 +2121,15 @@ def api_sheet_sync():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@app.route('/api/telegram/sync_audit_group', methods=['POST'])
+def api_telegram_sync_audit_group():
+    from telegram_sync_service import sync_telegram_audit_group_and_alerts
+    try:
+        res = sync_telegram_audit_group_and_alerts()
+        return jsonify(res)
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.route('/api/git/push', methods=['POST'])
 def api_git_push():
     import subprocess
@@ -3224,7 +3247,19 @@ if __name__ == '__main__':
                 print(f"[!] Loi daily_hk_reminder_scheduler: {e}", flush=True)
             time.sleep(30)
 
+    def _telegram_audit_sync_loop():
+        """Luồng chạy ngầm tự động đồng bộ tin nhắn group Đối soát và tin cảnh báo mỗi 2 phút"""
+        time.sleep(20)
+        while True:
+            try:
+                from telegram_sync_service import sync_telegram_audit_group_and_alerts
+                sync_telegram_audit_group_and_alerts()
+            except Exception:
+                pass
+            time.sleep(120)
+
     threading.Thread(target=_daily_hk_reminder_scheduler, daemon=True).start()
+    threading.Thread(target=_telegram_audit_sync_loop, daemon=True).start()
     threading.Thread(target=background_github_push_loop, daemon=True).start()
 
     print("================================================================")

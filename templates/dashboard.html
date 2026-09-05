@@ -411,6 +411,9 @@
                                 </button>
                             </div>
                             <div class="d-flex align-items-center gap-2">
+                                <button class="btn btn-sm btn-primary fw-bold px-3 shadow-sm" onclick="syncTelegramAuditGroup(this)" id="btn-sync-tele-audit" title="Đồng bộ ngay tin nhắn mới nhất từ group Telegram Đối soát">
+                                    <i class="fa-brands fa-telegram me-1"></i> Đồng Bộ Telegram
+                                </button>
                                 <button class="btn btn-sm btn-dark fw-bold px-3 shadow-sm" onclick="markAllAuditProcessed()" title="Đánh dấu đã xử lý toàn bộ các case đang hiển thị">
                                     <i class="fa-solid fa-check-circle me-1"></i> Đã xử lý tất cả
                                 </button>
@@ -2209,6 +2212,35 @@
             } catch (e) {
                 console.error("Lỗi markAllAuditProcessed:", e);
                 alert('❌ Lỗi kết nối máy chủ!');
+            }
+        }
+
+        async function syncTelegramAuditGroup(btn) {
+            const origHtml = btn ? btn.innerHTML : '';
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Đang đồng bộ...';
+            }
+            try {
+                const res = await fetch('/api/telegram/sync_audit_group', { method: 'POST' });
+                const d = await res.json();
+                await loadAuditGroupMessages(false);
+                if (btn) {
+                    btn.className = 'btn btn-sm btn-success fw-bold px-3 shadow-sm';
+                    btn.innerHTML = '<i class="fa-solid fa-check me-1"></i> Đã đồng bộ!';
+                    setTimeout(() => {
+                        btn.className = 'btn btn-sm btn-primary fw-bold px-3 shadow-sm';
+                        btn.innerHTML = origHtml;
+                        btn.disabled = false;
+                    }, 2500);
+                }
+            } catch (e) {
+                console.error("Lỗi syncTelegramAuditGroup:", e);
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = origHtml;
+                }
+                alert("Lỗi đồng bộ Telegram!");
             }
         }
 
