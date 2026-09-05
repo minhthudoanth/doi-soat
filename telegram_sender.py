@@ -298,7 +298,8 @@ def calculate_deadline(current_dt=None):
 
 def find_krc_store_chat(store_str, stores_list=None):
     """
-    Tìm group Telegram KRC của Siêu thị dựa vào mã/tên ST
+    Tìm group Telegram KRC hoặc DC (kênh rau) của Siêu thị dựa vào mã/tên ST.
+    TUYỆT ĐỐI KHÔNG gửi vào group ABA (thịt cá đông mát).
     """
     if not store_str or store_str == '---':
         return None
@@ -306,44 +307,50 @@ def find_krc_store_chat(store_str, stores_list=None):
     stores = stores_list if stores_list is not None else get_all_store_chats()
     s = store_str.strip().upper()
     
+    # Hỗ trợ chuẩn hóa ký tự D <-> Đ (ví dụ: THD <-> THĐ)
+    s_d = s.replace('Đ', 'D')
+    s_dd = s.replace('D', 'Đ')
+    
     from kingfood_api import STORE_ALIAS_MAP
     alias = STORE_ALIAS_MAP.get(s, s).upper()
+    alias_d = alias.replace('Đ', 'D')
+    alias_dd = alias.replace('D', 'Đ')
 
-    
-    # 1. ƯU TIÊN TUYỆT ĐỐI: Khớp chính xác mã ST (word boundary) trong group KRC/RAU
+    # BƯỚC LỌC BẮT BUỘC: CHỈ LẤY CÁC GROUP KRC HOẶC DC (KÊNH RAU)
+    # Loại trừ TUYỆT ĐỐI mọi group thuộc ngành hàng thịt cá đông mát (ABA, Đông mát,...)
+    krc_dc_stores = []
     for st in stores:
         t = st['chat_title'].upper()
-        if 'KRC' in t or 'RAU' in t:
-            if re.search(r'\b' + re.escape(s) + r'\b', t):
-                return st
+        # CẤM TUYỆT ĐỐI: group ABA / Thịt cá đông mát
+        if any(kw in t for kw in ['ABA', 'ĐÔNG MÁT', 'DONG MAT', 'THỊT', 'THIT', 'CÁ', 'MĐ']):
+            continue
+        # CHỈ NHẬN: group KRC hoặc DC hoặc RAU
+        if 'KRC' in t or 'DC' in t or 'RAU' in t:
+            krc_dc_stores.append(st)
+
+    # 1. Khớp chính xác mã ST theo word boundary (hỗ trợ cả D và Đ)
+    for st in krc_dc_stores:
+        t = st['chat_title'].upper()
+        t_d = t.replace('Đ', 'D')
+        if re.search(r'\b' + re.escape(s_d) + r'\b', t_d) or re.search(r'\b' + re.escape(s_dd) + r'\b', t):
+            return st
                 
-    # 2. Khớp theo alias chính xác trong group KRC/RAU
+    # 2. Khớp theo alias chính xác trong group KRC/DC
     if alias != s:
-        for st in stores:
+        for st in krc_dc_stores:
             t = st['chat_title'].upper()
-            if 'KRC' in t or 'RAU' in t:
-                if re.search(r'\b' + re.escape(alias) + r'\b', t) or alias in t:
-                    return st
-
-    # 3. Tìm group KRC chứa s dạng substring
-    for st in stores:
-        t = st['chat_title'].upper()
-        if 'KRC' in t or 'RAU' in t:
-            if s in t:
+            t_d = t.replace('Đ', 'D')
+            if re.search(r'\b' + re.escape(alias_d) + r'\b', t_d) or re.search(r'\b' + re.escape(alias_dd) + r'\b', t) or alias in t or alias_d in t_d:
                 return st
 
-    # 4. Tìm group bất kỳ khớp mã chính xác
-    for st in stores:
+    # 3. Khớp substring trong group KRC/DC
+    for st in krc_dc_stores:
         t = st['chat_title'].upper()
-        if re.search(r'\b' + re.escape(s) + r'\b', t):
+        t_d = t.replace('Đ', 'D')
+        if s_d in t_d or s_dd in t:
             return st
 
-    # 5. Tìm group bất kỳ theo alias hoặc substring
-    for st in stores:
-        t = st['chat_title'].upper()
-        if (alias != s and alias in t) or s in t:
-            return st
-
+    # NẾU KHÔNG CÓ GROUP KRC/DC NÀO -> TRẢ VỀ NONE (KHÔNG BAO GIỜ FALLBACK SANG GROUP KHÁC HAY GROUP ABA)
     return None
 
 async def get_store_manager_tags(chat_id):

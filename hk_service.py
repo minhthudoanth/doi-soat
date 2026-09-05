@@ -395,7 +395,7 @@ def prepare_hk_alerts(target_date_str=None):
             target_chat = find_krc_store_chat(sdata['branch_name'], all_stores)
 
         chat_id = target_chat['chat_id'] if target_chat else None
-        chat_title = target_chat['chat_title'] if target_chat else f"KRC - {s_name}"
+        chat_title = target_chat['chat_title'] if target_chat else f"[Chưa kết nối KRC/DC] {s_name}"
 
         # Xác định ngành hàng: RAU hoặc BÁNH TƯƠI
         sources = set(t.get('source_key') for t in tickets)

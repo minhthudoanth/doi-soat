@@ -321,7 +321,7 @@ def get_discrepancy_data_by_date(date_str=None):
             target_chat = find_krc_store_chat(sdata['branch_name'], all_stores)
 
         chat_id = target_chat['chat_id'] if target_chat else None
-        chat_title = target_chat['chat_title'] if target_chat else f"KRC - {sdata['branch_name']}"
+        chat_title = target_chat['chat_title'] if target_chat else f"[Chưa kết nối KRC/DC] {sdata['branch_name']}"
 
         # Sinh ảnh bảng màu cam chuẩn theo Hình 1
         img_abs_path, img_rel_url = generate_discrepancy_table_image(sid, items, date_str)

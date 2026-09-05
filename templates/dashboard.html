@@ -907,8 +907,11 @@
                         <button class="btn btn-sm btn-black fw-bold py-1 px-3" id="btn-clv2-month-all" onclick="selectClv2Month('')">
                             Toàn bộ thời gian
                         </button>
+                        <button class="btn btn-sm btn-outline-dark fw-bold py-1 px-3" id="btn-clv2-month-09" onclick="selectClv2Month('09/2026')">
+                            Tháng 09/2026 (3.534 case)
+                        </button>
                         <button class="btn btn-sm btn-outline-dark fw-bold py-1 px-3" id="btn-clv2-month-08" onclick="selectClv2Month('08/2026')">
-                            Tháng 08/2026 (18.472 case)
+                            Tháng 08/2026 (24.393 case)
                         </button>
                     </div>
 
@@ -1336,6 +1339,7 @@
                         <div class="d-flex align-items-center gap-1">
                             <span class="small fw-bold text-muted text-uppercase" style="font-size: 0.75rem;"><i class="fa-regular fa-calendar me-1"></i> Kỳ Hóa Đơn:</span>
                             <select class="form-select form-select-sm fw-bold font-monospace border-dark" id="select-invoice-month-filter" style="width: 155px;" onchange="onInvoiceMonthFilterChanged(this.value)">
+                                <option value="09">Tháng 09/2026</option>
                                 <option value="08">Tháng 08/2026</option>
                                 <option value="07" selected>Tháng 07/2026</option>
                                 <option value="06">Tháng 06/2026</option>
@@ -1387,6 +1391,7 @@
                             </label>
                             <select class="form-select form-select-sm fw-bold font-monospace border-secondary-subtle" id="table-filter-month" onchange="onTableFilterMonthChanged(this.value)">
                                 <option value="all">Tất Cả Tháng</option>
+                                <option value="09">Tháng 09/2026</option>
                                 <option value="08">Tháng 08/2026</option>
                                 <option value="07" selected>Tháng 07/2026</option>
                                 <option value="06">Tháng 06/2026</option>
@@ -4290,12 +4295,46 @@
             clv2DebounceTimer = setTimeout(loadClv2Records, 300);
         }
 
+        async function renderClv2MonthButtons() {
+            try {
+                let monthlyList = window.lastSheetStats && window.lastSheetStats.monthly_list;
+                if (!monthlyList || monthlyList.length === 0) {
+                    const res = await fetch('/api/sheet/stats');
+                    const d = await res.json();
+                    window.lastSheetStats = d;
+                    monthlyList = d.monthly_list || [];
+                }
+                const container = document.getElementById('clv2-month-selector');
+                if (!container) return;
+
+                let html = `<span class="small fw-bold text-dark text-uppercase"><i class="fa-solid fa-calendar-days me-1"></i> Chu Kỳ:</span>
+                <button class="btn btn-sm ${currentClv2Month === '' ? 'btn-black' : 'btn-outline-dark'} fw-bold py-1 px-3" onclick="selectClv2Month('')">
+                    Toàn bộ thời gian
+                </button>`;
+
+                monthlyList.forEach(m => {
+                    const isActive = (currentClv2Month === m.month) ? 'btn-black' : 'btn-outline-dark';
+                    html += `<button class="btn btn-sm ${isActive} fw-bold py-1 px-3" onclick="selectClv2Month('${m.month}')">
+                        Tháng ${m.month} (${m.total_cases.toLocaleString()} case)
+                    </button>`;
+                });
+
+                container.innerHTML = html;
+            } catch (e) {
+                console.error("Lỗi renderClv2MonthButtons:", e);
+            }
+        }
+
         function selectClv2Month(m) {
             currentClv2Month = m;
-            document.getElementById('btn-clv2-month-all').className = m === '' ? 'btn btn-sm btn-black fw-bold py-1 px-3' : 'btn btn-sm btn-outline-dark fw-bold py-1 px-3';
-            document.getElementById('btn-clv2-month-08').className = m === '08/2026' ? 'btn btn-sm btn-black fw-bold py-1 px-3' : 'btn btn-sm btn-outline-dark fw-bold py-1 px-3';
-            document.getElementById('clv2-current-month-display').innerText = m === '' ? 'Đang hiển thị Toàn bộ thời gian' : `Đang hiển thị Tháng ${m}`;
-            loadClv2Module();
+            const displayEl = document.getElementById('clv2-current-month-display');
+            if (displayEl) {
+                displayEl.innerText = m === '' ? 'Đang hiển thị Toàn bộ thời gian' : `Đang hiển thị Tháng ${m}`;
+            }
+            renderClv2MonthButtons();
+            fetchClv2Categories();
+            fetchClv2Stats();
+            fetchClv2DailySummary();
         }
 
         function selectClv2Cat(cat) {
@@ -4334,6 +4373,7 @@
         }
 
         function loadClv2Module() {
+            renderClv2MonthButtons();
             fetchClv2Categories();
             fetchClv2Stats();
             fetchClv2DailySummary();
