@@ -296,43 +296,66 @@ def find_krc_store_chat(store_str, stores_list=None):
 
 async def get_store_manager_tags(chat_id):
     """
-    Lấy danh sách username các quản lý (SM, TC, GSM, Trưởng ca...) trong group
+    Lấy dòng tag quản lý theo đúng quy tắc ưu tiên:
+    1. Tuyệt đối không tag Hà Trang Smartlog và team SCM.
+    2. Nếu có SM: Ưu tiên tag SM.
+    3. Nếu KHÔNG có SM: Tag SL / TC / GSM.
     """
-    if not chat_id:
-        return ""
+    return await get_store_manager_tag_line(chat_id)
+
+EXCLUDED_USERNAMES = {
+    'hatrang290303', 'minhthudoan', 'long_sc015349', 'tunhipham', 
+    'hapham_scm', 'nnhau2110', 'camnhung_scm', 'hubert286', 
+    'doi_soat_scm_bot', 'phutrantn', 'vo_tan7411', 'quanghieu_sc007693',
+    'quacamnhieuvitaminc'
+}
+EXCLUDED_KEYWORDS = [
+    'smartlog', 'scm', 'sc017084', 'sc015349', 'sc012433', 
+    'sc007251', 'sc015700', 'sc011297', 'sc003147', 'sc005651',
+    'hatrang', 'hà trang'
+]
+
+def is_user_excluded_from_tags(p, full_name, title_rk=''):
+    if p.bot or p.is_self:
+        return True
+    un = (p.username or '').lower().strip()
+    if un in EXCLUDED_USERNAMES:
+        return True
+    if any(kw in un for kw in ['smartlog', 'hatrang', 'scm']):
+        return True
+    combined = f"{full_name} {title_rk}".lower()
+    for kw in EXCLUDED_KEYWORDS:
+        if kw in combined:
+            return True
+    return False
+
+async def get_forum_rau_topic_id(client, chat_id):
+    """
+    Với các group DC dạng Forum/Topics, tìm channel/topic 'Rau' / 'Rau Củ' / 'KRC'
+    để tự động đẩy tin nhắn vào đúng chuyên mục.
+    """
     try:
-        client = TelegramClient(SESSION_NAME, API_ID, API_HASH)
-        await client.connect()
-        if not await client.is_user_authorized():
-            await client.disconnect()
-            return ""
-            
-        participants = await client.get_participants(int(chat_id))
-        tags = []
-        for p in participants:
-            if p.bot or p.is_self:
-                continue
-            title = (getattr(p, 'participant', None) and getattr(p.participant, 'rank', '')) or ''
-            first_name = (p.first_name or '').upper()
-            last_name = (p.last_name or '').upper()
-            user_str = f"{first_name} {last_name} {title}".upper()
-            
-            # Nhận diện SM, TC, GSM, Quản lý, Trưởng ca
-            is_mgr = any(k in user_str for k in ['SM', 'TC', 'GSM', 'QL', 'TRƯỞNG CA', 'CỬA HÀNG TRƯỞNG', 'LEAD', 'CHỦ CA'])
-            if is_mgr and p.username:
-                tags.append(f"@{p.username}")
-                
-        await client.disconnect()
-        return " ".join(tags)
+        entity = await client.get_entity(int(chat_id))
+        if getattr(entity, 'forum', False):
+            from telethon import functions
+            res = await client(functions.messages.GetForumTopicsRequest(
+                peer=entity, offset_date=None, offset_id=0, offset_topic=0, limit=100
+            ))
+            for t in res.topics:
+                title_clean = t.title.strip().upper()
+                if any(k in title_clean for k in ['RAU', 'RAU CỦ', 'KRC']):
+                    return t.id
     except Exception as e:
-        print(f"Lỗi get_store_manager_tags: {e}")
-        return ""
+        print(f"[!] Lỗi tìm topic Rau trong group {chat_id}: {e}")
+    return None
 
 async def get_store_manager_tag_line(chat_id):
     """
-    Lấy dòng thông tin tag quản lý riêng biệt cho ST:
-    Ví dụ: @thachphanHV2 ⛑ HCM1 - HV2 - TC - Trúc Nguyễn - SC013957 ⛑
-    Nếu không tìm thấy ai thì fallback về @sm @tc @gsm
+    Lấy dòng tag quản lý theo đúng quy tắc ưu tiên:
+    1. Tuyệt đối không tag đối tác/vendor (Hà Trang Smartlog @HaTrang290303) và team SCM.
+    2. Nếu có SM: Ưu tiên tag SM.
+    3. Nếu KHÔNG có SM: Tag SL / TC / GSM.
+    4. Nếu không có ai: Fallback @sm @tc @gsm.
     """
     if not chat_id:
         return "@sm @tc @gsm"
@@ -344,28 +367,45 @@ async def get_store_manager_tag_line(chat_id):
             return "@sm @tc @gsm"
             
         participants = await client.get_participants(int(chat_id))
-        tag_items = []
+        sm_tags = []
+        backup_tags = [] # SL, TC, GSM
+
         for p in participants:
-            if p.bot or p.is_self:
-                continue
             title_rk = (getattr(p, 'participant', None) and getattr(p.participant, 'rank', '')) or ''
             fn = (p.first_name or '').strip()
             ln = (p.last_name or '').strip()
             full_name = f"{fn} {ln}".strip()
+            if not full_name or is_user_excluded_from_tags(p, full_name, title_rk):
+                continue
+
             user_str = f"{full_name} {title_rk}".upper()
-            
-            is_mgr = any(k in user_str for k in ['SM', 'TC', 'GSM', 'QL', 'TRƯỞNG CA', 'CỬA HÀNG TRƯỞNG', 'LEAD', 'CHỦ CA'])
-            if is_mgr:
-                if p.username:
-                    tag_items.append(f"@{p.username}")
-                elif full_name:
-                    tag_items.append(full_name)
+            tag_val = f"@{p.username}" if p.username else full_name
+
+            # 1. Kiểm tra SM
+            is_sm = bool(re.search(r'\bSM\b', user_str) or 'CỬA HÀNG TRƯỞNG' in user_str or 'STORE MANAGER' in user_str)
+            if is_sm and not bool(re.search(r'\bGSM\b', user_str)):
+                sm_tags.append(tag_val)
+                continue
+
+            # 2. Kiểm tra SL, TC, GSM
+            is_backup = bool(re.search(r'\b(SL|TC|GSM|TCTT|TC\(TT\)|TRƯỞNG CA|CHỦ CA|LEAD)\b', user_str))
+            if is_backup:
+                backup_tags.append(tag_val)
                     
         await client.disconnect()
-        if tag_items:
+
+        # Quy tắc: nếu có SM -> tag SM
+        if sm_tags:
             seen = set()
-            unique_tags = [x for x in tag_items if not (x in seen or seen.add(x))]
-            return " ".join(unique_tags)
+            u_sm = [x for x in sm_tags if not (x in seen or seen.add(x))]
+            return " ".join(u_sm)
+
+        # Nếu không có SM -> tag SL, TC, GSM
+        if backup_tags:
+            seen = set()
+            u_bk = [x for x in backup_tags if not (x in seen or seen.add(x))]
+            return " ".join(u_bk)
+
         return "@sm @tc @gsm"
     except Exception as e:
         print(f"Lỗi get_store_manager_tag_line: {e}")

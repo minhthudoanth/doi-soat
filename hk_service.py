@@ -428,18 +428,22 @@ async def send_hk_batch_telethon(alerts):
 
         target = int(cid)
         try:
-            # 1. Gửi Tin 1: Hình ảnh bảng phiếu kèm caption
+            # Với các group DC dạng Forum: tự động tìm kênh/topic Rau / Rau Củ / KRC để gửi vào
+            from telegram_sender import get_forum_rau_topic_id
+            topic_id = await get_forum_rau_topic_id(client, target)
+
+            # 1. Gửi Tin 1: Hình ảnh bảng phiếu kèm caption (đẩy vào topic nếu có)
             if img_path and os.path.exists(img_path):
-                sent_msg1 = await client.send_file(target, img_path, caption=caption)
+                sent_msg1 = await client.send_file(target, img_path, caption=caption, reply_to=topic_id)
             else:
-                sent_msg1 = await client.send_message(target, caption)
+                sent_msg1 = await client.send_message(target, caption, reply_to=topic_id)
 
             sent_records.append((batch_id, target, c_title, sent_msg1.id, caption))
 
             # 2. Gửi Tin 2: Tin riêng biệt tag quản lý (Kiểu thứ 2)
             if tag_line:
                 await asyncio.sleep(0.6)
-                sent_msg2 = await client.send_message(target, tag_line)
+                sent_msg2 = await client.send_message(target, tag_line, reply_to=topic_id)
                 sent_records.append((batch_id, target, c_title, sent_msg2.id, tag_line))
 
             success_count += 1
@@ -448,15 +452,18 @@ async def send_hk_batch_telethon(alerts):
             print(f"[!] FloodWait: Đợi {e.seconds}s...")
             await asyncio.sleep(e.seconds + 1)
             try:
+                from telegram_sender import get_forum_rau_topic_id
+                topic_id = await get_forum_rau_topic_id(client, target)
+
                 if img_path and os.path.exists(img_path):
-                    sent_msg1 = await client.send_file(target, img_path, caption=caption)
+                    sent_msg1 = await client.send_file(target, img_path, caption=caption, reply_to=topic_id)
                 else:
-                    sent_msg1 = await client.send_message(target, caption)
+                    sent_msg1 = await client.send_message(target, caption, reply_to=topic_id)
                 sent_records.append((batch_id, target, c_title, sent_msg1.id, caption))
 
                 if tag_line:
                     await asyncio.sleep(0.6)
-                    sent_msg2 = await client.send_message(target, tag_line)
+                    sent_msg2 = await client.send_message(target, tag_line, reply_to=topic_id)
                     sent_records.append((batch_id, target, c_title, sent_msg2.id, tag_line))
 
                 success_count += 1
