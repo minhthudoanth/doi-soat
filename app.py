@@ -1752,47 +1752,11 @@ def api_prepare_batch_alerts():
     batch_list = []
     
     if template_type == 1:
-        # 1. Remind done phiếu hậu kiểm KRC & KRCBT (đã dừng truy cập KDB theo yêu cầu)
-        hk_items = []
-        store_groups = {}
-        for hk in hk_items:
-            to_b = hk.get('to_branch') or {}
-            s_name = to_b.get('name', '')
-            s_code = to_b.get('code', '')
-            st_key = s_code or s_name
-            if not st_key:
-                continue
-            if st_key not in store_groups:
-                store_groups[st_key] = {'store_name': s_name, 'store_code': s_code, 'items': []}
-            store_groups[st_key]['items'].append(hk)
-            
-        for st_key, grp_data in store_groups.items():
-            target_chat = find_krc_store_chat(st_key, all_stores)
-            chat_id = target_chat['chat_id'] if target_chat else None
-            chat_title = target_chat['chat_title'] if target_chat else f"KRC - {grp_data['store_name']}"
-            
-            tags = ""
-            if chat_id:
-                try:
-                    loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(loop)
-                    tags = loop.run_until_complete(get_store_manager_tags(chat_id))
-                    loop.close()
-                except:
-                    pass
-            
-            msg_body = "ST kiểm tra HOÀN THÀNH phiếu hậu kiểm gấp nhé team"
-            if tags:
-                msg_body += f"\n{tags}"
-                
-            batch_list.append({
-                'store_key': st_key,
-                'store_name': grp_data['store_name'],
-                'chat_id': chat_id,
-                'chat_title': chat_title,
-                'message_text': msg_body,
-                'count_items': len(grp_data['items'])
-            })
+        # 1. Remind done phiếu hậu kiểm KRC & KRCBT (tự động lấy từ API & sinh ảnh thẻ)
+        from hk_service import prepare_hk_alerts
+        res_hk = prepare_hk_alerts(date_val)
+        batch_list = res_hk.get('batch_list', [])
+        date_val = res_hk.get('target_date', date_val)
             
     elif template_type == 2:
         # 2. Đối soát chênh lệch: Lọc DC giao thiếu
@@ -1878,8 +1842,10 @@ def api_send_batch_alerts():
         return jsonify({'success': False, 'error': 'Danh sách gửi trống'})
         
     import random
+    import os
+    import sqlite3
     from telethon import errors, TelegramClient
-    from config import SESSION_NAME, API_ID, API_HASH
+    from config import SESSION_NAME, API_ID, API_HASH, DB_PATH
     
     async def do_batch():
         client = TelegramClient(SESSION_NAME, API_ID, API_HASH)
@@ -1888,35 +1854,72 @@ def api_send_batch_alerts():
             await client.disconnect()
             return {"success": False, "error": "Chưa đăng nhập Telegram"}
             
+        batch_id = datetime.now().strftime('BATCH_%Y%m%d_%H%M%S')
         success_count = 0
         failed = []
+        sent_records = []
         for a in alerts:
             cid = a.get('chat_id')
-            txt = a.get('message_text', '').strip()
+            txt = (a.get('message_text') or '').strip()
+            img_path = a.get('image_path')
+            c_title = a.get('chat_title') or f"ST_{cid}"
             if not cid or not txt:
                 continue
             try:
                 target = int(cid)
-                await client.send_message(target, txt)
+                if img_path and os.path.exists(img_path):
+                    sent_msg = await client.send_file(target, img_path, caption=txt)
+                else:
+                    sent_msg = await client.send_message(target, txt)
                 success_count += 1
+                sent_records.append((batch_id, target, c_title, sent_msg.id, txt))
                 await asyncio.sleep(round(random.uniform(1.8, 3.2), 2))
             except errors.FloodWaitError as e:
                 await asyncio.sleep(e.seconds + 1)
                 try:
-                    await client.send_message(target, txt)
+                    if img_path and os.path.exists(img_path):
+                        sent_msg = await client.send_file(target, img_path, caption=txt)
+                    else:
+                        sent_msg = await client.send_message(target, txt)
                     success_count += 1
+                    sent_records.append((batch_id, target, c_title, sent_msg.id, txt))
                 except Exception as e2:
                     failed.append({"chat_id": cid, "error": str(e2)})
             except Exception as e:
                 failed.append({"chat_id": cid, "error": str(e)})
                 
         await client.disconnect()
-        return {"success": True, "sent_count": success_count, "failed_count": len(failed), "failed": failed}
+
+        if sent_records:
+            try:
+                conn = sqlite3.connect(DB_PATH)
+                c = conn.cursor()
+                c.executemany("""
+                    INSERT INTO sent_broadcast_history (batch_id, chat_id, chat_title, msg_id, message_text)
+                    VALUES (?, ?, ?, ?, ?)
+                """, sent_records)
+                conn.commit()
+                conn.close()
+            except Exception as err:
+                print(f"[!] Lỗi ghi sent_broadcast_history: {err}", flush=True)
+
+        return {"success": True, "batch_id": batch_id, "sent_count": success_count, "failed_count": len(failed), "failed": failed}
 
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     res = loop.run_until_complete(do_batch())
     loop.close()
+    return jsonify(res)
+
+@app.route('/api/hk/trigger_daily_scan', methods=['POST'])
+def api_trigger_daily_hk_scan():
+    """
+    Kích hoạt tiến trình quét và gửi nhắc nhở phiếu Hậu kiểm 9h sáng thủ công hoặc chạy thử
+    """
+    data = request.json or {}
+    target_date = data.get('date')
+    from hk_service import execute_auto_daily_hk_reminder
+    res = execute_auto_daily_hk_reminder(target_date)
     return jsonify(res)
 
 
@@ -3178,7 +3181,32 @@ if __name__ == '__main__':
             except Exception:
                 pass
             time.sleep(15)
-    threading.Thread(target=_tele_supervisor, daemon=True).start()
+    def _daily_hk_reminder_scheduler():
+        """
+        Luồng tự động chạy ngầm: Mỗi 30 giây kiểm tra giờ VN (GMT+7).
+        Khi chạm mốc 09:00 sáng mỗi ngày (và chưa chạy cho ngày hôm đó),
+        tự động quét phiếu hậu kiểm KRC/KRCBT chưa hoàn thành và gửi nhắc nhở cho ST.
+        """
+        from datetime import datetime, timezone, timedelta
+        vn_tz = timezone(timedelta(hours=7))
+        last_run_date = None
+        print("[*] Khoi dong Luong Tu Dong Quet & Nhac Phieu Hau Kiem 09:00 AM...", flush=True)
+        time.sleep(10)
+        while True:
+            try:
+                now_vn = datetime.now(vn_tz)
+                today_str = now_vn.strftime('%d/%m/%Y')
+                if now_vn.hour == 9 and now_vn.minute >= 0 and last_run_date != today_str:
+                    print(f"[*] [09:00 AM] Kich hoat tien trinh nhac nho phieu Hau kiem ngay {today_str}...", flush=True)
+                    last_run_date = today_str
+                    from hk_service import execute_auto_daily_hk_reminder
+                    res = execute_auto_daily_hk_reminder(today_str)
+                    print(f"[✓] [09:00 AM] Ket qua nhac phieu HK: {res}", flush=True)
+            except Exception as e:
+                print(f"[!] Loi daily_hk_reminder_scheduler: {e}", flush=True)
+            time.sleep(30)
+
+    threading.Thread(target=_daily_hk_reminder_scheduler, daemon=True).start()
     threading.Thread(target=background_github_push_loop, daemon=True).start()
 
     print("================================================================")
