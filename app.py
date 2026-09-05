@@ -1860,7 +1860,7 @@ def api_send_batch_alerts():
         for a in alerts:
             cid = a.get('chat_id')
             txt = (a.get('message_text') or '').strip()
-            caption = a.get('caption') or (txt.split('\n\n')[0] if '\n\n' in txt else txt)
+            caption = a.get('caption') or txt
             tag_line = (a.get('tag_line') or '').strip()
             img_path = a.get('image_path')
             c_title = a.get('chat_title') or f"ST_{cid}"
@@ -1871,7 +1871,12 @@ def api_send_batch_alerts():
                 from telegram_sender import get_forum_rau_topic_id
                 topic_id = await get_forum_rau_topic_id(client, target)
 
-                full_caption = f"{caption}\n{tag_line}" if tag_line else caption
+                if tag_line and tag_line in caption:
+                    full_caption = caption
+                elif tag_line:
+                    full_caption = f"{caption}\n\n{tag_line}"
+                else:
+                    full_caption = caption
 
                 # Gửi ảnh kèm Caption đúng chuẩn Hình 2 (hoặc text nếu không có ảnh, hỗ trợ topic)
                 if img_path and os.path.exists(img_path):
@@ -1922,7 +1927,8 @@ def api_send_batch_alerts():
 
         if sent_records:
             try:
-                conn = sqlite3.connect(DB_PATH)
+                from database import get_optimized_conn
+                conn = get_optimized_conn()
                 c = conn.cursor()
                 c.executemany("""
                     INSERT INTO sent_broadcast_history (batch_id, chat_id, chat_title, msg_id, message_text)

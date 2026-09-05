@@ -271,27 +271,40 @@ def find_krc_store_chat(store_str, stores_list=None):
     alias = STORE_ALIAS_MAP.get(s, s).upper()
 
     
-    # 1. Tìm group KRC khớp chính xác mã (word boundary) hoặc tên
+    # 1. ƯU TIÊN TUYỆT ĐỐI: Khớp chính xác mã ST (word boundary) trong group KRC/RAU
     for st in stores:
         t = st['chat_title'].upper()
         if 'KRC' in t or 'RAU' in t:
-            if re.search(r'\b' + re.escape(s) + r'\b', t) or (alias != s and alias in t):
+            if re.search(r'\b' + re.escape(s) + r'\b', t):
                 return st
                 
-    # 2. Tìm group KRC chứa s dạng substring
+    # 2. Khớp theo alias chính xác trong group KRC/RAU
+    if alias != s:
+        for st in stores:
+            t = st['chat_title'].upper()
+            if 'KRC' in t or 'RAU' in t:
+                if re.search(r'\b' + re.escape(alias) + r'\b', t) or alias in t:
+                    return st
+
+    # 3. Tìm group KRC chứa s dạng substring
     for st in stores:
         t = st['chat_title'].upper()
         if 'KRC' in t or 'RAU' in t:
-            if s in t or alias in t:
+            if s in t:
                 return st
 
-    # 3. Tìm group bất kỳ của ST đó
+    # 4. Tìm group bất kỳ khớp mã chính xác
     for st in stores:
         t = st['chat_title'].upper()
-        if re.search(r'\b' + re.escape(s) + r'\b', t) or s in t or alias in t:
+        if re.search(r'\b' + re.escape(s) + r'\b', t):
             return st
 
-            
+    # 5. Tìm group bất kỳ theo alias hoặc substring
+    for st in stores:
+        t = st['chat_title'].upper()
+        if (alias != s and alias in t) or s in t:
+            return st
+
     return None
 
 async def get_store_manager_tags(chat_id):
