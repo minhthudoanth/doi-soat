@@ -1,17 +1,18 @@
 @echo off
-title NGAT KET NOI WIREGUARD VPN - VNPT-VPN-01
-color 0C
+title KET NOI WIREGUARD VPN - VIETTEL-VPN-01
+color 0B
 cd /d "%~dp0"
 
 net session >nul 2>&1
 if %errorLevel% neq 0 (
-    echo [*] Dang yeu cau quyen Administrator de ngat ket noi VPN...
+    echo [*] Dang yeu cau quyen Administrator de bat ket noi VPN Viettel 01...
     powershell -NoProfile -ExecutionPolicy Bypass -Command "Start-Process cmd -ArgumentList '/c \"\"%~dpnx0\"\"' -Verb RunAs"
     exit /b
 )
 
 echo ================================================================
-echo        DANG NGAT KET NOI WIREGUARD VPN (thu.doanthiminh)
+echo        DANG KET NOI WIREGUARD VPN (VIETTEL-VPN-01)
+echo        Peer: thu.doanthiminh ^| VPN IP: 10.99.0.45
 echo ================================================================
 echo.
 
@@ -22,15 +23,22 @@ if not exist "%WG_EXE%" (
     exit /b 1
 )
 
-echo [*] Dang go bo cac Tunnel Service WireGuard...
+echo [*] Dang ngat ket noi cac tunnel cu neu co...
 "%WG_EXE%" /uninstalltunnelservice thu.doanthiminh >nul 2>&1
 "%WG_EXE%" /uninstalltunnelservice thu.doanthiminh.viettel01 >nul 2>&1
 "%WG_EXE%" /uninstalltunnelservice thu.doanthiminh.viettel02 >nul 2>&1
 
+echo [*] Dang kich hoat Tunnel Service VIETTEL-VPN-01...
+"%WG_EXE%" /installtunnelservice "%~dp0thu.doanthiminh.viettel01.conf"
+
 timeout /t 2 >nul
 echo.
+echo [*] Kiem tra trang thai dich vu VPN:
+sc query WireGuardTunnel$thu.doanthiminh.viettel01 | findstr /i "STATE"
+echo.
 echo ================================================================
-echo   [OK] DA NGAT KET NOI VPN THANH CONG!
+echo   [OK] DA BAT KET NOI VIETTEL-VPN-01 THANH CONG!
+echo   Dia chi VPN IP cua ban: 10.99.0.45
 echo ================================================================
 echo.
 pause
