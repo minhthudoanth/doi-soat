@@ -328,6 +328,49 @@ async def get_store_manager_tags(chat_id):
         print(f"Lỗi get_store_manager_tags: {e}")
         return ""
 
+async def get_store_manager_tag_line(chat_id):
+    """
+    Lấy dòng thông tin tag quản lý riêng biệt cho ST:
+    Ví dụ: @thachphanHV2 ⛑ HCM1 - HV2 - TC - Trúc Nguyễn - SC013957 ⛑
+    Nếu không tìm thấy ai thì fallback về @sm @tc @gsm
+    """
+    if not chat_id:
+        return "@sm @tc @gsm"
+    try:
+        client = TelegramClient(SESSION_NAME, API_ID, API_HASH)
+        await client.connect()
+        if not await client.is_user_authorized():
+            await client.disconnect()
+            return "@sm @tc @gsm"
+            
+        participants = await client.get_participants(int(chat_id))
+        tag_items = []
+        for p in participants:
+            if p.bot or p.is_self:
+                continue
+            title_rk = (getattr(p, 'participant', None) and getattr(p.participant, 'rank', '')) or ''
+            fn = (p.first_name or '').strip()
+            ln = (p.last_name or '').strip()
+            full_name = f"{fn} {ln}".strip()
+            user_str = f"{full_name} {title_rk}".upper()
+            
+            is_mgr = any(k in user_str for k in ['SM', 'TC', 'GSM', 'QL', 'TRƯỞNG CA', 'CỬA HÀNG TRƯỞNG', 'LEAD', 'CHỦ CA'])
+            if is_mgr:
+                if p.username:
+                    tag_items.append(f"@{p.username}")
+                elif full_name:
+                    tag_items.append(full_name)
+                    
+        await client.disconnect()
+        if tag_items:
+            seen = set()
+            unique_tags = [x for x in tag_items if not (x in seen or seen.add(x))]
+            return " ".join(unique_tags)
+        return "@sm @tc @gsm"
+    except Exception as e:
+        print(f"Lỗi get_store_manager_tag_line: {e}")
+        return "@sm @tc @gsm"
+
 async def forward_and_send_surplus_alert(target_chat_id, source_chat_id, msg_id, message_text):
     """
     Chuyển tiếp tin nhắn từ group Đối Soát sang group KRC của ST nhận dư

@@ -222,7 +222,10 @@ def fetch_pending_double_checks(target_date_str=None):
 
 def render_hk_card_image(store_code, store_name, tickets, output_path=None):
     """
-    Vẽ ảnh thẻ thông báo phiếu hậu kiểm sắc nét, thẩm mỹ cao bằng Pillow
+    Vẽ ảnh thẻ thông báo phiếu hậu kiểm CHỈ GỒM BẢNG THÔNG TIN đúng theo Hình 1:
+    - Dòng thông tin: Siêu thị: [Mã] Tên ST | Ngày: DD/MM/YYYY
+    - Bảng chi tiết: STT | Mã Phiếu Hậu Kiểm | Mã Phiếu Chuyển (PT) | Kho Xuất | Thời Gian Tạo | Trạng Thái
+    - Tuyệt đối KHÔNG có banner đen trên đầu và KHÔNG có ghi chú chân trang.
     """
     from PIL import Image, ImageDraw, ImageFont
 
@@ -241,74 +244,61 @@ def render_hk_card_image(store_code, store_name, tickets, output_path=None):
         return ImageFont.load_default()
 
     row_height = 42
-    header_height = 140
-    table_header_height = 45
-    footer_height = 65
+    top_info_height = 45
+    table_header_height = 42
     total_rows = max(len(tickets), 1)
     width = 860
-    height = header_height + table_header_height + (total_rows * row_height) + footer_height + 20
+    height = top_info_height + table_header_height + (total_rows * row_height) + 15
 
     img = Image.new('RGB', (width, height), color='#FFFFFF')
     draw = ImageDraw.Draw(img)
 
-    font_title = get_font(23, bold=True)
-    font_subtitle = get_font(14, bold=False)
+    font_info_bold = get_font(14, bold=True)
     font_th = get_font(14, bold=True)
     font_td = get_font(14, bold=False)
     font_td_bold = get_font(14, bold=True)
-    font_footer = get_font(13, bold=True)
+    font_badge = get_font(12, bold=True)
 
-    # 1. Header Banner
-    draw.rectangle([(0, 0), (width, 95)], fill='#0f172a') # Dark Slate
-    draw.rectangle([(0, 0), (width, 5)], fill='#ea580c') # Kingfood Orange Accent
-
-    draw.text((25, 20), "THÔNG BÁO PHIẾU HẬU KIỂM CẦN HOÀN THÀNH", font=font_title, fill='#ffffff')
-    draw.text((25, 58), "HỆ THỐNG ĐỐI SOÁT TỰ ĐỘNG - KHO KRC & KRCBT", font=font_subtitle, fill='#94a3b8')
-
-    # Store Info Sub-banner
-    draw.rectangle([(0, 95), (width, 140)], fill='#f8fafc')
-    draw.line([(0, 140), (width, 140)], fill='#e2e8f0', width=1)
-
-    store_disp = f"Siêu thị: [{store_code}] {store_name}"
-    draw.text((25, 108), store_disp, font=font_td_bold, fill='#0f172a')
+    # 1. Dòng thông tin Siêu thị & Ngày
     date_str = tickets[0].get('created_date_vn', '') if tickets else ''
-    draw.text((width - 180, 108), f"Ngày: {date_str}", font=font_td_bold, fill='#64748b')
+    store_disp = f"Siêu thị: [{store_code}] {store_name}"
+    draw.text((20, 14), store_disp, font=font_info_bold, fill='#0f172a')
+    draw.text((width - 170, 14), f"Ngày: {date_str}", font=font_info_bold, fill='#64748b')
 
-    # 2. Table Header
-    y_th = 145
-    draw.rectangle([(20, y_th), (width - 20, y_th + table_header_height)], fill='#0284c7')
-    
-    col_x = [30, 80, 260, 440, 560, 710]
+    # Đường phân cách mờ dưới thông tin
+    draw.line([(0, top_info_height), (width, top_info_height)], fill='#e2e8f0', width=1)
+
+    # 2. Tiêu đề bảng (Header xanh biển Kingfood)
+    y_th = top_info_height + 5
+    draw.rectangle([(15, y_th), (width - 15, y_th + table_header_height)], fill='#0284c7')
+
+    col_x = [25, 75, 255, 435, 555, 705]
     headers = ["STT", "Mã Phiếu Hậu Kiểm", "Mã Phiếu Chuyển (PT)", "Kho Xuất", "Thời Gian Tạo", "Trạng Thái"]
     for i, h in enumerate(headers):
-        draw.text((col_x[i], y_th + 12), h, font=font_th, fill='#ffffff')
+        draw.text((col_x[i], y_th + 11), h, font=font_th, fill='#ffffff')
 
-    # 3. Table Rows
+    # 3. Các hàng dữ liệu phiếu
     y_row = y_th + table_header_height
     for idx, t in enumerate(tickets, 1):
         bg_col = '#f8fafc' if idx % 2 == 0 else '#ffffff'
-        draw.rectangle([(20, y_row), (width - 20, y_row + row_height)], fill=bg_col)
-        draw.line([(20, y_row + row_height), (width - 20, y_row + row_height)], fill='#e2e8f0', width=1)
+        draw.rectangle([(15, y_row), (width - 15, y_row + row_height)], fill=bg_col)
+        draw.line([(15, y_row + row_height), (width - 15, y_row + row_height)], fill='#e2e8f0', width=1)
 
         draw.text((col_x[0] + 5, y_row + 11), str(idx), font=font_td, fill='#334155')
         draw.text((col_x[1], y_row + 11), t.get('hk_code', ''), font=font_td_bold, fill='#0369a1')
         draw.text((col_x[2], y_row + 11), t.get('pt_code', ''), font=font_td_bold, fill='#b91c1c')
         draw.text((col_x[3], y_row + 11), t.get('source_key', ''), font=font_td, fill='#334155')
         draw.text((col_x[4], y_row + 11), t.get('created_time_str', ''), font=font_td, fill='#475569')
-        
+
         # Badge Trạng thái
         status_text = "Cần hậu kiểm"
         draw.rectangle([(col_x[5] - 5, y_row + 8), (col_x[5] + 95, y_row + 32)], fill='#fef3c7', outline='#f59e0b', width=1)
-        draw.text((col_x[5] + 3, y_row + 10), status_text, font=get_font(12, bold=True), fill='#b45309')
+        draw.text((col_x[5] + 3, y_row + 10), status_text, font=font_badge, fill='#b45309')
 
         y_row += row_height
 
-    # Outer table border
-    draw.rectangle([(20, y_th), (width - 20, y_row)], outline='#cbd5e1', width=1)
-
-    # 4. Footer Note
-    draw.text((25, y_row + 15), "[!] ST kiểm tra HOÀN THÀNH phiếu hậu kiểm gấp nhé team @sm @tc @gsm", font=font_footer, fill='#dc2626')
-    draw.text((25, y_row + 38), "Nguồn dữ liệu: Kingfood SCM Logistics • Tự động quét 09:00 AM", font=get_font(12, bold=False), fill='#94a3b8')
+    # Khung viền ngoài bảng
+    draw.rectangle([(15, y_th), (width - 15, y_row)], outline='#cbd5e1', width=1)
 
     if not output_path:
         out_dir = os.path.join(BASE_DIR, 'static', 'generated_docs')
@@ -323,9 +313,11 @@ def render_hk_card_image(store_code, store_name, tickets, output_path=None):
 
 def prepare_hk_alerts(target_date_str=None):
     """
-    Chuẩn bị danh sách gửi tin batch cảnh báo phiếu hậu kiểm cho Web UI và Auto Scheduler
+    Chuẩn bị danh sách gửi tin batch cảnh báo phiếu hậu kiểm theo kiểu thứ 2:
+    - Tin 1 (kèm ảnh): "ST kiểm tra HOÀN THÀNH phiếu hậu kiểm GẤP nhé"
+    - Tin 2 (tin riêng biệt): Tag thông tin các quản lý ST (@username / Tên quản lý)
     """
-    from telegram_sender import find_krc_store_chat, get_all_store_chats
+    from telegram_sender import find_krc_store_chat, get_all_store_chats, get_store_manager_tag_line
 
     scan_res = fetch_pending_double_checks(target_date_str)
     all_stores = get_all_store_chats()
@@ -349,20 +341,23 @@ def prepare_hk_alerts(target_date_str=None):
         chat_id = target_chat['chat_id'] if target_chat else None
         chat_title = target_chat['chat_title'] if target_chat else f"KRC - {s_name}"
 
-        # Tạo nội dung tin nhắn đúng cú pháp người dùng yêu cầu:
-        # "ST kiểm tra HOÀN THÀNH phiếu hậu kiểm gấp nhé team
-        #  • Mã HK: [HK...] - PT: [PT...] (Kho: KRC/KRCBT)
-        #  @sm @tc @gsm"
-        ticket_lines = []
-        for t in tickets:
-            ticket_lines.append(f"• Mã HK: {t['hk_code']} - PT: {t['pt_code']} (Kho: {t['source_key']})")
-        tickets_str = "\n".join(ticket_lines)
+        # 1. Caption tin nhắn thứ nhất (gửi kèm hình ảnh)
+        caption = "ST kiểm tra HOÀN THÀNH phiếu hậu kiểm GẤP nhé"
 
-        tags = "@sm @tc @gsm"
+        # 2. Tin nhắn thứ hai: Thông tin tag quản lý riêng biệt
+        tag_line = "@sm @tc @gsm"
+        if chat_id:
+            try:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                tag_line = loop.run_until_complete(get_store_manager_tag_line(chat_id))
+                loop.close()
+            except Exception:
+                pass
 
-        msg_body = f"ST kiểm tra HOÀN THÀNH phiếu hậu kiểm gấp nhé team\n{tickets_str}\n\n{tags}"
+        full_preview = f"{caption}\n\n{tag_line}"
 
-        # Render ảnh bảng chi tiết
+        # Render ảnh bảng chi tiết (chỉ gồm bảng thông tin)
         date_slug = scan_res['target_date'].replace('/', '')
         img_filename = f"hk_{sid}_{date_slug}.png"
         img_abs_path = os.path.join(out_dir, img_filename)
@@ -379,7 +374,9 @@ def prepare_hk_alerts(target_date_str=None):
             'store_name': s_name,
             'chat_id': chat_id,
             'chat_title': chat_title,
-            'message_text': msg_body,
+            'caption': caption,
+            'tag_line': tag_line,
+            'message_text': full_preview,
             'image_path': img_abs_path,
             'image_url': img_rel_url,
             'count_items': len(tickets),
@@ -397,7 +394,9 @@ def prepare_hk_alerts(target_date_str=None):
 
 async def send_hk_batch_telethon(alerts):
     """
-    Gửi tin nhắn kèm hình ảnh đến danh sách group ST qua Telethon với Anti-Flood
+    Gửi tin nhắn theo Kiểu thứ 2 theo hình:
+    - Tin 1: Gửi hình ảnh bảng phiếu + Chú thích "ST kiểm tra HOÀN THÀNH phiếu hậu kiểm GẤP nhé"
+    - Tin 2: Gửi tin nhắn riêng biệt ngay sau đó tag quản lý ST (@username / Tên quản lý)
     """
     from telethon import TelegramClient, errors
 
@@ -418,7 +417,8 @@ async def send_hk_batch_telethon(alerts):
 
     for a in alerts:
         cid = a.get('chat_id')
-        txt = (a.get('message_text') or '').strip()
+        caption = a.get('caption') or "ST kiểm tra HOÀN THÀNH phiếu hậu kiểm GẤP nhé"
+        tag_line = (a.get('tag_line') or '').strip()
         img_path = a.get('image_path')
         c_title = a.get('chat_title') or f"ST_{cid}"
 
@@ -428,25 +428,38 @@ async def send_hk_batch_telethon(alerts):
 
         target = int(cid)
         try:
-            # Gửi ảnh kèm chú thích (caption)
+            # 1. Gửi Tin 1: Hình ảnh bảng phiếu kèm caption
             if img_path and os.path.exists(img_path):
-                sent_msg = await client.send_file(target, img_path, caption=txt)
+                sent_msg1 = await client.send_file(target, img_path, caption=caption)
             else:
-                sent_msg = await client.send_message(target, txt)
+                sent_msg1 = await client.send_message(target, caption)
+
+            sent_records.append((batch_id, target, c_title, sent_msg1.id, caption))
+
+            # 2. Gửi Tin 2: Tin riêng biệt tag quản lý (Kiểu thứ 2)
+            if tag_line:
+                await asyncio.sleep(0.6)
+                sent_msg2 = await client.send_message(target, tag_line)
+                sent_records.append((batch_id, target, c_title, sent_msg2.id, tag_line))
 
             success_count += 1
-            sent_records.append((batch_id, target, c_title, sent_msg.id, txt))
             await asyncio.sleep(round(random.uniform(2.0, 3.5), 2))
         except errors.FloodWaitError as e:
             print(f"[!] FloodWait: Đợi {e.seconds}s...")
             await asyncio.sleep(e.seconds + 1)
             try:
                 if img_path and os.path.exists(img_path):
-                    sent_msg = await client.send_file(target, img_path, caption=txt)
+                    sent_msg1 = await client.send_file(target, img_path, caption=caption)
                 else:
-                    sent_msg = await client.send_message(target, txt)
+                    sent_msg1 = await client.send_message(target, caption)
+                sent_records.append((batch_id, target, c_title, sent_msg1.id, caption))
+
+                if tag_line:
+                    await asyncio.sleep(0.6)
+                    sent_msg2 = await client.send_message(target, tag_line)
+                    sent_records.append((batch_id, target, c_title, sent_msg2.id, tag_line))
+
                 success_count += 1
-                sent_records.append((batch_id, target, c_title, sent_msg.id, txt))
             except Exception as e2:
                 failed.append({"chat_id": cid, "error": str(e2)})
         except Exception as e:

@@ -1861,28 +1861,44 @@ def api_send_batch_alerts():
         for a in alerts:
             cid = a.get('chat_id')
             txt = (a.get('message_text') or '').strip()
+            caption = a.get('caption') or (txt.split('\n\n')[0] if '\n\n' in txt else txt)
+            tag_line = (a.get('tag_line') or '').strip()
             img_path = a.get('image_path')
             c_title = a.get('chat_title') or f"ST_{cid}"
-            if not cid or not txt:
+            if not cid:
                 continue
             try:
                 target = int(cid)
+                # Tin 1: Gửi ảnh kèm Caption (hoặc text nếu không có ảnh)
                 if img_path and os.path.exists(img_path):
-                    sent_msg = await client.send_file(target, img_path, caption=txt)
+                    sent_msg1 = await client.send_file(target, img_path, caption=caption)
                 else:
-                    sent_msg = await client.send_message(target, txt)
+                    sent_msg1 = await client.send_message(target, caption)
+                sent_records.append((batch_id, target, c_title, sent_msg1.id, caption))
+
+                # Tin 2: Gửi tin nhắn riêng biệt tag quản lý ngay sau đó (Kiểu thứ 2 theo hình)
+                if tag_line:
+                    await asyncio.sleep(0.6)
+                    sent_msg2 = await client.send_message(target, tag_line)
+                    sent_records.append((batch_id, target, c_title, sent_msg2.id, tag_line))
+
                 success_count += 1
-                sent_records.append((batch_id, target, c_title, sent_msg.id, txt))
                 await asyncio.sleep(round(random.uniform(1.8, 3.2), 2))
             except errors.FloodWaitError as e:
                 await asyncio.sleep(e.seconds + 1)
                 try:
                     if img_path and os.path.exists(img_path):
-                        sent_msg = await client.send_file(target, img_path, caption=txt)
+                        sent_msg1 = await client.send_file(target, img_path, caption=caption)
                     else:
-                        sent_msg = await client.send_message(target, txt)
+                        sent_msg1 = await client.send_message(target, caption)
+                    sent_records.append((batch_id, target, c_title, sent_msg1.id, caption))
+
+                    if tag_line:
+                        await asyncio.sleep(0.6)
+                        sent_msg2 = await client.send_message(target, tag_line)
+                        sent_records.append((batch_id, target, c_title, sent_msg2.id, tag_line))
+
                     success_count += 1
-                    sent_records.append((batch_id, target, c_title, sent_msg.id, txt))
                 except Exception as e2:
                     failed.append({"chat_id": cid, "error": str(e2)})
             except Exception as e:
@@ -3198,13 +3214,12 @@ if __name__ == '__main__':
             try:
                 now_vn = datetime.now(vn_tz)
                 today_str = now_vn.strftime('%d/%m/%Y')
-                # Chỉ chạy đúng vào khung giờ 09:00 sáng (phút 0)
+                # Chỉ làm mới dữ liệu sẵn sàng trên Dashboard, KHÔNG tự ý gửi tin nhắn khi chưa có lệnh
                 if now_vn.hour == 9 and now_vn.minute == 0 and last_run_date != today_str:
-                    print(f"[*] [09:00 AM] Kich hoat tien trinh nhac nho phieu Hau kiem ngay {today_str}...", flush=True)
                     last_run_date = today_str
-                    from hk_service import execute_auto_daily_hk_reminder
-                    res = execute_auto_daily_hk_reminder(today_str)
-                    print(f"[✓] [09:00 AM] Ket qua nhac phieu HK: {res}", flush=True)
+                    print(f"[*] [09:00 AM] He thong tu dong lam moi du lieu phieu Hau kiem ngay {today_str}. San sang tren Dashboard (Chi gui khi nguoi dung xac nhan).", flush=True)
+                    from hk_service import prepare_hk_alerts
+                    prepare_hk_alerts(today_str)
             except Exception as e:
                 print(f"[!] Loi daily_hk_reminder_scheduler: {e}", flush=True)
             time.sleep(30)

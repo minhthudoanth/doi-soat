@@ -531,10 +531,7 @@
                                 <div>
                                     <div class="d-flex justify-content-between align-items-center mb-2">
                                         <div class="d-flex gap-2 align-items-center">
-                                            <span class="badge bg-white text-dark border py-1 px-2" style="font-size: 0.78rem;" title="Hệ thống tự động quét phiếu hậu kiểm KRC & KRCBT và gửi nhắc nhở ST mỗi ngày lúc 9h00 sáng"><i class="fa-solid fa-clock text-warning me-1"></i> Tự động 9h00: BẬT</span>
-                                            <button class="btn btn-sm btn-outline-warning py-1 px-2 text-dark" style="font-size: 0.8rem;" onclick="triggerDailyHKScanNow()" title="Kích hoạt quét và gửi nhắc phiếu Hậu kiểm 9h sáng ngay lập tức">
-                                                <i class="fa-solid fa-bolt text-warning me-1"></i> Quét 9h Sáng Ngay
-                                            </button>
+                                            <span class="badge bg-white text-dark border py-1 px-2" style="font-size: 0.78rem;" title="Hệ thống chỉ gửi tin khi bạn bấm nút Gửi bên dưới, tuyệt đối không tự ý bắn tin"><i class="fa-solid fa-lock text-success me-1"></i> Chế độ: Chỉ gửi khi bạn bấm gửi</span>
                                             <button class="btn btn-sm btn-outline-secondary py-1 px-2" style="font-size: 0.8rem;" onclick="openRecallHistoryModal()" title="Xem lịch sử các đợt tin đã gửi và thu hồi tin">
                                                 <i class="fa-solid fa-clock-rotate-left me-1"></i> Lịch Sử & Thu Hồi
                                             </button>
@@ -2505,9 +2502,9 @@
             const preview = document.getElementById('broadcast-preview-content');
 
             if (type === 1) {
-                // Mẫu 1: Remind done phiếu hậu kiểm
+                // Mẫu 1: Remind done phiếu hậu kiểm (Kiểu thứ 2 theo hình)
                 preview.innerHTML = '<span class="text-primary"><span class="spinner-border spinner-border-sm me-1"></span> Đang kiểm tra danh sách phiếu Hậu kiểm chưa done từ KRC & KRCBT...</span>';
-                textarea.value = "ST kiểm tra HOÀN THÀNH phiếu hậu kiểm gấp nhé team\n[Tự động chèn danh sách Mã HK - PT chuyển theo từng ST]\n\n@sm @tc @gsm";
+                textarea.value = "ST kiểm tra HOÀN THÀNH phiếu hậu kiểm GẤP nhé\n\n[Tin 2 riêng biệt: Tự động tag quản lý ST]";
 
                 try {
                     const res = await fetch('/api/messages/prepare_batch_alerts', {
@@ -2525,15 +2522,23 @@
                         filterStoreList();
                         if (data.batch_list.length > 0) {
                             const sample = data.batch_list[0];
-                            let imgHtml = sample.image_url ? `<div class="mt-2 text-center p-2 bg-light border rounded"><div class="small text-muted mb-1 fw-bold"><i class="fa-solid fa-image me-1 text-primary"></i> Hình ảnh thẻ phiếu tự động đính kèm khi gửi:</div><img src="${sample.image_url}?t=${Date.now()}" class="img-fluid rounded border shadow-sm" style="max-height: 220px;" alt="Thẻ phiếu hậu kiểm" /></div>` : '';
+                            let imgHtml = sample.image_url ? `<div class="mt-2 text-center p-2 bg-light border rounded"><div class="small text-muted mb-1 fw-bold"><i class="fa-solid fa-image me-1 text-primary"></i> Hình ảnh bảng phiếu (chỉ gồm bảng thông tin HK - PT - ST):</div><img src="${sample.image_url}?t=${Date.now()}" class="img-fluid rounded border shadow-sm" style="max-height: 220px;" alt="Thẻ phiếu hậu kiểm" /></div>` : '';
                             
                             preview.innerHTML = `<div class="d-flex justify-content-between align-items-center mb-2">
                                 <span class="badge bg-danger px-2 py-1"><i class="fa-solid fa-triangle-exclamation me-1"></i> Có ${data.batch_list.length} Siêu thị đang treo phiếu Hậu kiểm (${data.total_tickets || data.batch_list.length} phiếu)</span>
                                 <span class="small text-muted">Ngày: <strong>${data.date || 'Hôm nay'}</strong></span>
                             </div>
-                            <div class="fw-bold text-dark mb-1">Ví dụ tin nhắn gửi cho ST [${sample.store_name}]:</div>
-                            <div class="font-monospace p-2 bg-light border rounded small mb-2" style="white-space: pre-wrap;">${sample.message_text}</div>
-                            ${imgHtml}`;
+                            <div class="fw-bold text-dark mb-1">Ví dụ nội dung gửi cho ST [${sample.store_name}]:</div>
+                            <div class="p-2 bg-white border rounded small mb-2 shadow-sm">
+                                <div class="text-primary fw-bold mb-1"><i class="fa-solid fa-camera me-1"></i> Tin 1: Gửi hình ảnh + Chú thích (Caption):</div>
+                                <div class="font-monospace text-dark px-2 py-1 bg-light rounded border">${sample.caption || 'ST kiểm tra HOÀN THÀNH phiếu hậu kiểm GẤP nhé'}</div>
+                                ${imgHtml}
+                            </div>
+                            <div class="p-2 bg-white border rounded small shadow-sm">
+                                <div class="text-success fw-bold mb-1"><i class="fa-solid fa-at me-1"></i> Tin 2: Tin nhắn riêng biệt gửi ngay sau đó (Tag Quản lý ST):</div>
+                                <div class="font-monospace text-dark px-2 py-1 bg-light rounded border" style="white-space: pre-wrap;">${sample.tag_line || '@sm @tc @gsm'}</div>
+                            </div>
+                            <div class="small text-muted mt-2 fst-italic"><i class="fa-solid fa-shield-halved text-success me-1"></i> Chế độ an toàn: Chỉ gửi đi khi bạn bấm nút "GỬI TIN NHẮN TỨC THÌ" bên dưới.</div>`;
                         } else {
                             preview.innerHTML = '<div class="alert alert-success py-2 mb-0 small"><i class="fa-solid fa-circle-check me-1"></i> Tuyệt vời! Hiện tại không có Siêu thị nào có phiếu Cần hậu kiểm đang treo trong ngày!</div>';
                         }
