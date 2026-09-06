@@ -300,6 +300,14 @@
                                 </button>
                             </div>
                             <div class="d-flex align-items-center gap-2">
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <button class="btn btn-sm btn-black fw-bold" id="btn-tagged-filter-unread" onclick="toggleTaggedReadFilter(false)">
+                                        Chưa đọc (<span id="chk-badge-unread-count">0</span>)
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-dark fw-bold" id="btn-tagged-filter-all" onclick="toggleTaggedReadFilter(true)">
+                                        Tất cả / Lịch sử
+                                    </button>
+                                </div>
                                 <button class="btn btn-sm btn-outline-success fw-bold px-3 shadow-sm" onclick="dismissAllItems('tagged')" title="Đánh dấu đã đọc toàn bộ tin nhắn tag">
                                     <i class="fa-solid fa-check-double me-1"></i> Đã đọc tất cả
                                 </button>
@@ -368,7 +376,7 @@
                                 <button class="filter-btn" id="btn-filter-xcl" onclick="selectIssueCategory('XCL')">
                                     XCL (<span id="cnt-xcl">0</span>)
                                 </button>
-                                <button class="filter-btn" id="btn-filter-vanhanh" onclick="selectIssueCategory('Sự cố Tài xế')">
+                                <button class="filter-btn" id="btn-filter-vanhanh" onclick="selectIssueCategory('Vận hành')">
                                     Vận hành (<span id="cnt-vanhanh">0</span>)
                                 </button>
                             </div>
@@ -420,9 +428,6 @@
                                 <button class="btn btn-sm btn-outline-success fw-bold px-3 shadow-sm" onclick="dismissAllItems('audit')" title="Đánh dấu đã check tất cả">
                                     <i class="fa-solid fa-check-double me-1"></i> Đã check tất cả
                                 </button>
-                                <button class="btn btn-outline-dark btn-sm fw-semibold" onclick="openDsStModal()">
-                                    <i class="fa-solid fa-table-list me-1"></i>DS Siêu Thị (Tab DS ST)
-                                </button>
                                 <input type="text" id="search-audit-group" class="form-control form-control-sm" style="width: 260px;" placeholder="Tìm theo Mã PT, ST, Tên hàng, Mã SKU..." onkeyup="filterAuditGroup()">
                             </div>
 
@@ -461,12 +466,6 @@
                                             <button class="btn btn-sm btn-outline-success fw-bold px-2 py-1 font-monospace" id="btn-progress-done" onclick="selectProgressFilter('Đã xử lý')" style="font-size: 0.75rem;">
                                                 <i class="fa-solid fa-check me-1"></i>Đã Xử Lý (<span id="audit-stat-done">0</span>)
                                             </button>
-                                            <button class="btn btn-sm btn-outline-primary fw-bold px-2 py-1 font-monospace" id="btn-progress-waiting" onclick="selectProgressFilter('waiting_store')" style="font-size: 0.75rem;">
-                                                <i class="fa-solid fa-hourglass-half me-1"></i>Chờ ST Phản Hồi (<span id="audit-stat-waiting">0</span>)
-                                            </button>
-                                            <button class="btn btn-sm btn-outline-danger fw-bold px-2 py-1 font-monospace" id="btn-progress-pending" onclick="selectProgressFilter('Chờ xử lý')" style="font-size: 0.75rem;">
-                                                <i class="fa-solid fa-triangle-exclamation me-1"></i>Chờ Xử Lý (<span id="audit-stat-pending">0</span>)
-                                            </button>
                                         </div>
                                     </div>
                                 </div>
@@ -503,16 +502,15 @@
                         <div class="p-3 border rounded mb-3 bg-white shadow-sm">
                             <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
                                 <div class="d-flex flex-wrap align-items-center gap-2">
-                                    <span class="small fw-bold text-muted text-uppercase me-1"><i class="fa-solid fa-list-check me-1 text-primary"></i> Mẫu tin phát sóng:</span>
                                     <div class="btn-group btn-group-sm" role="group">
                                         <button type="button" class="btn btn-black fw-bold px-3 py-2" id="btn-tmpl-dc" onclick="applyTemplate(2)">
-                                            <i class="fa-solid fa-scale-unbalanced-flip me-1 text-warning"></i> 1. Check Chênh Lệch (DC Giao Thiếu)
+                                            1. Check Chênh Lệch (DC Giao Thiếu)
                                         </button>
                                         <button type="button" class="btn btn-outline-dark fw-bold px-3 py-2" id="btn-tmpl-hk" onclick="applyTemplate(1)">
-                                            <i class="fa-solid fa-bell me-1 text-primary"></i> 2. Remind Phiếu Hậu Kiểm
+                                            2. Remind Phiếu Hậu Kiểm
                                         </button>
                                         <button type="button" class="btn btn-outline-dark fw-bold px-3 py-2" id="btn-tmpl-custom" onclick="applyTemplate(3)">
-                                            <i class="fa-solid fa-pen-to-square me-1"></i> 3. Soạn Tin Tùy Chỉnh
+                                            3. Soạn Tin Tùy Chỉnh
                                         </button>
                                     </div>
                                 </div>
@@ -1125,11 +1123,7 @@
 
             <!-- PHẦN 1: BẢNG KK NÂNG TỒN (ĐÃ BỎ 2 CỘT CUỐI) -->
             <div class="card-custom" id="inv-container-increase">
-                <div class="p-3 border-bottom bg-white d-flex justify-content-between align-items-center" style="border-radius: 6px 6px 0 0;">
-                    <div class="small fw-bold text-dark text-uppercase">
-                        DANH SÁCH MÃ SKU KK NÂNG TỒN THEO NGÀY & SIÊU THỊ
-                    </div>
-
+                <div class="p-3 border-bottom bg-white d-flex justify-content-end align-items-center" style="border-radius: 6px 6px 0 0;">
                     <div class="small text-muted" id="inv-summary-info">
                         Tổng cộng: <strong id="inv-cnt-rows" class="text-dark">0</strong> mã SKU nâng tồn | Tổng SL nâng: <strong id="inv-total-in-qty" class="text-success">+0</strong>
                     </div>
@@ -1157,11 +1151,7 @@
 
             <!-- PHẦN 2: BẢNG DANH SÁCH MÃ ÂM TỒN (ĐÃ BỎ 2 CỘT CUỐI) -->
             <div class="card-custom" id="inv-container-negative" style="display: none;">
-                <div class="p-3 border-bottom bg-white d-flex justify-content-between align-items-center" style="border-radius: 6px 6px 0 0;">
-                    <div class="small fw-bold text-danger text-uppercase">
-                        DANH SÁCH MÃ SKU BỊ ÂM TỒN CẦN KIỂM KÊ TĂNG BÙ TỒN
-                    </div>
-
+                <div class="p-3 border-bottom bg-white d-flex justify-content-end align-items-center" style="border-radius: 6px 6px 0 0;">
                     <div class="small text-muted" id="inv-neg-summary-info">
                         Tổng cộng: <strong id="inv-neg-cnt-rows" class="text-dark">0</strong> mã SKU âm tồn | Tổng SL âm: <strong id="inv-neg-total-qty" class="text-danger">-0</strong> | Giá trị âm: <strong id="inv-neg-total-val" class="text-danger">0 đ</strong>
                     </div>
@@ -1194,12 +1184,6 @@
                 <!-- CỘT TRÁI: FORM THIẾT LẬP CHỨNG TỪ -->
                 <div class="col-lg-5">
                     <div class="card-custom p-3 bg-white border h-100">
-                        <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
-                            <h6 class="fw-bold mb-0 text-dark text-uppercase">
-                                <i class="fa-solid fa-file-signature me-1"></i> Thiết Lập Thông Tin Chứng Từ
-                            </h6>
-                            <span class="badge bg-black text-white font-monospace">DOCX Formatter</span>
-                        </div>
 
                         <!-- Chọn Kho Áp Dụng -->
                         <div class="mb-3">
@@ -1683,33 +1667,46 @@
             }
         }
 
+        let currentShowReadTagged = false;
         async function loadTaggedMessages(isBackground = false) {
             try {
-                const res = await fetch('/api/cases/tagged_me');
+                const url = currentShowReadTagged ? '/api/cases/tagged_me?show_read=1' : '/api/cases/tagged_me';
+                const res = await fetch(url);
                 const data = await res.json();
-                const hash = JSON.stringify(data);
+                const hash = JSON.stringify(data) + '_' + currentShowReadTagged;
                 
                 if (_cacheHash.tagged === hash && isBackground) return;
                 _cacheHash.tagged = hash;
                 allTaggedMessages = data;
                 
-                let cntKrc = 0, cntMeat = 0, cntDc = 0;
+                let cntKrc = 0, cntMeat = 0, cntDc = 0, cntUnread = 0;
                 allTaggedMessages.forEach(r => {
                     if (r.department === 'KRC') cntKrc++;
                     else if (r.department === 'Đông Mát Thịt Cá') cntMeat++;
                     else if (r.department === 'DC') cntDc++;
+                    if (!r.is_read) cntUnread++;
                 });
 
                 if (document.getElementById('chk-cnt-all')) document.getElementById('chk-cnt-all').innerText = allTaggedMessages.length;
                 if (document.getElementById('chk-cnt-krc')) document.getElementById('chk-cnt-krc').innerText = cntKrc;
                 if (document.getElementById('chk-cnt-meat')) document.getElementById('chk-cnt-meat').innerText = cntMeat;
                 if (document.getElementById('chk-cnt-dc')) document.getElementById('chk-cnt-dc').innerText = cntDc;
-                if (document.getElementById('badge-tagged-count')) document.getElementById('badge-tagged-count').innerText = allTaggedMessages.length;
+                if (document.getElementById('badge-tagged-count')) document.getElementById('badge-tagged-count').innerText = currentShowReadTagged ? cntUnread : allTaggedMessages.length;
+                if (document.getElementById('chk-badge-unread-count')) document.getElementById('chk-badge-unread-count').innerText = cntUnread;
 
                 filterTaggedMessages();
             } catch (e) {
                 console.error("Lỗi loadTaggedMessages:", e);
             }
+        }
+
+        function toggleTaggedReadFilter(showAll) {
+            currentShowReadTagged = showAll;
+            const btnUnread = document.getElementById('btn-tagged-filter-unread');
+            const btnAll = document.getElementById('btn-tagged-filter-all');
+            if (btnUnread) btnUnread.className = !showAll ? 'btn btn-sm btn-black fw-bold' : 'btn btn-sm btn-outline-dark fw-bold';
+            if (btnAll) btnAll.className = showAll ? 'btn btn-sm btn-black fw-bold' : 'btn btn-sm btn-outline-dark fw-bold';
+            loadTaggedMessages(false);
         }
 
         function selectCheckDept(dept) {
@@ -1732,16 +1729,23 @@
 
             let html = '';
             rows.forEach(r => {
+                const isRead = !!r.is_read;
                 html += `
-                    <tr id="row-tagged-${r.id}">
-                        <td class="small text-muted">${r.created_at}</td>
-                        <td class="fw-semibold text-dark">${r.chat_title}</td>
-                        <td class="small">${r.sender_name}</td>
+                    <tr id="row-tagged-${r.id}" class="${isRead ? 'opacity-75 bg-light' : ''}">
+                        <td class="small text-muted font-monospace">${r.created_at}</td>
+                        <td>
+                            <span class="fw-semibold text-dark">${r.chat_title}</span>
+                            ${r.department === 'KRC - Đối soát' ? '<span class="badge bg-warning-subtle text-dark border ms-1 small">Đối soát</span>' : ''}
+                        </td>
+                        <td class="small fw-semibold text-primary">${r.sender_name}</td>
                         <td class="text-wrap">${r.content}</td>
                         <td class="text-center">
-                            <button class="btn btn-sm btn-outline-secondary py-1 px-2" title="Đánh dấu đã đọc / Xóa khỏi danh sách" onclick="dismissItem(${r.id}, 'tagged')">
-                                <i class="fa-solid fa-check text-success"></i> Xong
-                            </button>
+                            ${isRead ? 
+                                `<span class="badge bg-light text-muted border py-1 px-2" title="Đã đọc"><i class="fa-solid fa-check text-success me-1"></i> Xong</span>` :
+                                `<button class="btn btn-sm btn-outline-secondary py-1 px-2" title="Đánh dấu đã đọc / Xóa khỏi danh sách" onclick="dismissItem(${r.id}, 'tagged')">
+                                    <i class="fa-solid fa-check text-success"></i> Xong
+                                </button>`
+                            }
                         </td>
                     </tr>
                 `;
@@ -1863,6 +1867,8 @@
                 let matchCategory = true;
                 if (currentSelectedCategory === 'XCL') {
                     matchCategory = c.issue_type.includes('XCL');
+                } else if (currentSelectedCategory.includes('Tài xế') || currentSelectedCategory.includes('Vận hành')) {
+                    matchCategory = (c.issue_type.includes('Tài xế') || c.issue_type.includes('Vận hành') || c.issue_type.includes('Sự cố'));
                 } else if (currentSelectedCategory) {
                     matchCategory = (c.issue_type === currentSelectedCategory || c.issue_type.includes(currentSelectedCategory));
                 }
@@ -2161,7 +2167,7 @@
 
         function selectProgressFilter(filterKey) {
             currentProgressFilter = filterKey;
-            ['btn-progress-all', 'btn-progress-done', 'btn-progress-waiting', 'btn-progress-pending'].forEach(id => {
+            ['btn-progress-all', 'btn-progress-done'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) el.classList.remove('active');
             });
@@ -2170,12 +2176,6 @@
                 if (b) b.classList.add('active');
             } else if (filterKey === 'Đã xử lý') {
                 const b = document.getElementById('btn-progress-done');
-                if (b) b.classList.add('active');
-            } else if (filterKey === 'waiting_store') {
-                const b = document.getElementById('btn-progress-waiting');
-                if (b) b.classList.add('active');
-            } else if (filterKey === 'Chờ xử lý') {
-                const b = document.getElementById('btn-progress-pending');
                 if (b) b.classList.add('active');
             }
             filterAuditGroup();

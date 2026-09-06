@@ -313,10 +313,10 @@ def is_truly_tagged_me(text):
     if not text:
         return False
     lower = text.lower()
-    if 'minhthudoan' in lower or 'sc017084' in lower or '8552986824' in lower:
+    if any(k in lower for k in ['minhthudoan', 'doanminhthu', 'sc017084', '8552986824', '@thudoan', '@doanminh']):
         return True
-    if re.search(r'\b(chị thư|c thư|em thư|nhờ thư|@thư|thư ơi|thư đoàn)\b', lower):
-        if any(w in lower for w in ['hỗ trợ', 'giúp', 'nhờ', 'check', 'xử lý', 'báo giá', 'bồi thường', 'xem lại', 'xác nhận']):
+    if re.search(r'\b(chị thư|c thư|em thư|nhờ thư|@thư|thư ơi|thư đoàn|bạn thư|minh thư)\b', lower):
+        if any(w in lower for w in ['hỗ trợ', 'giúp', 'nhờ', 'check', 'xử lý', 'báo giá', 'bồi thường', 'xem lại', 'xác nhận', 'kiểm tra', 'xem giúp', 'xem dùm']):
             return True
     return False
 
@@ -2046,7 +2046,7 @@ def api_cases_store_issues():
     cases = []
     for r in rows:
         dept = get_group_department(r['chat_title'])
-        issue_t = detect_issue_type(r['content'])
+        issue_t = detect_issue_type(r['content'], r['chat_title'])
         cases.append({
             'id': r['id'],
             'msg_id': r['msg_id'],

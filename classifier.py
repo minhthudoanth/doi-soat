@@ -189,22 +189,34 @@ def is_chatter_or_resolved(text: str, sender_name: str = "") -> bool:
             
     return False
 
-def detect_issue_type(text: str) -> str:
+def detect_issue_type(text: str, chat_title: str = "") -> str:
     if not text:
         return "Khác"
     lower = text.lower()
     
-    # 1. Sự cố Tài xế / Vận hành / Giao trễ / Hụt xe / Sự cố xe
+    # 1. Sự cố Tài xế / Vận hành / Giao trễ / Hụt xe / Sự cố xe / Điều phối kho & NCC
     driver_patterns = [
+        # Sự cố xe & Giao nhận vận tải
         r'\bhụt xe\b', r'\bsự cố\b', r'\bquay đầu\b', r'\bxe hỏng\b', r'\bhư xe\b', r'\bchết máy\b',
         r'\bbể bánh\b', r'\bthủng lốp\b', r'\btìm xe\b', r'\bđiều xe\b', r'\bbáo muộn\b', r'\bgiao muộn\b',
         r'\btheo lịch\b', r'\bchưa thấy giao\b', r'\bchưa giao\b', r'\bchưa tới\b', r'\btrễ\b', r'\bchậm\b',
         r'\bgiao trễ\b', r'\bgiao sai\b', r'\bgiao nhầm\b', r'\bgiao lộn\b', r'\bva quẹt\b',
-        r'\blàm bể\b', r'\blàm vỡ\b', r'\blàm hỏng\b', r'\bhư cơ sở\b', r'\bkhiếu nại tài xế\b', r'\btài xế\b'
+        r'\blàm bể\b', r'\blàm vỡ\b', r'\blàm hỏng\b', r'\bhư cơ sở\b', r'\bkhiếu nại tài xế\b', r'\btài xế\b',
+        
+        # Vận hành kho & Phân chia hàng & Nhà cung cấp & Hàng lỗi
+        r'\bchia hàng tại kho\b', r'\bquá trình chia hàng\b', r'\bchia hàng\b',
+        r'\bkho phát hiện\b', r'\bphương án xử lý\b', r'\bđổi trả hoặc hoàn hàng\b',
+        r'\bhoàn hàng\b', r'\bnhà cung cấp\b', r'\bncc\b',
+        r'\bnhập po\b', r'\bchỉnh số chia\b', r'\bhàng hub\b',
+        r'\blưu giữ riêng\b', r'\bbung hộp\b', r'\bvận hành\b', r'\bnhắc nhở vận hành\b'
     ]
     for dp in driver_patterns:
         if re.search(dp, lower):
             return "Sự cố Tài xế"
+
+    # Nhóm điều phối nội bộ vận hành / QC / MD / SCF
+    if chat_title and any(k in chat_title.lower() for k in ["qc x md", "scf x scm", "vận hành"]):
+        return "Sự cố Tài xế"
 
     # 2. Thiếu & Thừa (Chênh lệch số lượng)
     # Lưu ý: Loại trừ 'hụt xe' ra khỏi 'hụt'
@@ -245,7 +257,7 @@ def classify_message(text: str, sender_name: str = "", chat_title: str = "") -> 
     if is_chatter_or_resolved(text, sender_name):
         return None
 
-    issue_type = detect_issue_type(text)
+    issue_type = detect_issue_type(text, chat_title)
 
     # Priority
     priority = "P3"
