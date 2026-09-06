@@ -19,12 +19,13 @@ if sys.platform == 'win32':
         pass
 
 from config import DB_PATH
+from database import get_optimized_conn
 import re
 
 DEFAULT_SHEET_URL = "https://docs.google.com/spreadsheets/d/1XBNLjZLsgaaHDBqVKsbCSYhzD4v-4qMA6rjGXGG4ThM/edit?gid=1422896115#gid=1422896115"
 
 def init_settings_db():
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_optimized_conn()
     cursor = conn.cursor()
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS app_settings (
@@ -37,7 +38,7 @@ def init_settings_db():
 
 def get_sheet_url():
     init_settings_db()
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_optimized_conn()
     cursor = conn.cursor()
     cursor.execute("SELECT value FROM app_settings WHERE key = 'sheet_url'")
     row = cursor.fetchone()
@@ -48,7 +49,7 @@ def get_sheet_url():
 
 def set_sheet_url(url):
     init_settings_db()
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_optimized_conn()
     cursor = conn.cursor()
     cursor.execute("INSERT OR REPLACE INTO app_settings (key, value) VALUES ('sheet_url', ?)", (url.strip(),))
     conn.commit()
@@ -67,7 +68,7 @@ def parse_csv_export_url(url):
 
 
 def init_sheet_db():
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_optimized_conn()
     cursor = conn.cursor()
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS sheet_audit_records (
@@ -251,7 +252,7 @@ def sync_sheet_data(include_historical=None):
     current_url = get_sheet_url()
     csv_url = parse_csv_export_url(current_url)
 
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_optimized_conn()
     cursor = conn.cursor()
 
     cursor.execute("SELECT COUNT(*) FROM sheet_audit_records")
@@ -346,7 +347,7 @@ def sync_sheet_data(include_historical=None):
     return {"success": True, "count": inserted, "full_sync": include_historical}
 
 def init_ds_st_db():
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_optimized_conn()
     cursor = conn.cursor()
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS sheet_store_list (
@@ -375,7 +376,7 @@ def sync_ds_st_data():
     """
     init_ds_st_db()
     # Đã tắt truy cập KDB theo yêu cầu người dùng
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_optimized_conn()
     cursor = conn.cursor()
     cursor.execute("SELECT COUNT(*) FROM sheet_store_list")
     existing_cnt = cursor.fetchone()[0]
@@ -399,7 +400,7 @@ def sync_ds_st_data():
         if len(rows) <= 1:
             return {"success": False, "count": 0}
             
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_optimized_conn()
         cursor = conn.cursor()
         cursor.execute("DELETE FROM sheet_store_list")
         
@@ -482,7 +483,7 @@ def sync_inventory_from_sheet():
     """
     try:
         from kingfood_api import get_headers
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_optimized_conn()
         cursor = conn.cursor()
         
         cursor.execute("""
@@ -683,7 +684,7 @@ def sync_claim_invoices_from_sheet(sheet_url=None):
             print("[!] File Google Sheet hóa đơn không có dữ liệu!", flush=True)
             return {'success': False, 'error': 'Không có dữ liệu'}
 
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_optimized_conn()
         cursor = conn.cursor()
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS warehouse_claim_invoices (

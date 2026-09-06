@@ -3,9 +3,10 @@ from datetime import datetime
 from config import DB_PATH
 
 def get_optimized_conn():
-    conn = sqlite3.connect(DB_PATH, timeout=30)
+    conn = sqlite3.connect(DB_PATH, timeout=60)
     conn.execute("PRAGMA journal_mode = WAL;")
     conn.execute("PRAGMA synchronous = NORMAL;")
+    conn.execute("PRAGMA busy_timeout = 60000;")
     conn.execute("PRAGMA cache_size = -64000;") # 64MB cache
     conn.execute("PRAGMA temp_store = MEMORY;")
     return conn
