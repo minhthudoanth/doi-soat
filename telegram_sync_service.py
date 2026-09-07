@@ -35,58 +35,59 @@ async def _do_sync_telegram():
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
 
-    dialogs = await client.get_dialogs(limit=150)
-    audit_dialog = None
+    dialogs = await client.get_dialogs(limit=200)
+    audit_dialogs = []
     for d in dialogs:
-        if d.title and 'SCM - KRC (Đối soát)' in d.title:
-            audit_dialog = d
-            break
+        if d.title and any(k in d.title for k in ['Đối soát', 'đối soát', 'ĐỐI SOÁT', 'SCM - KRC']):
+            audit_dialogs.append(d)
 
     saved_cnt = 0
-    if audit_dialog:
-        # Lấy 100 tin gần nhất từ group Đối soát
-        async for msg in client.iter_messages(audit_dialog.entity, limit=100):
-            if not msg.text:
-                continue
-            msg_date = msg.date.astimezone(VN_TZ)
-            cursor.execute("SELECT id FROM raw_messages WHERE msg_id = ? AND chat_id = ?", (msg.id, audit_dialog.id))
-            if cursor.fetchone():
-                continue
+    for audit_dialog in audit_dialogs:
+        # Lấy tối đa 250 tin gần nhất từ mỗi group Đối soát
+        try:
+            async for msg in client.iter_messages(audit_dialog.entity, limit=250):
+                if not msg.text:
+                    continue
+                msg_date = msg.date.astimezone(VN_TZ)
+                cursor.execute("SELECT id FROM raw_messages WHERE msg_id = ? AND chat_id = ?", (msg.id, audit_dialog.id))
+                if cursor.fetchone():
+                    continue
 
-            text = msg.text.strip()
-            sender = await msg.get_sender()
-            sender_name = "Ẩn danh"
-            username = "Không có"
-            sender_id = msg.sender_id or 0
-            if sender:
-                fn = getattr(sender, 'first_name', '') or ''
-                ln = getattr(sender, 'last_name', '') or ''
-                sender_name = f"{fn} {ln}".strip() or "Ẩn danh"
-                if getattr(sender, 'username', None):
-                    username = f"@{sender.username}"
+                text = msg.text.strip()
+                sender = await msg.get_sender()
+                sender_name = "Ẩn danh"
+                username = "Không có"
+                sender_id = msg.sender_id or 0
+                if sender:
+                    fn = getattr(sender, 'first_name', '') or ''
+                    ln = getattr(sender, 'last_name', '') or ''
+                    sender_name = f"{fn} {ln}".strip() or "Ẩn danh"
+                    if getattr(sender, 'username', None):
+                        username = f"@{sender.username}"
 
-            reply_to_id = msg.reply_to.reply_to_msg_id if msg.reply_to else None
-            res = classify_message(text, sender_name, audit_dialog.title)
-            
-            category = "KRC - Đối soát"
-            priority = res.get("priority", "P2") if res else "P2"
-            issue_type = res.get("issue_type", "Khác") if res else "Khác"
-            date_str = msg_date.strftime("%Y-%m-%d %H:%M:%S")
+                reply_to_id = msg.reply_to.reply_to_msg_id if msg.reply_to else None
+                res = classify_message(text, sender_name, audit_dialog.title)
+                
+                category = "KRC - Đối soát"
+                priority = res.get("priority", "P2") if res else "P2"
+                issue_type = res.get("issue_type", "Khác") if res else "Khác"
+                date_str = msg_date.strftime("%Y-%m-%d %H:%M:%S")
 
-            cursor.execute("""
-                INSERT INTO raw_messages (msg_id, chat_id, chat_title, sender_id, sender_name, username, message_text, category, priority, issue_type, reply_to_msg_id, created_at, is_read, is_dismissed)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0)
-            """, (msg.id, audit_dialog.id, audit_dialog.title, sender_id, sender_name, username, text, category, priority, issue_type, reply_to_id, date_str))
-
-            if issue_type in ["Thiếu", "Thừa", "XCL", "Sự cố Tài xế"]:
                 cursor.execute("""
-                    INSERT INTO priority_cases (msg_id, chat_title, sender_name, category, priority, content, status, issue_type, created_at, is_read, is_dismissed)
-                    VALUES (?, ?, ?, ?, ?, ?, 'Chờ xử lý', ?, ?, 0, 0)
-                """, (msg.id, audit_dialog.title, sender_name, category, priority, text, issue_type, date_str))
+                    INSERT INTO raw_messages (msg_id, chat_id, chat_title, sender_id, sender_name, username, message_text, category, priority, issue_type, reply_to_msg_id, created_at, is_read, is_dismissed)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0)
+                """, (msg.id, audit_dialog.id, audit_dialog.title, sender_id, sender_name, username, text, category, priority, issue_type, reply_to_id, date_str))
 
-            saved_cnt += 1
+                if issue_type in ["Thiếu", "Thừa", "XCL", "Sự cố Tài xế"]:
+                    cursor.execute("""
+                        INSERT INTO priority_cases (msg_id, chat_title, sender_name, category, priority, content, status, issue_type, created_at, is_read, is_dismissed)
+                        VALUES (?, ?, ?, ?, ?, ?, 'Chờ xử lý', ?, ?, 0, 0)
+                    """, (msg.id, audit_dialog.title, sender_name, category, priority, text, issue_type, date_str))
 
-        conn.commit()
+                saved_cnt += 1
+            conn.commit()
+        except Exception as ge:
+            print(f"[!] Error syncing group {getattr(audit_dialog, 'title', '')}: {ge}")
 
     # Quét các tin nhắn cảnh báo đã gửi bởi chính tài khoản Thư Đoàn trong 3 ngày qua để cập nhật sent_alert_time
     sent_cnt = 0

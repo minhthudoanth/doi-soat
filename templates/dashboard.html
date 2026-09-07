@@ -2254,15 +2254,29 @@
             try {
                 const res = await fetch('/api/telegram/sync_audit_group', { method: 'POST' });
                 const d = await res.json();
-                await loadAuditGroupMessages(false);
-                if (btn) {
-                    btn.className = 'btn btn-sm btn-success fw-bold px-3 shadow-sm';
-                    btn.innerHTML = '<i class="fa-solid fa-check me-1"></i> Đã đồng bộ!';
-                    setTimeout(() => {
-                        btn.className = 'btn btn-sm btn-primary fw-bold px-3 shadow-sm';
-                        btn.innerHTML = origHtml;
+                if (d.success) {
+                    await loadAuditGroupMessages(false);
+                    if (btn) {
+                        btn.className = 'btn btn-sm btn-success fw-bold px-3 shadow-sm';
+                        btn.innerHTML = '<i class="fa-solid fa-check me-1"></i> Đã đồng bộ!';
+                        setTimeout(() => {
+                            btn.className = 'btn btn-sm btn-primary fw-bold px-3 shadow-sm';
+                            btn.innerHTML = origHtml;
+                            btn.disabled = false;
+                        }, 2500);
+                    }
+                    alert(`✅ Đồng bộ thành công!\n• Đã tải thêm: ${d.saved_audit_count || 0} ca đối soát mới từ Telegram.`);
+                } else {
+                    if (btn) {
                         btn.disabled = false;
-                    }, 2500);
+                        btn.innerHTML = origHtml;
+                    }
+                    if (d.error && d.error.includes('not authorized')) {
+                        openTelegramLoginModal();
+                        alert("⚠️ Chưa kết nối tài khoản Telegram!\n\nVui lòng quét mã QR hoặc nhập số điện thoại trên bảng hiển thị để đăng nhập Telegram, sau đó bấm Đồng Bộ lại.");
+                    } else {
+                        alert("⚠️ Không thể đồng bộ: " + (d.error || 'Lỗi'));
+                    }
                 }
             } catch (e) {
                 console.error("Lỗi syncTelegramAuditGroup:", e);
@@ -2270,7 +2284,7 @@
                     btn.disabled = false;
                     btn.innerHTML = origHtml;
                 }
-                alert("Lỗi đồng bộ Telegram!");
+                alert("Lỗi kết nối đồng bộ Telegram: " + e.message);
             }
         }
 
