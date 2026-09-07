@@ -3256,7 +3256,7 @@ def background_github_push_loop():
             bat_path = os.path.join(current_dir, 'DONG_BO_GITHUB.bat')
             if os.path.exists(bat_path):
                 import subprocess
-                subprocess.run([bat_path, '/silent'], cwd=current_dir, timeout=60)
+                subprocess.run(['cmd.exe', '/c', bat_path, '/silent'], cwd=current_dir, timeout=60, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         except Exception as e:
             print(f"[!] Auto git push error: {e}", flush=True)
 

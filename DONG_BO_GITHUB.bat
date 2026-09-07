@@ -11,8 +11,10 @@ if exist "%~dp0..\git\cmd\git.exe" (
 
 :: Kiem tra neu chay o che do im lang (silent)
 set SILENT_MODE=0
-if "%1"=="/silent" set SILENT_MODE=1
-if "%1"=="--silent" set SILENT_MODE=1
+if /i "%~1"=="/silent" set SILENT_MODE=1
+if /i "%~1"=="--silent" set SILENT_MODE=1
+if /i "%~1"=="silent" set SILENT_MODE=1
+if /i "%~1"=="-silent" set SILENT_MODE=1
 
 if %SILENT_MODE% equ 0 (
     echo ================================================================
@@ -39,6 +41,7 @@ if %ERRORLEVEL% neq 0 (
     if %SILENT_MODE% equ 1 (
         "%GIT_EXE%" pull --rebase origin main >nul 2>&1
         "%GIT_EXE%" push -u origin main >nul 2>&1
+        "%GIT_EXE%" push -u gitlab main >nul 2>&1
     ) else (
         echo.
         echo [!] Ket noi GitHub yeu cau xac thuc Token.
@@ -52,6 +55,10 @@ if %ERRORLEVEL% neq 0 (
             "%GIT_EXE%" pull --rebase origin main
             "%GIT_EXE%" push -u origin main
         )
+    )
+) else (
+    if %SILENT_MODE% equ 1 (
+        "%GIT_EXE%" push -u gitlab main >nul 2>&1
     )
 )
 
