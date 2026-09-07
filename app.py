@@ -867,26 +867,54 @@ def api_sheet_sync_ds_st():
 @app.route('/api/inventory/vpn_status')
 def api_inventory_vpn_status():
     """
-    Kiểm tra trạng thái kết nối mạng nội bộ WireGuard VPN (10.100.0.1:27017)
+    Kiểm tra trạng thái kết nối mạng nội bộ WireGuard VPN và Cụm CSDL MongoDB (10.99.0.1 / 10.100.0.1:27017)
     Thay thế hoàn toàn việc đăng nhập token web kdb / next.kingfood.co
     """
     import socket
     vpn_online = False
-    details = {}
-    try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.settimeout(1.2)
-        res = s.connect_ex(('10.100.0.1', 27017))
-        s.close()
-        vpn_online = (res == 0)
-        details = {
-            'gateway_ip': '10.100.0.1',
-            'peer_ip': '10.100.0.50',
-            'mongodb_port': 27017,
-            'mongodb_status': 'CONNECTED' if vpn_online else 'DISCONNECTED'
-        }
-    except Exception as e:
-        details['error'] = str(e)
+    details = {
+        'primary_ip': '10.99.0.1',
+        'secondary_ip': '10.100.0.1',
+        'mongodb_port': 27017,
+        'replica_set': 'rs0',
+        'mongodb_status': 'DISCONNECTED',
+        'auth_required': True,
+        'nodes': {}
+    }
+
+    # 1. Kiểm tra socket kết nối đến Primary (10.99.0.1) và Secondary (10.100.0.1)
+    for host_ip, label in [('10.99.0.1', 'Primary (VIETTEL)'), ('10.100.0.1', 'Secondary (VNPT)')]:
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.settimeout(0.8)
+            res = s.connect_ex((host_ip, 27017))
+            s.close()
+            details['nodes'][host_ip] = {
+                'label': label,
+                'port_open': (res == 0),
+                'status': 'ONLINE' if res == 0 else 'UNREACHABLE'
+            }
+            if res == 0:
+                vpn_online = True
+        except Exception as e:
+            details['nodes'][host_ip] = {'label': label, 'port_open': False, 'error': str(e)}
+
+    # 2. Sử dụng pymongo thăm dò thông tin cụm ReplicaSet rs0
+    if vpn_online:
+        details['mongodb_status'] = 'CONNECTED'
+        try:
+            import pymongo
+            client = pymongo.MongoClient('mongodb://10.99.0.1:27017/?directConnection=true', serverSelectionTimeoutMS=1200)
+            hello_info = client.admin.command('hello')
+            details['replica_set'] = hello_info.get('setName', 'rs0')
+            details['primary_host'] = hello_info.get('primary', 'mongovpn01:27017')
+            details['is_writable_primary'] = hello_info.get('isWritablePrimary', True)
+            details['cluster_hosts'] = hello_info.get('hosts', [])
+            last_write = hello_info.get('lastWrite', {}).get('lastWriteDate')
+            if last_write:
+                details['last_write_utc'] = str(last_write)
+        except Exception as pe:
+            details['cluster_probe_note'] = str(pe)
 
     conn = get_optimized_conn()
     c = conn.cursor()
@@ -899,7 +927,7 @@ def api_inventory_vpn_status():
     return jsonify({
         'success': True,
         'vpn_online': vpn_online,
-        'source': 'Mạng Nội Bộ VPN (10.100.0.1:27017)' if vpn_online else 'Bộ Nhớ Đệm CSDL Nội Bộ (Local Cache)',
+        'source': 'Mạng Nội Bộ VPN (Cụm MongoDB rs0 10.99.0.1/10.100.0.1)' if vpn_online else 'Bộ Nhớ Đệm CSDL Nội Bộ (Local Cache)',
         'inventory_records': inv_count,
         'negative_records': neg_count,
         'details': details
@@ -909,15 +937,15 @@ def api_inventory_vpn_status():
 @app.route('/api/inventory/sync_vpn', methods=['GET', 'POST'])
 def api_inventory_sync():
     """
-    Đồng bộ dữ liệu tồn kho trực tiếp từ nguồn mạng nội bộ VPN (10.100.0.1) & SQLite
+    Đồng bộ dữ liệu tồn kho trực tiếp từ nguồn mạng nội bộ VPN & SQLite
     Đã ngắt hoàn toàn kết nối tới web kdb https://kdb.kingfood.co/login và https://next.kingfood.co/login
     """
     import socket
     vpn_connected = False
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.settimeout(1.2)
-        vpn_connected = (s.connect_ex(('10.100.0.1', 27017)) == 0)
+        s.settimeout(0.8)
+        vpn_connected = (s.connect_ex(('10.99.0.1', 27017)) == 0 or s.connect_ex(('10.100.0.1', 27017)) == 0)
         s.close()
     except Exception:
         pass
@@ -925,7 +953,7 @@ def api_inventory_sync():
     from sheet_sync import sync_inventory_from_sheet
     res = sync_inventory_from_sheet()
     res['vpn_connected'] = vpn_connected
-    res['source'] = 'VPN_10_100_0_1' if vpn_connected else 'LOCAL_DATABASE_CACHE'
+    res['source'] = 'VPN_MONGODB_RS0' if vpn_connected else 'LOCAL_DATABASE_CACHE'
     return jsonify(res)
 
 @app.route('/api/kingfood/token', methods=['GET', 'POST'])
@@ -934,7 +962,7 @@ def api_kingfood_token():
     return jsonify({
         'success': True,
         'mode': 'VPN_INTERNAL',
-        'message': 'Đã chuyển sang dùng dữ liệu nội bộ qua VPN 10.100.0.1, không cần token web ngoài.'
+        'message': 'Đã chuyển sang dùng dữ liệu nội bộ qua cụm CSDL VPN 10.99.0.1:27017 (rs0), không cần token web ngoài.'
     })
 
 

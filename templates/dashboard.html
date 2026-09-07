@@ -1548,16 +1548,16 @@
                                 <i class="fa-solid fa-circle-check fs-4 me-3 text-success"></i>
                                 <div>
                                     <div class="fw-bold">Đã ngắt hoàn toàn kết nối với web kdb.kingfood.co và next.kingfood.co</div>
-                                    <div class="small">Từ giờ, tab Tồn Kho tự động lấy dữ liệu từ dải mạng nội bộ WireGuard VPN (VNPT-VPN-01).</div>
+                                    <div class="small">Từ giờ, tab Tồn Kho kết nối trực tiếp đến Cụm CSDL MongoDB nội bộ (ReplicaSet rs0) qua mạng WireGuard VPN.</div>
                                 </div>
                             </div>
                             <div class="p-3 bg-light rounded border font-monospace small mb-3">
                                 <div class="row g-2">
-                                    <div class="col-sm-6"><strong>Server VPN:</strong> VNPT-VPN-01 (160.25.80.219)</div>
-                                    <div class="col-sm-6"><strong>Địa chỉ VPN của bạn:</strong> 10.100.0.50</div>
-                                    <div class="col-sm-6"><strong>Gateway Máy Chủ:</strong> 10.100.0.1</div>
-                                    <div class="col-sm-6"><strong>Cụm CSDL MongoDB:</strong> 10.100.0.1:27017</div>
-                                    <div class="col-12 mt-2"><strong>Dải Mạng Nội Bộ:</strong> 10.100.0.0/24, 103.104.122.0/24, 103.140.248.0/24, 171.244.16.0/24</div>
+                                    <div class="col-sm-6"><strong>Server VPN:</strong> VIETTEL-VPN-01 & VNPT-VPN-01</div>
+                                    <div class="col-sm-6"><strong>IP Peer VPN của bạn:</strong> 10.99.0.45 & 10.100.0.50</div>
+                                    <div class="col-sm-6"><strong>Primary DB (Writable):</strong> 10.99.0.1:27017 (mongovpn01)</div>
+                                    <div class="col-sm-6"><strong>Secondary DB:</strong> 10.100.0.1:27017 (mongovpn02)</div>
+                                    <div class="col-12 mt-2"><strong>Cụm CSDL:</strong> MongoDB ReplicaSet <code>rs0</code> (auth: required)</div>
                                 </div>
                             </div>
                             <div id="vpn-modal-live-status" class="small text-muted">
@@ -4905,9 +4905,20 @@
                 const res = await fetch('/api/inventory/vpn_status');
                 const data = await res.json();
                 if (data.vpn_online) {
-                    statusDiv.innerHTML = `<span class="text-success fw-bold"><i class="fa-solid fa-circle-check me-1"></i> ĐÃ KẾT NỐI MẠNG NỘI BỘ THÀNH CÔNG!</span><br>Cụm MongoDB (10.100.0.1:27017) đang sẵn sàng. Hiện có ${data.inventory_records || 0} mã nâng tồn và ${data.negative_records || 0} mã âm tồn trong bộ nhớ dữ liệu.`;
+                    const d = data.details || {};
+                    let clusterInfo = '';
+                    if (d.replica_set) {
+                        clusterInfo = `<div class="mt-2 p-2 bg-light border rounded small">
+                            <div><strong>ReplicaSet:</strong> <code>${d.replica_set}</code> (${d.primary_host || 'mongovpn01'})</div>
+                            <div><strong>Primary:</strong> 10.99.0.1:27017 (ONLINE - Writable)</div>
+                            <div><strong>Secondary:</strong> 10.100.0.1:27017 (ONLINE)</div>
+                            <div><strong>Ghi Dữ Liệu Gần Nhất:</strong> ${d.last_write_utc || 'Realtime'} UTC</div>
+                            <div class="text-warning-emphasis mt-1"><i class="fa-solid fa-lock me-1"></i> <strong>Xác thực bảo mật:</strong> Cụm MongoDB yêu cầu tài khoản để truy xuất bảng dữ liệu.</div>
+                        </div>`;
+                    }
+                    statusDiv.innerHTML = `<span class="text-success fw-bold"><i class="fa-solid fa-circle-check me-1"></i> ĐÃ THÔNG TUYẾN VPN & CỤM CSDL MONGODB!</span><br>Hiện có <strong>${data.inventory_records || 0}</strong> mã nâng tồn và <strong>${data.negative_records || 0}</strong> mã âm tồn trong bộ đệm nội bộ.${clusterInfo}`;
                 } else {
-                    statusDiv.innerHTML = `<span class="text-danger fw-bold"><i class="fa-solid fa-triangle-exclamation me-1"></i> CHƯA THÔNG TUYẾN VPN!</span><br>Vui lòng mở file <strong>KET_NOI_VPN.bat</strong> trên Desktop để kích hoạt WireGuard VPN trước khi đồng bộ.`;
+                    statusDiv.innerHTML = `<span class="text-danger fw-bold"><i class="fa-solid fa-triangle-exclamation me-1"></i> CHƯA THÔNG TUYẾN VPN!</span><br>Vui lòng mở ứng dụng <strong>WireGuard</strong> hoặc script kết nối để kích hoạt VPN trước khi đồng bộ.`;
                 }
             } catch (e) {
                 console.error("Lỗi openVPNInfoModal:", e);
