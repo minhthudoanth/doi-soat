@@ -11,8 +11,11 @@ if exist "%~dp0..\git\cmd\git.exe" (
 
 :: Kiem tra neu chay o che do im lang (silent)
 set SILENT_MODE=0
-if /i "%~1"=="/silent" set SILENT_MODE=1
-if /i "%~1"=="--silent" set SILENT_MODE=1
+for %%a in (%*) do (
+    if /i "%%a"=="/silent" set SILENT_MODE=1
+    if /i "%%a"=="--silent" set SILENT_MODE=1
+    if /i "%%a"=="silent" set SILENT_MODE=1
+)
 if /i "%~1"=="silent" set SILENT_MODE=1
 if /i "%~1"=="-silent" set SILENT_MODE=1
 
