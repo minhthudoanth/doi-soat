@@ -6,11 +6,13 @@ Hệ thống tự động hóa giám sát tin nhắn Telegram và Dashboard đ�
 
 ## 🌐 1. ĐỊA CHỈ TRUY CẬP DASHBOARD
 
-* **Đường link chính thức:** [http://doi-soat.local:5000](http://doi-soat.local:5000)
-* **Đường link dự phòng:** [http://127.0.0.1:5000](http://127.0.0.1:5000) hoặc [http://localhost:5000](http://localhost:5000)
-* **Đường link mạng nội bộ (mở bằng điện thoại/máy cùng Wi-Fi):** `http://[IP_MÁY_BẠN]:5000` (ví dụ: `http://192.168.1.219:5000`)
+* **Đường link Public toàn cầu (mở từ bất kỳ máy tính, laptop, điện thoại nào):**
+  👉 **`https://rat-rating-hundreds-cigarette.trycloudflare.com`**
+  *(Chạy qua Cloudflare Tunnel bảo mật HTTPS, cập nhật realtime 100% từ laptop)*
+* **Đường link nội bộ trên máy này:** [http://127.0.0.1:5000](http://127.0.0.1:5000) hoặc [http://localhost:5000](http://localhost:5000)
+* **Đường link mạng Wi-Fi văn phòng:** `http://172.16.0.78:5000`
 
-> 💡 **Cài đặt tên miền cố định:** Nhấp chuột phải vào file `CAU_HINH_LINK_CO_DINH.bat` ➔ Chọn **Run as administrator** (làm 1 lần duy nhất).
+> 💡 **Khởi động Public Web:** Nhấp đúp vào file `CHAY_WEB_PUBLIC.bat` để tự động tạo link web public ra ngoài Internet.
 
 ---
 
