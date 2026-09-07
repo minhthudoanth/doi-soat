@@ -30,7 +30,8 @@ async def _do_sync_telegram():
         await client.disconnect()
         return {"success": False, "error": "Telegram client not authorized"}
 
-    conn = sqlite3.connect(DB_PATH)
+    from database import get_optimized_conn
+    conn = get_optimized_conn()
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
 
