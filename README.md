@@ -7,12 +7,12 @@ Hệ thống tự động hóa giám sát tin nhắn Telegram và Dashboard đ�
 ## 🌐 1. ĐỊA CHỈ TRUY CẬP DASHBOARD
 
 * **Đường link Public toàn cầu (mở từ bất kỳ máy tính, laptop, điện thoại nào):**
-  👉 **`https://rat-rating-hundreds-cigarette.trycloudflare.com`**
+  👉 **`https://fiscal-never-tuning-retrieve.trycloudflare.com`**
   *(Chạy qua Cloudflare Tunnel bảo mật HTTPS, cập nhật realtime 100% từ laptop)*
 * **Đường link nội bộ trên máy này:** [http://127.0.0.1:5000](http://127.0.0.1:5000) hoặc [http://localhost:5000](http://localhost:5000)
-* **Đường link mạng Wi-Fi văn phòng:** `http://172.16.0.78:5000`
+* **Đường link mạng Wi-Fi:** `http://192.168.1.26:5000`
 
-> 💡 **Khởi động Public Web:** Nhấp đúp vào file `CHAY_WEB_PUBLIC.bat` để tự động tạo link web public ra ngoài Internet.
+> 💡 **Khởi động Public Web:** Nhấp đúp vào file `MO_LINK_PUBLIC.bat` (hoặc `CHAY_WEB_PUBLIC.bat`) để tự động tạo link web public ra ngoài Internet.
 
 ---
 
