@@ -1315,7 +1315,7 @@
                             <i class="fa-solid fa-file-invoice-dollar me-1"></i> BẢNG TỔNG HỢP HÓA ĐƠN TRUY THU CLAIM CÁC KHO (NGUỒN GOOGLE SHEET)
                         </div>
                         <div class="small text-muted" style="font-size: 0.75rem;">
-                            Nguồn: <a href="https://docs.google.com/spreadsheets/d/1WfXxYmuc8gY0BUMMM2lABFUvYkjZjgdbTi3dQBrIpVo/edit?gid=0#gid=0" target="_blank" class="text-decoration-none font-monospace">1WfXxYmuc8gY0BUMMM2lABFUvYkjZjgdbTi3dQBrIpVo (Tab gid=0)</a>
+                            Nguồn: <a href="https://docs.google.com/spreadsheets/d/1YfpVHQbowoSj6lN-8KW0d1UmCKy4sy2PesB7g9yNG4M/edit?gid=0#gid=0" target="_blank" class="text-decoration-none font-monospace">1YfpVHQbowoSj6lN-8KW0d1UmCKy4sy2PesB7g9yNG4M (Tab gid=0)</a>
                         </div>
                     </div>
 
@@ -3658,19 +3658,19 @@
             // Lọc theo kho
             if (whFilter !== 'all') {
                 if (whFilter === 'SL') {
-                    records = records.filter(r => r.warehouse_code === 'SL' || (r.warehouse_name && (r.warehouse_name.includes('SEEDLOG') || r.warehouse_name.includes('TỔNG'))));
+                    records = records.filter(r => ['SL', 'SEEDLOG'].includes(r.warehouse_code) || (r.warehouse_name && (r.warehouse_name.includes('SEEDLOG') || r.warehouse_name.includes('TỔNG'))));
                 } else if (whFilter === 'KD') {
-                    records = records.filter(r => r.warehouse_code === 'KD' || (r.warehouse_name && r.warehouse_name.includes('KHO ĐÔNG')) || (r.warehouse_code === 'DM' && r.content && r.content.toLowerCase().includes('đông')));
+                    records = records.filter(r => ['KD', 'FZ'].includes(r.warehouse_code) || (r.warehouse_name && (r.warehouse_name.includes('KHO ĐÔNG') || r.warehouse_name.includes('FROZEN'))) || (r.warehouse_code === 'DM' && r.content && r.content.toLowerCase().includes('đông')));
                 } else if (whFilter === 'KM') {
-                    records = records.filter(r => r.warehouse_code === 'KM' || (r.warehouse_name && r.warehouse_name.includes('KHO MÁT')) || (r.warehouse_code === 'DM' && r.content && r.content.toLowerCase().includes('mát')));
+                    records = records.filter(r => ['KM', 'CL'].includes(r.warehouse_code) || (r.warehouse_name && (r.warehouse_name.includes('KHO MÁT') || r.warehouse_name.includes('CHILL'))) || (r.warehouse_code === 'DM' && r.content && r.content.toLowerCase().includes('mát')));
                 } else if (whFilter === 'DM') {
-                    records = records.filter(r => ['DM', 'KD', 'KM'].includes(r.warehouse_code) || (r.warehouse_name && (r.warehouse_name.includes('BÌNH TÂN') || r.warehouse_name.includes('ĐÔNG MÁT'))));
+                    records = records.filter(r => ['DM', 'KD', 'KM', 'FZ', 'CL'].includes(r.warehouse_code) || (r.warehouse_name && (r.warehouse_name.includes('BÌNH TÂN') || r.warehouse_name.includes('ĐÔNG MÁT'))));
                 } else if (whFilter === 'MF') {
                     records = records.filter(r => r.warehouse_code === 'MF' || (r.warehouse_name && r.warehouse_name.includes('MEAT')));
                 } else if (whFilter === 'RC') {
-                    records = records.filter(r => r.warehouse_code === 'RC' || (r.warehouse_name && r.warehouse_name.includes('RAU')));
+                    records = records.filter(r => ['RC', 'KRC'].includes(r.warehouse_code) || (r.warehouse_name && (r.warehouse_name.includes('RAU') || r.warehouse_name.includes('KRC'))));
                 } else if (whFilter === 'KHAC') {
-                    records = records.filter(r => !['SL', 'MF', 'RC', 'DM', 'KD', 'KM'].includes(r.warehouse_code));
+                    records = records.filter(r => !['SL', 'MF', 'RC', 'KRC', 'DM', 'KD', 'KM', 'FZ', 'CL'].includes(r.warehouse_code));
                 }
             }
 

@@ -659,14 +659,14 @@ def sync_inventory_from_sheet():
         return {"success": False, "error": str(e)}
 
 
-DEFAULT_INVOICE_SHEET_URL = "https://docs.google.com/spreadsheets/d/1WfXxYmuc8gY0BUMMM2lABFUvYkjZjgdbTi3dQBrIpVo/export?format=csv&gid=0"
+DEFAULT_INVOICE_SHEET_URL = "https://docs.google.com/spreadsheets/d/1YfpVHQbowoSj6lN-8KW0d1UmCKy4sy2PesB7g9yNG4M/export?format=csv&gid=0"
 
 def sync_claim_invoices_from_sheet(sheet_url=None):
     if not sheet_url:
         sheet_url = DEFAULT_INVOICE_SHEET_URL
     elif "export?format=csv" not in sheet_url:
         match_id = re.search(r"/spreadsheets/d/([a-zA-Z0-9-_]+)", sheet_url)
-        sheet_id = match_id.group(1) if match_id else "1WfXxYmuc8gY0BUMMM2lABFUvYkjZjgdbTi3dQBrIpVo"
+        sheet_id = match_id.group(1) if match_id else "1YfpVHQbowoSj6lN-8KW0d1UmCKy4sy2PesB7g9yNG4M"
         match_gid = re.search(r"gid=([0-9]+)", sheet_url)
         gid = match_gid.group(1) if match_gid else "0"
         sheet_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&gid={gid}"
@@ -816,10 +816,31 @@ def sync_claim_invoices_from_sheet(sheet_url=None):
                 if m_inv:
                     inv_num = m_inv.group(1)
 
-                wh_name = "KHO MEATFISH" if current_wh == "MF" else ("KHO TỔNG (SEEDLOG)" if current_wh == "SL" else ("KHO ĐÔNG MÁT" if current_wh == "DM" else ("KHO RAU CỦ" if current_wh == "RC" else f"KHO {current_wh}")))
+                wh_up = current_wh.upper()
+                if wh_up in ["MF", "MEATFISH", "THỊT CÁ"]:
+                    norm_wh_code = "MF"
+                    wh_name = "KHO MEATFISH"
+                elif wh_up in ["SL", "SEEDLOG", "KHO TỔNG"]:
+                    norm_wh_code = "SL"
+                    wh_name = "KHO TỔNG (SEEDLOG)"
+                elif wh_up in ["RC", "KRC", "RAU", "KHO RAU CỦ"]:
+                    norm_wh_code = "RC"
+                    wh_name = "KHO RAU CỦ"
+                elif wh_up in ["KD", "FZ", "FROZEN", "KHO ĐÔNG", "ĐÔNG"]:
+                    norm_wh_code = "KD"
+                    wh_name = "KHO ĐÔNG (FROZEN)"
+                elif wh_up in ["KM", "CL", "CHILL", "KHO MÁT", "MÁT"]:
+                    norm_wh_code = "KM"
+                    wh_name = "KHO MÁT (CHILL)"
+                elif wh_up in ["DM", "ABA"]:
+                    norm_wh_code = "DM"
+                    wh_name = "KHO ĐÔNG MÁT"
+                else:
+                    norm_wh_code = current_wh
+                    wh_name = f"KHO {current_wh}"
 
                 invoices_to_insert.append((
-                    current_month, current_wh, wh_name, date_val, content_val,
+                    current_month, norm_wh_code, wh_name, date_val, content_val,
                     inv_num, co_val, pre_tax, post_tax
                 ))
 

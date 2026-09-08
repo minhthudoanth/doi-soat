@@ -186,22 +186,32 @@ def generate_quyet_dinh_docx(data, output_path):
     r_t2.font.name = "Times New Roman"
 
     # 3. Căn cứ
-    p_cc = doc.add_paragraph()
-    p_cc.paragraph_format.space_before = Pt(4)
-    p_cc.paragraph_format.space_after = Pt(6)
-    p_cc.paragraph_format.line_spacing = 1.15
-    p_cc.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-    r_cc = p_cc.add_run(f"- Căn cứ vào kết quả giao nhận và kiểm tra thực tế tháng {month}/{year}\n- Căn cứ kết quả đối chiếu của KFM và SCF")
-    r_cc.font.italic = True
-    r_cc.font.size = Pt(10.5)
-    r_cc.font.name = "Times New Roman"
+    p_cc1 = doc.add_paragraph()
+    p_cc1.paragraph_format.space_before = Pt(6)
+    p_cc1.paragraph_format.space_after = Pt(2)
+    p_cc1.paragraph_format.line_spacing = 1.15
+    p_cc1.alignment = WD_ALIGN_PARAGRAPH.LEFT
+    r_cc1 = p_cc1.add_run(f"- Căn cứ vào kết quả giao nhận và kiểm tra thực tế tháng {month}/{year};")
+    r_cc1.font.italic = True
+    r_cc1.font.size = Pt(10.5)
+    r_cc1.font.name = "Times New Roman"
+
+    p_cc2 = doc.add_paragraph()
+    p_cc2.paragraph_format.space_before = Pt(0)
+    p_cc2.paragraph_format.space_after = Pt(6)
+    p_cc2.paragraph_format.line_spacing = 1.15
+    p_cc2.alignment = WD_ALIGN_PARAGRAPH.LEFT
+    r_cc2 = p_cc2.add_run("- Căn cứ kết quả đối chiếu của KFM và SCF,")
+    r_cc2.font.italic = True
+    r_cc2.font.size = Pt(10.5)
+    r_cc2.font.name = "Times New Roman"
 
     # 4. Điều 1
     p_d1 = doc.add_paragraph()
-    p_d1.paragraph_format.space_before = Pt(4)
+    p_d1.paragraph_format.space_before = Pt(6)
     p_d1.paragraph_format.space_after = Pt(6)
     p_d1.paragraph_format.line_spacing = 1.15
-    p_d1.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+    p_d1.alignment = WD_ALIGN_PARAGRAPH.LEFT
     r_d1 = p_d1.add_run("Điều 1: ")
     r_d1.bold = True
     r_d1.font.size = Pt(10.5)
@@ -356,43 +366,82 @@ def generate_quyet_dinh_docx(data, output_path):
                                   left=dict(val='single', sz='6', color='000000'),
                                   right=dict(val='single', sz='6', color='000000'))
 
-    # 6. Chi tiết diễn giải
-    p_exp = doc.add_paragraph()
-    p_exp.paragraph_format.space_before = Pt(6)
-    p_exp.paragraph_format.space_after = Pt(6)
-    p_exp.paragraph_format.line_spacing = 1.15
-    p_exp.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-    
-    r_exp = p_exp.add_run(
-        f"• Chi phí {w_name} T{month}/{year} ({vat_type.lower()}):\n"
-        f"  - Tổng giá trị chênh lệch kho: ({amt_val:,.0f}) VNĐ ({vat_type})\n"
-        f"  - Tỷ lệ quy trách nhiệm: DC (SCF) chịu 100% giá trị.\n"
-        f"  - Tổng GT truy thu SCF (100%): ({amt_val:,.0f} VNĐ) ({vat_type})\n"
-        f"    (Bằng chữ: {words})"
-    )
-    r_exp.font.size = Pt(10.5)
-    r_exp.font.name = "Times New Roman"
+    # 6. Chi tiết diễn giải (tách từng dòng căn trái để không bị dãn thưa chữ)
+    p_exp1 = doc.add_paragraph()
+    p_exp1.paragraph_format.space_before = Pt(8)
+    p_exp1.paragraph_format.space_after = Pt(2)
+    p_exp1.paragraph_format.line_spacing = 1.15
+    p_exp1.alignment = WD_ALIGN_PARAGRAPH.LEFT
+    r_e1 = p_exp1.add_run(f"• Chi phí {w_name} T{month}/{year} ({vat_type.lower()}):")
+    r_e1.bold = True
+    r_e1.font.size = Pt(10.5)
+    r_e1.font.name = "Times New Roman"
 
-    # 7. Điều 2 & Điều 3
+    p_exp2 = doc.add_paragraph()
+    p_exp2.paragraph_format.left_indent = Inches(0.2)
+    p_exp2.paragraph_format.space_before = Pt(1)
+    p_exp2.paragraph_format.space_after = Pt(1)
+    p_exp2.paragraph_format.line_spacing = 1.15
+    p_exp2.alignment = WD_ALIGN_PARAGRAPH.LEFT
+    r_e2 = p_exp2.add_run(f"- Tổng giá trị chênh lệch kho: ({amt_val:,.0f}) VNĐ ({vat_type})")
+    r_e2.font.size = Pt(10.5)
+    r_e2.font.name = "Times New Roman"
+
+    p_exp3 = doc.add_paragraph()
+    p_exp3.paragraph_format.left_indent = Inches(0.2)
+    p_exp3.paragraph_format.space_before = Pt(1)
+    p_exp3.paragraph_format.space_after = Pt(1)
+    p_exp3.paragraph_format.line_spacing = 1.15
+    p_exp3.alignment = WD_ALIGN_PARAGRAPH.LEFT
+    r_e3 = p_exp3.add_run("- Tỷ lệ quy trách nhiệm: DC (SCF) chịu 100% giá trị.")
+    r_e3.font.size = Pt(10.5)
+    r_e3.font.name = "Times New Roman"
+
+    p_exp4 = doc.add_paragraph()
+    p_exp4.paragraph_format.left_indent = Inches(0.2)
+    p_exp4.paragraph_format.space_before = Pt(1)
+    p_exp4.paragraph_format.space_after = Pt(1)
+    p_exp4.paragraph_format.line_spacing = 1.15
+    p_exp4.alignment = WD_ALIGN_PARAGRAPH.LEFT
+    r_e4 = p_exp4.add_run(f"- Tổng GT truy thu SCF (100%): ({amt_val:,.0f} VNĐ) ({vat_type})")
+    r_e4.font.size = Pt(10.5)
+    r_e4.font.name = "Times New Roman"
+
+    p_exp5 = doc.add_paragraph()
+    p_exp5.paragraph_format.left_indent = Inches(0.35)
+    p_exp5.paragraph_format.space_before = Pt(1)
+    p_exp5.paragraph_format.space_after = Pt(6)
+    p_exp5.paragraph_format.line_spacing = 1.15
+    p_exp5.alignment = WD_ALIGN_PARAGRAPH.LEFT
+    r_e5 = p_exp5.add_run(f"(Bằng chữ: {words})")
+    r_e5.font.italic = True
+    r_e5.font.size = Pt(10.5)
+    r_e5.font.name = "Times New Roman"
+
+    # 7. Điều 2 & Điều 3 (tách 2 paragraph riêng biệt)
     p_d2 = doc.add_paragraph()
     p_d2.paragraph_format.space_before = Pt(4)
-    p_d2.paragraph_format.space_after = Pt(10)
+    p_d2.paragraph_format.space_after = Pt(3)
     p_d2.paragraph_format.line_spacing = 1.15
-    p_d2.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-    
+    p_d2.alignment = WD_ALIGN_PARAGRAPH.LEFT
     r_d2_t = p_d2.add_run("Điều 2: ")
     r_d2_t.bold = True
     r_d2_t.font.size = Pt(10.5)
     r_d2_t.font.name = "Times New Roman"
-    r_d2 = p_d2.add_run(f"Khoản truy thu này sẽ được ghi nhận vào điều chỉnh năm {year}.\n")
+    r_d2 = p_d2.add_run(f"Khoản truy thu này sẽ được ghi nhận vào điều chỉnh năm {year}.")
     r_d2.font.size = Pt(10.5)
     r_d2.font.name = "Times New Roman"
-    
-    r_d3_t = p_d2.add_run("Điều 3: ")
+
+    p_d3 = doc.add_paragraph()
+    p_d3.paragraph_format.space_before = Pt(3)
+    p_d3.paragraph_format.space_after = Pt(14)
+    p_d3.paragraph_format.line_spacing = 1.15
+    p_d3.alignment = WD_ALIGN_PARAGRAPH.LEFT
+    r_d3_t = p_d3.add_run("Điều 3: ")
     r_d3_t.bold = True
     r_d3_t.font.size = Pt(10.5)
     r_d3_t.font.name = "Times New Roman"
-    r_d3 = p_d2.add_run("Quyết định có hiệu lực kể từ ngày ký. Các Phòng Ban SCF, KFM có nghĩa vụ thực hiện theo quyết định này.")
+    r_d3 = p_d3.add_run("Quyết định có hiệu lực kể từ ngày ký. Các Phòng Ban SCF, KFM có nghĩa vụ thực hiện theo quyết định này.")
     r_d3.font.size = Pt(10.5)
     r_d3.font.name = "Times New Roman"
 
@@ -556,34 +605,46 @@ def generate_de_nghi_thanh_toan_docx(data, output_path):
     vat_type = data.get('vat_type', 'Chưa VAT')
     words = num_to_vietnamese_words(amt_val)
     
-    p_cc = doc.add_paragraph()
-    p_cc.paragraph_format.space_before = Pt(4)
-    p_cc.paragraph_format.space_after = Pt(6)
-    p_cc.paragraph_format.line_spacing = 1.15
-    p_cc.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-    r_cc = p_cc.add_run(
-        f"- Căn cứ vào kết quả Hủy hàng tại {w_name} trong tháng {month} năm {year}\n"
-        f"- Căn cứ vào kết quả đối chiếu, kiểm tra chứng từ của KFM và SCF"
-    )
-    r_cc.font.size = Pt(10.5)
-    r_cc.font.name = "Times New Roman"
+    p_cc1 = doc.add_paragraph()
+    p_cc1.paragraph_format.space_before = Pt(6)
+    p_cc1.paragraph_format.space_after = Pt(2)
+    p_cc1.paragraph_format.line_spacing = 1.15
+    p_cc1.alignment = WD_ALIGN_PARAGRAPH.LEFT
+    r_cc1 = p_cc1.add_run(f"- Căn cứ vào kết quả Hủy hàng tại {w_name} trong tháng {month} năm {year};")
+    r_cc1.font.size = Pt(10.5)
+    r_cc1.font.name = "Times New Roman"
+
+    p_cc2 = doc.add_paragraph()
+    p_cc2.paragraph_format.space_before = Pt(0)
+    p_cc2.paragraph_format.space_after = Pt(6)
+    p_cc2.paragraph_format.line_spacing = 1.15
+    p_cc2.alignment = WD_ALIGN_PARAGRAPH.LEFT
+    r_cc2 = p_cc2.add_run("- Căn cứ vào kết quả đối chiếu, kiểm tra chứng từ của KFM và SCF,")
+    r_cc2.font.size = Pt(10.5)
+    r_cc2.font.name = "Times New Roman"
     
     p_req = doc.add_paragraph()
     p_req.paragraph_format.space_before = Pt(4)
-    p_req.paragraph_format.space_after = Pt(6)
+    p_req.paragraph_format.space_after = Pt(2)
     p_req.paragraph_format.line_spacing = 1.15
-    p_req.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+    p_req.alignment = WD_ALIGN_PARAGRAPH.LEFT
     
     r_req1 = p_req.add_run("Chúng tôi kính đề nghị quý Công ty thanh toán số tiền là: ")
     r_req1.font.size = Pt(10.5)
     r_req1.font.name = "Times New Roman"
     
-    r_amt = p_req.add_run(f"{amt_val:,.0f} VNĐ ({vat_type})\n")
+    r_amt = p_req.add_run(f"{amt_val:,.0f} VNĐ ({vat_type})")
     r_amt.bold = True
     r_amt.font.size = Pt(10.5)
     r_amt.font.name = "Times New Roman"
-    
-    r_words = p_req.add_run(f"(Bằng chữ: {words})")
+
+    p_words = doc.add_paragraph()
+    p_words.paragraph_format.left_indent = Inches(0.2)
+    p_words.paragraph_format.space_before = Pt(0)
+    p_words.paragraph_format.space_after = Pt(6)
+    p_words.paragraph_format.line_spacing = 1.15
+    p_words.alignment = WD_ALIGN_PARAGRAPH.LEFT
+    r_words = p_words.add_run(f"(Bằng chữ: {words})")
     r_words.font.italic = True
     r_words.font.size = Pt(10.5)
     r_words.font.name = "Times New Roman"
@@ -594,30 +655,41 @@ def generate_de_nghi_thanh_toan_docx(data, output_path):
     
     p_bank = doc.add_paragraph()
     p_bank.paragraph_format.space_before = Pt(4)
-    p_bank.paragraph_format.space_after = Pt(6)
+    p_bank.paragraph_format.space_after = Pt(2)
     p_bank.paragraph_format.line_spacing = 1.15
-    p_bank.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-    
-    r_bank = p_bank.add_run(
-        f"Số tiền trên đề nghị chuyển vào tài khoản:\n"
-        f" • Số tài khoản: {b_acc}\n"
-        f" • Chủ tài khoản: {b_owner}\n"
-        f" • Mở tại ngân hàng: {b_name}"
-    )
+    p_bank.alignment = WD_ALIGN_PARAGRAPH.LEFT
+    r_bank = p_bank.add_run("Số tiền trên đề nghị chuyển vào tài khoản:")
     r_bank.font.size = Pt(10.5)
     r_bank.font.name = "Times New Roman"
 
-    p_close = doc.add_paragraph()
-    p_close.paragraph_format.space_before = Pt(4)
-    p_close.paragraph_format.space_after = Pt(12)
-    p_close.paragraph_format.line_spacing = 1.15
-    p_close.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-    r_close = p_close.add_run(
-        f"Kính mong Quý Công ty vui lòng thanh toán đúng thời hạn số tiền trên.\n"
-        f"Trân trọng kính chào!"
-    )
-    r_close.font.size = Pt(10.5)
-    r_close.font.name = "Times New Roman"
+    for b_item in [f"• Số tài khoản: {b_acc}", f"• Chủ tài khoản: {b_owner}", f"• Mở tại ngân hàng: {b_name}"]:
+        p_bi = doc.add_paragraph()
+        p_bi.paragraph_format.left_indent = Inches(0.2)
+        p_bi.paragraph_format.space_before = Pt(1)
+        p_bi.paragraph_format.space_after = Pt(1)
+        p_bi.paragraph_format.line_spacing = 1.15
+        p_bi.alignment = WD_ALIGN_PARAGRAPH.LEFT
+        r_bi = p_bi.add_run(b_item)
+        r_bi.font.size = Pt(10.5)
+        r_bi.font.name = "Times New Roman"
+
+    p_close1 = doc.add_paragraph()
+    p_close1.paragraph_format.space_before = Pt(6)
+    p_close1.paragraph_format.space_after = Pt(2)
+    p_close1.paragraph_format.line_spacing = 1.15
+    p_close1.alignment = WD_ALIGN_PARAGRAPH.LEFT
+    r_c1 = p_close1.add_run("Kính mong Quý Công ty vui lòng thanh toán đúng thời hạn số tiền trên.")
+    r_c1.font.size = Pt(10.5)
+    r_c1.font.name = "Times New Roman"
+
+    p_close2 = doc.add_paragraph()
+    p_close2.paragraph_format.space_before = Pt(2)
+    p_close2.paragraph_format.space_after = Pt(14)
+    p_close2.paragraph_format.line_spacing = 1.15
+    p_close2.alignment = WD_ALIGN_PARAGRAPH.LEFT
+    r_c2 = p_close2.add_run("Trân trọng kính chào!")
+    r_c2.font.size = Pt(10.5)
+    r_c2.font.name = "Times New Roman"
 
     # 5. Chữ ký TM. TỔNG GIÁM ĐỐC (Dùng Table căn phải hoàn hảo, không lệch lề)
     table_sign = doc.add_table(rows=1, cols=2)
