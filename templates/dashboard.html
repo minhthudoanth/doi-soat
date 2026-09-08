@@ -1237,9 +1237,9 @@
                         <!-- Loại Thuế VAT -->
                         <div class="mb-3">
                             <label class="form-label fw-bold text-dark small text-uppercase">Loại Thuế VAT:</label>
-                            <select class="form-select form-select-sm fw-bold" id="doc-input-vat" onchange="updateDocPreview()">
+                            <select class="form-select form-select-sm fw-bold" id="doc-input-vat" onchange="onVatTypeChanged()">
                                 <option value="Chưa VAT">Chưa VAT</option>
-                                <option value="Đã gồm VAT">Đã gồm VAT</option>
+                                <option value="Gồm VAT">Gồm VAT</option>
                             </select>
                         </div>
 
@@ -3580,8 +3580,11 @@
                 try {
                     const res = await fetch(`/api/documents/num_to_words?amount=${amt || 0}`);
                     const d = await res.json();
-                    if (d.success && document.getElementById('doc-preview-words')) {
-                        document.getElementById('doc-preview-words').innerText = d.words;
+                    if (d.success) {
+                        if (document.getElementById('doc-preview-words')) {
+                            document.getElementById('doc-preview-words').innerText = d.words;
+                        }
+                        window.currentDocWordsNoDong = d.words_no_dong;
                     }
                 } catch (e) {}
                 updateDocPreview();
@@ -3752,7 +3755,8 @@
                 document.getElementById('doc-input-qty').value = quantity;
             }
             
-            const isPostVat = document.getElementById('doc-input-vat') && document.getElementById('doc-input-vat').value === 'Đã gồm VAT';
+            const vatVal = document.getElementById('doc-input-vat') ? document.getElementById('doc-input-vat').value : 'Chưa VAT';
+            const isPostVat = vatVal.includes('Gồm') || vatVal.includes('gồm');
             const chosenAmt = isPostVat ? postTax : preTax;
             if (document.getElementById('doc-input-amount')) {
                 document.getElementById('doc-input-amount').value = Math.round(chosenAmt);
@@ -3761,6 +3765,26 @@
             updateDocPreview();
             const formCard = document.getElementById('doc-input-warehouse');
             if (formCard) formCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        async function onVatTypeChanged() {
+            const vatSel = document.getElementById('doc-input-vat') ? document.getElementById('doc-input-vat').value : 'Chưa VAT';
+            const isPostVat = vatSel.includes('Gồm') || vatSel.includes('gồm');
+            
+            if (currentDocInvoices && currentDocInvoices.length > 0) {
+                let totPre = 0;
+                let totPost = 0;
+                currentDocInvoices.forEach(it => {
+                    totPre += (it.pre_tax || 0);
+                    totPost += (it.post_tax || 0);
+                });
+                const newAmt = isPostVat ? totPost : totPre;
+                if (document.getElementById('doc-input-amount')) {
+                    document.getElementById('doc-input-amount').value = Math.round(newAmt);
+                }
+            }
+            await onDocAmountInput();
+            updateDocPreview();
         }
 
         function updateDocDraftBadge(hasDraft, timeText) {
@@ -4046,7 +4070,9 @@
                     } else {
                         // Nạp số liệu gốc từ Google Sheet
                         document.getElementById('doc-input-qty').value = d.total_qty;
-                        document.getElementById('doc-input-amount').value = d.total_amount;
+                        const isPostVat = vatType.includes('Gồm') || vatType.includes('gồm');
+                        const defaultAmt = isPostVat ? (d.total_post_tax || d.total_amount) : (d.total_pre_tax || d.total_amount);
+                        document.getElementById('doc-input-amount').value = Math.round(defaultAmt);
                         if (d.suggested_date && document.getElementById('doc-input-date')) {
                             document.getElementById('doc-input-date').value = d.suggested_date;
                         }
@@ -4058,6 +4084,7 @@
                         const wRes = await fetch(`/api/documents/num_to_words?amount=${amt || 0}`);
                         const wData = await wRes.json();
                         document.getElementById('doc-preview-words').innerText = wData.words || d.words;
+                        window.currentDocWordsNoDong = wData.words_no_dong;
                     }
                     updateDocPreview();
                 }
@@ -4084,23 +4111,32 @@
             let dp = dateStr.split('/');
             let dateText = (dp.length === 3) ? `TP.HCM, ngày ${dp[0]} tháng ${dp[1]} năm ${dp[2]}` : `TP.HCM, ngày ${dateStr}`;
 
+            const isPostVat = vatType.includes('Gồm') || vatType.includes('gồm');
+            const vatLabel = isPostVat ? 'Gồm VAT' : 'Chưa VAT';
+            let effectiveAmt = amt;
+            let totSl = qty;
+            let totalPre = 0;
+            let totalPost = 0;
+
             if (currentDocPreviewSubtab === 'quyet_dinh') {
                 let tableHtml = '';
                 if (currentDocInvoices && currentDocInvoices.length > 1) {
+                    totalPre = currentDocInvoices.reduce((a, b) => a + (b.pre_tax || 0), 0);
+                    totalPost = currentDocInvoices.reduce((a, b) => a + (b.post_tax || 0), 0);
+                    totSl = currentDocInvoices.reduce((a, b) => a + (b.qty || 0), 0);
+                    effectiveAmt = isPostVat ? totalPost : totalPre;
+
                     // BẢNG KÊ NHIỀU HÓA ĐƠN (6 CỘT)
                     let rowsHtml = currentDocInvoices.map((it, idx) => `
                         <tr>
                             <td style="border: 1px solid #111; padding: 5px 6px; text-align: center;">${idx + 1}</td>
                             <td style="border: 1px solid #111; padding: 5px 6px; font-size: 11px;">${it.content}</td>
-                            <td style="border: 1px solid #111; padding: 5px 6px; text-align: right; font-weight: bold;">${it.qty ? it.qty.toLocaleString('vi-VN') : ''}</td>
+                            <td style="border: 1px solid #111; padding: 5px 6px; text-align: right; font-weight: bold;">${(it.qty && it.qty > 0) ? it.qty.toLocaleString('vi-VN') : ''}</td>
                             <td style="border: 1px solid #111; padding: 5px 6px; text-align: right;">${new Intl.NumberFormat('vi-VN').format(it.pre_tax)}</td>
                             <td style="border: 1px solid #111; padding: 5px 6px; text-align: right; font-weight: bold; color: #dc2626;">${new Intl.NumberFormat('vi-VN').format(it.post_tax)}</td>
                             <td style="border: 1px solid #111; padding: 5px 6px; text-align: center; font-size: 11px;">${it.co_number || ''}</td>
                         </tr>
                     `).join('');
-
-                    const totalPre = currentDocInvoices.reduce((a, b) => a + (b.pre_tax || 0), 0);
-                    const totalPost = currentDocInvoices.reduce((a, b) => a + (b.post_tax || 0), 0);
 
                     tableHtml = `
                         <table style="width: 100%; border-collapse: collapse; margin: 12px 0 16px 0; font-size: 12px;">
@@ -4119,7 +4155,7 @@
                                 <tr style="font-weight: bold; background-color: #f8fafc;">
                                     <td style="border: 1px solid #111; padding: 6px 4px;"></td>
                                     <td style="border: 1px solid #111; padding: 6px 8px; text-align: center;">Total</td>
-                                    <td style="border: 1px solid #111; padding: 6px 4px; text-align: right;">${qty.toLocaleString('vi-VN')}</td>
+                                    <td style="border: 1px solid #111; padding: 6px 4px; text-align: right;">${(totSl && totSl > 0) ? totSl.toLocaleString('vi-VN') : ''}</td>
                                     <td style="border: 1px solid #111; padding: 6px 6px; text-align: right;">${new Intl.NumberFormat('vi-VN').format(totalPre)}</td>
                                     <td style="border: 1px solid #111; padding: 6px 6px; text-align: right; color: #dc2626;">${new Intl.NumberFormat('vi-VN').format(totalPost)}</td>
                                     <td style="border: 1px solid #111; padding: 6px 4px;"></td>
@@ -4166,12 +4202,12 @@
                             <tr>
                                 <td style="width: 48%; text-align: center; vertical-align: top; line-height: 1.3;">
                                     <div style="font-weight: bold; font-size: 12.5px;">CÔNG TY CỔ PHẦN KINGFOOD MARKET</div>
-                                    <div style="font-size: 11px; margin-top: 2px;">*****</div>
+                                    <div style="font-size: 11px; margin-top: 2px;">---------o0o---------</div>
                                 </td>
                                 <td style="width: 52%; text-align: center; vertical-align: top; line-height: 1.3;">
                                     <div style="font-weight: bold; font-size: 12.5px;">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</div>
                                     <div style="font-weight: bold; font-size: 11.5px;">Độc lập – Tự do – Hạnh phúc</div>
-                                    <div style="font-size: 10.5px;">********</div>
+                                    <div style="font-size: 10.5px;">---------o0o---------</div>
                                     <div style="font-style: italic; font-size: 11.5px; margin-top: 4px;">${dateText}</div>
                                 </td>
                             </tr>
@@ -4195,10 +4231,10 @@
                         ${tableHtml}
 
                         <div style="font-size: 12.5px; line-height: 1.45; margin: 10px 0; text-align: justify;">
-                            • Chi phí ${w} T${m}/${y} (${vatType.toLowerCase()}):<br>
-                            &nbsp;&nbsp;- Tổng giá trị chênh lệch kho: (${amt.toLocaleString('vi-VN')}) VNĐ (${vatType})<br>
+                            • Chi phí ${w} T${m}/${y} (${vatLabel.toLowerCase()}):<br>
+                            &nbsp;&nbsp;- Tổng giá trị chênh lệch kho: (${effectiveAmt.toLocaleString('vi-VN')}) VNĐ (${vatLabel})<br>
                             &nbsp;&nbsp;- Tỷ lệ quy trách nhiệm: DC (SCF) chịu 100% giá trị.<br>
-                            &nbsp;&nbsp;- Tổng GT truy thu SCF (100%): (${amt.toLocaleString('vi-VN')} VNĐ) (${vatType})<br>
+                            &nbsp;&nbsp;- Tổng GT truy thu SCF (100%): (${effectiveAmt.toLocaleString('vi-VN')} VNĐ) (${vatLabel})<br>
                             &nbsp;&nbsp;&nbsp;&nbsp;<em>(Bằng chữ: ${words})</em>
                         </div>
 
@@ -4226,6 +4262,10 @@
                     </div>
                 `;
             } else {
+                const wTitle = (w.includes('SEEDLOG') || w.includes('TỔNG') || w.includes('SLG')) ? 'SLG' : w;
+                const whDesc = (w.includes('SEEDLOG') || w.includes('TỔNG') || w.includes('SLG')) ? 'kho linker (DC)' : w;
+                const wordsNoDong = window.currentDocWordsNoDong || (words.endsWith(' đồng') ? words.slice(0, -5) : words);
+
                 container.innerHTML = `
                     <div style="max-width: 650px; margin: 0 auto; line-height: 1.45; font-size: 13px; color: #111;">
                         <table style="width: 100%; border: none; margin-bottom: 18px;">
@@ -4245,7 +4285,7 @@
 
                         <div style="text-align: center; margin: 18px 0 14px 0;">
                             <div style="font-weight: bold; font-size: 15.5px; text-transform: uppercase; letter-spacing: 0.5px;">ĐỀ NGHỊ THANH TOÁN</div>
-                            <div style="font-style: italic; font-size: 12.5px; margin-top: 4px;">V/v Đề nghị thanh toán tiền truy thu ${w} tháng ${m}/${y}</div>
+                            <div style="font-style: italic; font-size: 12.5px; margin-top: 4px;">V/v Đề nghị thanh toán tiền truy thu ${wTitle} – Hủy hàng tháng ${m}/${y}</div>
                         </div>
 
                         <div style="font-size: 13px; margin-bottom: 10px;">
@@ -4253,24 +4293,35 @@
                         </div>
 
                         <div style="font-size: 12.5px; line-height: 1.45; margin-bottom: 10px; text-align: justify;">
-                            - Căn cứ vào kết quả Hủy hàng tại ${w} trong tháng ${m} năm ${y}<br>
+                            - Căn cứ vào kết quả Hủy hàng tại ${whDesc} trong tháng ${m}/${y}<br>
                             - Căn cứ vào kết quả đối chiếu, kiểm tra chứng từ của KFM và SCF
                         </div>
 
                         <div style="font-size: 12.5px; line-height: 1.45; margin-bottom: 10px; text-align: justify;">
-                            Chúng tôi kính đề nghị quý Công ty thanh toán số tiền là: <strong>${amt.toLocaleString('vi-VN')} VNĐ (${vatType})</strong><br>
-                            <em>(Bằng chữ: ${words})</em>
+                            Chúng tôi kính đề nghị quý Công ty thanh toán số tiền là: <strong>${effectiveAmt.toLocaleString('vi-VN')} (${vatLabel})</strong><br>
+                            <em>(Bằng chữ: ${wordsNoDong}.)</em>
                         </div>
 
-                        <div style="font-size: 12.5px; line-height: 1.45; margin-bottom: 10px; text-align: justify;">
-                            Số tiền trên đề nghị chuyển vào tài khoản:<br>
-                            &nbsp;&nbsp;• <strong>Số tài khoản:</strong> 04001010091039<br>
-                            &nbsp;&nbsp;• <strong>Chủ tài khoản:</strong> CÔNG TY CỔ PHẦN KINGFOOD MARKET<br>
-                            &nbsp;&nbsp;• <strong>Mở tại ngân hàng:</strong> HANG HAI (MARITIMEBANK-MSB)
+                        <div style="font-size: 12.5px; line-height: 1.45; margin-bottom: 8px;">
+                            Số tiền trên đề nghị chuyển vào tài khoản:
                         </div>
+
+                        <!-- BẢNG THÔNG TIN TÀI KHOẢN NGÂN HÀNG CHUẨN THEO MẪU ẢNH 1 -->
+                        <table style="width: 100%; border-collapse: collapse; margin-bottom: 16px; font-size: 12px;">
+                            <tr>
+                                <td style="border: 1px solid #111; padding: 5px 8px; font-style: italic; width: 18%;">Số tài khoản:</td>
+                                <td style="border: 1px solid #111; padding: 5px 8px; width: 25%; font-family: monospace; font-size: 12.5px;">04001010091039</td>
+                                <td style="border: 1px solid #111; padding: 5px 8px; font-style: italic; width: 20%;">Chủ tài khoản:</td>
+                                <td style="border: 1px solid #111; padding: 5px 8px; width: 37%; font-weight: 500;">CÔNG TY CỔ PHẦN<br>KINGFOOD MARKET</td>
+                            </tr>
+                            <tr>
+                                <td style="border: 1px solid #111; padding: 5px 8px; font-style: italic;">Mở tại ngân hàng:</td>
+                                <td colspan="3" style="border: 1px solid #111; padding: 5px 8px; font-weight: 500;">HANG HAI (MARITIMEBANK-MSB)</td>
+                            </tr>
+                        </table>
 
                         <div style="font-size: 12.5px; line-height: 1.45; margin-bottom: 16px; text-align: justify;">
-                            Kính mong Quý Công ty vui lòng thanh toán đúng thời hạn số tiền trên.<br>
+                            Kính mong Quý Công ty vui lòng thanh toán đúng thời hạn số tiền trên.<br><br>
                             Trân trọng kính chào!
                         </div>
 

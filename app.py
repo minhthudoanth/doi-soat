@@ -1232,7 +1232,8 @@ def api_num_to_words():
     from doc_generator import num_to_vietnamese_words
     return jsonify({
         'success': True,
-        'words': num_to_vietnamese_words(amount)
+        'words': num_to_vietnamese_words(amount, include_dong=True),
+        'words_no_dong': num_to_vietnamese_words(amount, include_dong=False)
     })
 
 
@@ -1715,12 +1716,17 @@ def api_generate_documents():
     month = data.get('month', '08')
     year = data.get('year', '2026')
     total_qty = data.get('total_qty', 0)
-    total_amount = data.get('total_amount', 0)
     vat_type = data.get('vat_type', 'Chưa VAT')
     doc_date = data.get('doc_date', datetime.now().strftime('%d/%m/%Y'))
     representative_kfm = data.get('representative_kfm', 'NGUYỄN HOÀNG LÂM')
     representative_scf = data.get('representative_scf', 'Nguyễn Ngọc Xuân Quang')
     invoices = data.get('invoices', [])
+
+    if invoices and len(invoices) > 1:
+        tot_pre = sum(it.get('pre_tax', 0.0) for it in invoices)
+        tot_post = sum(it.get('post_tax', 0.0) for it in invoices)
+        is_post_vat = ('gồm' in str(vat_type).lower())
+        total_amount = tot_post if is_post_vat else tot_pre
 
     out_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'generated_docs')
     os.makedirs(out_dir, exist_ok=True)

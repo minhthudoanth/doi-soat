@@ -9,14 +9,14 @@ from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 
 # --- CHUYỂN SỐ THÀNH CHỮ TIẾNG VIỆT CHUẨN ---
-def num_to_vietnamese_words(number):
+def num_to_vietnamese_words(number, include_dong=True):
     try:
         n = int(round(abs(float(number))))
     except:
-        return "Không đồng"
+        return "Không đồng" if include_dong else "Không"
         
     if n == 0:
-        return "Không đồng"
+        return "Không đồng" if include_dong else "Không"
         
     units = ["", "một", "hai", "ba", "bốn", "năm", "sáu", "bảy", "tám", "chín"]
     
@@ -68,7 +68,9 @@ def num_to_vietnamese_words(number):
     text = " ".join(res_parts).strip()
     text = text.replace("mươi năm", "mươi lăm")
     text = text.replace("mươi một", "mươi mốt")
-    text = text[0].upper() + text[1:] + " đồng"
+    text = text[0].upper() + text[1:]
+    if include_dong:
+        text += " đồng"
     return text
 
 
@@ -134,7 +136,7 @@ def generate_quyet_dinh_docx(data, output_path):
     r0.bold = True
     r0.font.size = Pt(10.5)
     r0.font.name = "Times New Roman"
-    r0_sub = p0.add_run("*****")
+    r0_sub = p0.add_run("----------o0o----------")
     r0_sub.font.size = Pt(10.5)
     r0_sub.font.name = "Times New Roman"
 
@@ -156,7 +158,7 @@ def generate_quyet_dinh_docx(data, output_path):
     except:
         date_text = f"TP.HCM, ngày {datetime.now().day} tháng {datetime.now().month} năm {datetime.now().year}"
         
-    r1_sub = p1.add_run(f"********\n{date_text}")
+    r1_sub = p1.add_run(f"----------o0o----------\n{date_text}")
     r1_sub.font.italic = True
     r1_sub.font.size = Pt(10)
     r1_sub.font.name = "Times New Roman"
@@ -214,6 +216,8 @@ def generate_quyet_dinh_docx(data, output_path):
     qty_val = abs(float(data.get('total_qty', 0)))
     amt_val = abs(float(data.get('total_amount', 0)))
     vat_type = data.get('vat_type', 'Chưa VAT')
+    is_post_vat = ('gồm' in vat_type.lower())
+    vat_label = 'Gồm VAT' if is_post_vat else 'Chưa VAT'
     words = num_to_vietnamese_words(amt_val)
     inv_list = data.get('invoices', [])
 
@@ -254,12 +258,16 @@ def generate_quyet_dinh_docx(data, output_path):
             tot_pre += pre
             tot_post += post
 
+            sl_str = f"{sl:,.0f}".replace(',', '.') if (sl and sl > 0) else ""
+            pre_str = f"{pre:,.0f}".replace(',', '.')
+            post_str = f"{post:,.0f}".replace(',', '.')
+
             row_vals = [
                 str(i + 1),
                 it.get('content', ''),
-                f"{sl:,.0f}" if sl else "",
-                f"{pre:,.0f}",
-                f"{post:,.0f}",
+                sl_str,
+                pre_str,
+                post_str,
                 it.get('co_number', '')
             ]
             for j, val in enumerate(row_vals):
@@ -278,13 +286,16 @@ def generate_quyet_dinh_docx(data, output_path):
                                       right=dict(val='single', sz='6', color='000000'))
 
         # Total row
-        last_row = ["", "Total", f"{tot_sl:,.0f}" if tot_sl else "", f"{tot_pre:,.0f}", f"{tot_post:,.0f}", ""]
+        tot_sl_str = f"{tot_sl:,.0f}".replace(',', '.') if tot_sl else ""
+        tot_pre_str = f"{tot_pre:,.0f}".replace(',', '.')
+        tot_post_str = f"{tot_post:,.0f}".replace(',', '.')
+        last_row = ["", "Total", tot_sl_str, tot_pre_str, tot_post_str, ""]
         for j, val in enumerate(last_row):
             cell = table_data.cell(len(inv_list) + 1, j)
             cell.width = col_widths[j]
             p = cell.paragraphs[0]
             p.paragraph_format.line_spacing = 1.15
-            p.alignment = WD_ALIGN_PARAGRAPH.RIGHT if j in [2, 3, 4] else (WD_ALIGN_PARAGRAPH.CENTER if j in [0, 5] else WD_ALIGN_PARAGRAPH.LEFT)
+            p.alignment = WD_ALIGN_PARAGRAPH.RIGHT if j in [2, 3, 4] else (WD_ALIGN_PARAGRAPH.CENTER if j in [0, 1, 5] else WD_ALIGN_PARAGRAPH.LEFT)
             r = p.add_run(val)
             r.bold = True
             r.font.size = Pt(9.5)
@@ -295,8 +306,8 @@ def generate_quyet_dinh_docx(data, output_path):
                                   left=dict(val='single', sz='6', color='000000'),
                                   right=dict(val='single', sz='6', color='000000'))
 
-        amt_val = tot_pre if vat_type == 'Chưa VAT' else tot_post
-        words = num_to_vietnamese_words(amt_val)
+        amt_val = tot_post if is_post_vat else tot_pre
+        words = num_to_vietnamese_words(amt_val, include_dong=True)
 
     else:
         # BẢNG TỔNG HỢP 5 CỘT
@@ -323,7 +334,9 @@ def generate_quyet_dinh_docx(data, output_path):
                                   left=dict(val='single', sz='6', color='000000'),
                                   right=dict(val='single', sz='6', color='000000'))
 
-        row1 = [f"{month}", f"{w_name}", f"({qty_val:,.0f})", f"({amt_val:,.0f})", "Claim DC 100%"]
+        qty_str = f"({qty_val:,.0f})".replace(',', '.')
+        amt_str = f"({amt_val:,.0f})".replace(',', '.')
+        row1 = [f"{month}", f"{w_name}", qty_str, amt_str, "Claim DC 100%"]
         for j, val in enumerate(row1):
             cell = table_data.cell(1, j)
             cell.width = col_widths[j]
@@ -339,7 +352,7 @@ def generate_quyet_dinh_docx(data, output_path):
                                   left=dict(val='single', sz='6', color='000000'),
                                   right=dict(val='single', sz='6', color='000000'))
 
-        row2 = ["Grand Total", "", f"({qty_val:,.0f})", f"({amt_val:,.0f})", ""]
+        row2 = ["Grand Total", "", qty_str, amt_str, ""]
         for j, val in enumerate(row2):
             cell = table_data.cell(2, j)
             cell.width = col_widths[j]
@@ -363,11 +376,12 @@ def generate_quyet_dinh_docx(data, output_path):
     p_exp.paragraph_format.line_spacing = 1.15
     p_exp.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
     
+    amt_fmt = f"{amt_val:,.0f}".replace(',', '.')
     r_exp = p_exp.add_run(
-        f"• Chi phí {w_name} T{month}/{year} ({vat_type.lower()}):\n"
-        f"  - Tổng giá trị chênh lệch kho: ({amt_val:,.0f}) VNĐ ({vat_type})\n"
+        f"• Chi phí {w_name} T{month}/{year} ({vat_label.lower()}):\n"
+        f"  - Tổng giá trị chênh lệch kho: ({amt_fmt}) VNĐ ({vat_label})\n"
         f"  - Tỷ lệ quy trách nhiệm: DC (SCF) chịu 100% giá trị.\n"
-        f"  - Tổng GT truy thu SCF (100%): ({amt_val:,.0f} VNĐ) ({vat_type})\n"
+        f"  - Tổng GT truy thu SCF (100%): ({amt_fmt} VNĐ) ({vat_label})\n"
         f"    (Bằng chữ: {words})"
     )
     r_exp.font.size = Pt(10.5)
@@ -531,8 +545,9 @@ def generate_de_nghi_thanh_toan_docx(data, output_path):
     w_name = data.get('warehouse_name', 'KHO SEEDLOG').upper()
     month = data.get('month', '07')
     year = data.get('year', '2026')
+    w_title = "SLG" if ("SEEDLOG" in w_name or "TỔNG" in w_name or "SLG" in w_name) else w_name
     
-    r_t2 = p_title.add_run(f"V/v Đề nghị thanh toán tiền truy thu {w_name} tháng {month}/{year}")
+    r_t2 = p_title.add_run(f"V/v Đề nghị thanh toán tiền truy thu {w_title} – Hủy hàng tháng {month}/{year}")
     r_t2.font.italic = True
     r_t2.font.size = Pt(11)
     r_t2.font.name = "Times New Roman"
@@ -552,17 +567,29 @@ def generate_de_nghi_thanh_toan_docx(data, output_path):
     r_kg.font.name = "Times New Roman"
 
     # 4. Căn cứ & Đề nghị thanh toán
-    amt_val = abs(float(data.get('total_amount', 0)))
+    inv_list = data.get('invoices', [])
     vat_type = data.get('vat_type', 'Chưa VAT')
-    words = num_to_vietnamese_words(amt_val)
+    is_post_vat = ('gồm' in vat_type.lower())
+    vat_label = 'Gồm VAT' if is_post_vat else 'Chưa VAT'
+
+    if inv_list and len(inv_list) > 1:
+        tot_pre = sum(it.get('pre_tax', 0.0) for it in inv_list)
+        tot_post = sum(it.get('post_tax', 0.0) for it in inv_list)
+        amt_val = tot_post if is_post_vat else tot_pre
+    else:
+        amt_val = abs(float(data.get('total_amount', 0)))
+
+    amt_str = f"{amt_val:,.0f}".replace(',', '.')
+    words_no_dong = num_to_vietnamese_words(amt_val, include_dong=False)
     
+    wh_desc = "kho linker (DC)" if ("SEEDLOG" in w_name or "TỔNG" in w_name or "SLG" in w_name) else w_name
     p_cc = doc.add_paragraph()
     p_cc.paragraph_format.space_before = Pt(4)
     p_cc.paragraph_format.space_after = Pt(6)
     p_cc.paragraph_format.line_spacing = 1.15
     p_cc.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
     r_cc = p_cc.add_run(
-        f"- Căn cứ vào kết quả Hủy hàng tại {w_name} trong tháng {month} năm {year}\n"
+        f"- Căn cứ vào kết quả Hủy hàng tại {wh_desc} trong tháng {month}/{year}\n"
         f"- Căn cứ vào kết quả đối chiếu, kiểm tra chứng từ của KFM và SCF"
     )
     r_cc.font.size = Pt(10.5)
@@ -578,12 +605,12 @@ def generate_de_nghi_thanh_toan_docx(data, output_path):
     r_req1.font.size = Pt(10.5)
     r_req1.font.name = "Times New Roman"
     
-    r_amt = p_req.add_run(f"{amt_val:,.0f} VNĐ ({vat_type})\n")
+    r_amt = p_req.add_run(f"{amt_str} ({vat_label})\n")
     r_amt.bold = True
     r_amt.font.size = Pt(10.5)
     r_amt.font.name = "Times New Roman"
     
-    r_words = p_req.add_run(f"(Bằng chữ: {words})")
+    r_words = p_req.add_run(f"(Bằng chữ: {words_no_dong}.)")
     r_words.font.italic = True
     r_words.font.size = Pt(10.5)
     r_words.font.name = "Times New Roman"
@@ -592,20 +619,83 @@ def generate_de_nghi_thanh_toan_docx(data, output_path):
     b_owner = data.get('bank_owner', 'CÔNG TY CỔ PHẦN KINGFOOD MARKET')
     b_name = data.get('bank_name', 'HANG HAI (MARITIMEBANK-MSB)')
     
-    p_bank = doc.add_paragraph()
-    p_bank.paragraph_format.space_before = Pt(4)
-    p_bank.paragraph_format.space_after = Pt(6)
-    p_bank.paragraph_format.line_spacing = 1.15
-    p_bank.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-    
-    r_bank = p_bank.add_run(
-        f"Số tiền trên đề nghị chuyển vào tài khoản:\n"
-        f" • Số tài khoản: {b_acc}\n"
-        f" • Chủ tài khoản: {b_owner}\n"
-        f" • Mở tại ngân hàng: {b_name}"
-    )
-    r_bank.font.size = Pt(10.5)
-    r_bank.font.name = "Times New Roman"
+    p_bank_intro = doc.add_paragraph()
+    p_bank_intro.paragraph_format.space_before = Pt(4)
+    p_bank_intro.paragraph_format.space_after = Pt(4)
+    p_bank_intro.paragraph_format.line_spacing = 1.15
+    p_bank_intro.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+    r_bi = p_bank_intro.add_run("Số tiền trên đề nghị chuyển vào tài khoản:")
+    r_bi.font.size = Pt(10.5)
+    r_bi.font.name = "Times New Roman"
+
+    # Bảng thông tin tài khoản ngân hàng chuẩn 2 hàng, kẻ viền đen theo mẫu chuẩn Ảnh 1
+    table_bank = doc.add_table(rows=2, cols=4)
+    table_bank.alignment = WD_TABLE_ALIGNMENT.CENTER
+    table_bank.autofit = False
+    col_widths = [Inches(1.4), Inches(1.8), Inches(1.3), Inches(1.98)]
+
+    # Hàng 1
+    c00 = table_bank.cell(0, 0)
+    c00.width = col_widths[0]
+    p00 = c00.paragraphs[0]
+    p00.paragraph_format.line_spacing = 1.15
+    r00 = p00.add_run("Số tài khoản:")
+    r00.font.italic = True
+    r00.font.size = Pt(10)
+    r00.font.name = "Times New Roman"
+
+    c01 = table_bank.cell(0, 1)
+    c01.width = col_widths[1]
+    p01 = c01.paragraphs[0]
+    p01.paragraph_format.line_spacing = 1.15
+    r01 = p01.add_run(str(b_acc))
+    r01.font.size = Pt(10)
+    r01.font.name = "Times New Roman"
+
+    c02 = table_bank.cell(0, 2)
+    c02.width = col_widths[2]
+    p02 = c02.paragraphs[0]
+    p02.paragraph_format.line_spacing = 1.15
+    r02 = p02.add_run("Chủ tài khoản:")
+    r02.font.italic = True
+    r02.font.size = Pt(10)
+    r02.font.name = "Times New Roman"
+
+    c03 = table_bank.cell(0, 3)
+    c03.width = col_widths[3]
+    p03 = c03.paragraphs[0]
+    p03.paragraph_format.line_spacing = 1.15
+    owner_str = "CÔNG TY CỔ PHẦN\nKINGFOOD MARKET" if "KINGFOOD MARKET" in b_owner else b_owner
+    r03 = p03.add_run(owner_str)
+    r03.font.size = Pt(10)
+    r03.font.name = "Times New Roman"
+
+    # Hàng 2: Mở tại ngân hàng: | HANG HAI (MARITIMEBANK-MSB)
+    c10 = table_bank.cell(1, 0)
+    c10.width = col_widths[0]
+    p10 = c10.paragraphs[0]
+    p10.paragraph_format.line_spacing = 1.15
+    r10 = p10.add_run("Mở tại ngân hàng:")
+    r10.font.italic = True
+    r10.font.size = Pt(10)
+    r10.font.name = "Times New Roman"
+
+    c11 = table_bank.cell(1, 1)
+    c13 = table_bank.cell(1, 3)
+    c_merged = c11.merge(c13)
+    p11 = c_merged.paragraphs[0]
+    p11.paragraph_format.line_spacing = 1.15
+    r11 = p11.add_run(b_name)
+    r11.font.size = Pt(10)
+    r11.font.name = "Times New Roman"
+
+    for r in table_bank.rows:
+        for c in r.cells:
+            set_cell_margins(c, top=60, bottom=60, left=70, right=70)
+            set_cell_border(c, top=dict(val='single', sz='4', color='000000'),
+                               bottom=dict(val='single', sz='4', color='000000'),
+                               left=dict(val='single', sz='4', color='000000'),
+                               right=dict(val='single', sz='4', color='000000'))
 
     p_close = doc.add_paragraph()
     p_close.paragraph_format.space_before = Pt(4)
