@@ -23,8 +23,12 @@ if %ERRORLEVEL% neq 0 (
 
 :: 2. Kiem tra cloudflared.exe
 if not exist "cloudflared.exe" (
-    echo [!] Khong tim thay cloudflared.exe, dang tu dong tai ve...
-    powershell -NoProfile -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; (New-Object System.Net.WebClient).DownloadFile('https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe', 'cloudflared.exe')"
+    if exist "C:\Program Files (x86)\cloudflared\cloudflared.exe" (
+        copy /y "C:\Program Files (x86)\cloudflared\cloudflared.exe" "cloudflared.exe" >nul
+    ) else (
+        echo [!] Khong tim thay cloudflared.exe, dang tu dong tai ve...
+        powershell -NoProfile -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; (New-Object System.Net.WebClient).DownloadFile('https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe', 'cloudflared.exe')"
+    )
 )
 
 echo [*] Dang tao duong link Public HTTPS bao mat qua Cloudflare...
