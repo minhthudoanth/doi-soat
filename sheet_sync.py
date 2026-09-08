@@ -659,14 +659,14 @@ def sync_inventory_from_sheet():
         return {"success": False, "error": str(e)}
 
 
-DEFAULT_INVOICE_SHEET_URL = "https://docs.google.com/spreadsheets/d/1WfXxYmuc8gY0BUMMM2lABFUvYkjZjgdbTi3dQBrIpVo/export?format=csv&gid=0"
+DEFAULT_INVOICE_SHEET_URL = "https://docs.google.com/spreadsheets/d/1YfpVHQbowoSj6lN-8KW0d1UmCKy4sy2PesB7g9yNG4M/export?format=csv&gid=0"
 
 def sync_claim_invoices_from_sheet(sheet_url=None):
     if not sheet_url:
         sheet_url = DEFAULT_INVOICE_SHEET_URL
     elif "export?format=csv" not in sheet_url:
         match_id = re.search(r"/spreadsheets/d/([a-zA-Z0-9-_]+)", sheet_url)
-        sheet_id = match_id.group(1) if match_id else "1WfXxYmuc8gY0BUMMM2lABFUvYkjZjgdbTi3dQBrIpVo"
+        sheet_id = match_id.group(1) if match_id else "1YfpVHQbowoSj6lN-8KW0d1UmCKy4sy2PesB7g9yNG4M"
         match_gid = re.search(r"gid=([0-9]+)", sheet_url)
         gid = match_gid.group(1) if match_gid else "0"
         sheet_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&gid={gid}"
@@ -698,9 +698,16 @@ def sync_claim_invoices_from_sheet(sheet_url=None):
                 co_number TEXT,
                 pre_tax REAL,
                 post_tax REAL,
+                quantity REAL DEFAULT 0,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
+        # Ensure quantity column exists if table was created previously without it
+        try:
+            cursor.execute("ALTER TABLE warehouse_claim_invoices ADD COLUMN quantity REAL DEFAULT 0")
+        except Exception:
+            pass
+
         cursor.execute("DELETE FROM warehouse_claim_invoices")
 
         invoices_to_insert = []
@@ -716,7 +723,6 @@ def sync_claim_invoices_from_sheet(sheet_url=None):
                 ngay_hd = r[8].strip() if len(r) > 8 else ""
                 mat_hang = r[12].strip() if len(r) > 12 else ""
                 co_val = r[13].strip() if len(r) > 13 else ""
-                # Tạm thời bỏ qua cột 14 (Kho) theo yêu cầu: "lấy số liệu theo tên kho, tạm thời bỏ qua cột kho nhé"
                 pre_tax_str = r[17].strip().replace(',', '') if len(r) > 17 else "0"
                 post_tax_str = r[20].strip().replace(',', '') if len(r) > 20 else "0"
                 thang_col = r[24].strip() if len(r) > 24 else ""
@@ -731,7 +737,6 @@ def sync_claim_invoices_from_sheet(sheet_url=None):
                 except:
                     post_tax = 0.0
 
-                # Determine warehouse code & name dựa hoàn toàn vào TÊN KHO trong Description & Mặt hàng
                 full_text = f"{desc} {mat_hang}".upper()
                 if any(k in full_text for k in ['MEATFISH', 'THỊT CÁ', 'THIT CA', 'MEAT FISH', 'ABA THỊT CÁ', 'THỊT', 'MEAT']):
                     wh_code = "MF"
@@ -758,7 +763,6 @@ def sync_claim_invoices_from_sheet(sheet_url=None):
                     wh_code = "KHAC"
                     wh_name = "KHO KHÁC"
 
-                # Determine month
                 month_val = ""
                 if thang_col:
                     m_match = re.search(r'T?0?([1-9]|1[0-2])', thang_col)
@@ -766,7 +770,6 @@ def sync_claim_invoices_from_sheet(sheet_url=None):
                         month_val = m_match.group(1).zfill(2)
 
                 if not month_val:
-                    # Ưu tiên ngày hóa đơn nếu có (Col 8, ví dụ: 17/08/2026 -> tháng 08)
                     m_d = re.search(r'(\d{1,2})/(\d{1,2})/(\d{4})', ngay_hd)
                     if m_d:
                         month_val = m_d.group(2).zfill(2)
@@ -779,22 +782,33 @@ def sync_claim_invoices_from_sheet(sheet_url=None):
 
                 invoices_to_insert.append((
                     month_val, wh_code, wh_name, ngay_hd, desc,
-                    so_hd, co_val, pre_tax, post_tax
+                    so_hd, co_val, pre_tax, post_tax, 0.0
                 ))
         else:
-            # SIMPLE 7-COLUMN FORMAT
+            # 7-COLUMN OR 8-COLUMN TARGET FORMAT
+            header = [c.strip().upper() for c in rows[0]]
+            has_qty_col = any('SL' in h or 'SỐ LƯỢNG' in h for h in header) or len(rows[0]) >= 8
+
             current_month = "07"
             current_wh = "MF"
 
             for r in rows[1:]:
-                if not any(r): continue
+                if not any(c.strip() for c in r): continue
                 month_val = r[0].strip() if len(r) > 0 else ""
                 wh_val = r[1].strip() if len(r) > 1 else ""
                 date_val = r[2].strip() if len(r) > 2 else ""
                 content_val = r[3].strip() if len(r) > 3 else ""
-                co_val = r[4].strip() if len(r) > 4 else ""
-                pre_tax_str = r[5].strip().replace(',', '') if len(r) > 5 else "0"
-                post_tax_str = r[6].strip().replace(',', '') if len(r) > 6 else "0"
+
+                if has_qty_col:
+                    qty_str = r[4].strip().replace(',', '') if len(r) > 4 else ""
+                    co_val = r[5].strip() if len(r) > 5 else ""
+                    pre_tax_str = r[6].strip().replace(',', '') if len(r) > 6 else "0"
+                    post_tax_str = r[7].strip().replace(',', '') if len(r) > 7 else "0"
+                else:
+                    qty_str = ""
+                    co_val = r[4].strip() if len(r) > 4 else ""
+                    pre_tax_str = r[5].strip().replace(',', '') if len(r) > 5 else "0"
+                    post_tax_str = r[6].strip().replace(',', '') if len(r) > 6 else "0"
 
                 if month_val:
                     current_month = month_val.zfill(2)
@@ -811,24 +825,41 @@ def sync_claim_invoices_from_sheet(sheet_url=None):
                 except:
                     post_tax = 0.0
 
+                try:
+                    qty = float(qty_str) if qty_str else 0.0
+                except:
+                    qty = 0.0
+
                 inv_num = ""
                 m_inv = re.search(r'hóa đơn số\s*:\s*(\d+)', content_val, re.IGNORECASE)
                 if m_inv:
                     inv_num = m_inv.group(1)
 
-                wh_name = "KHO MEATFISH" if current_wh == "MF" else ("KHO TỔNG (SEEDLOG)" if current_wh == "SL" else ("KHO ĐÔNG MÁT" if current_wh == "DM" else ("KHO RAU CỦ" if current_wh == "RC" else f"KHO {current_wh}")))
+                wh_code_upper = current_wh.upper()
+                wh_name_map = {
+                    'MF': 'KHO MEATFISH',
+                    'SL': 'KHO TỔNG (SEEDLOG)',
+                    'KRC': 'KHO RAU CỦ',
+                    'RC': 'KHO RAU CỦ',
+                    'FZ': 'KHO ĐÔNG',
+                    'KD': 'KHO ĐÔNG',
+                    'CL': 'KHO MÁT',
+                    'KM': 'KHO MÁT',
+                    'DM': 'KHO ĐÔNG MÁT'
+                }
+                wh_name = wh_name_map.get(wh_code_upper, f"KHO {current_wh}")
 
                 invoices_to_insert.append((
                     current_month, current_wh, wh_name, date_val, content_val,
-                    inv_num, co_val, pre_tax, post_tax
+                    inv_num, co_val, pre_tax, post_tax, qty
                 ))
 
         if invoices_to_insert:
             cursor.executemany("""
                 INSERT INTO warehouse_claim_invoices (
                     month, warehouse_code, warehouse_name, invoice_date, content,
-                    invoice_number, co_number, pre_tax, post_tax
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    invoice_number, co_number, pre_tax, post_tax, quantity
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, invoices_to_insert)
             conn.commit()
             print(f"[*] Đồng bộ Hóa Đơn Truy Thu thành công: Đã nạp {len(invoices_to_insert)} dòng hóa đơn vào CSDL!", flush=True)
