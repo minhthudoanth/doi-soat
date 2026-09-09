@@ -4,7 +4,7 @@ from datetime import datetime
 import docx
 from docx.shared import Pt, Inches, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH
-from docx.enum.table import WD_TABLE_ALIGNMENT
+from docx.enum.table import WD_TABLE_ALIGNMENT, WD_CELL_VERTICAL_ALIGNMENT
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 
@@ -103,6 +103,30 @@ def set_cell_border(cell, **kwargs):
     tcPr.append(tcBorders)
 
 
+def clean_warehouse_name(w):
+    if not w:
+        return "KHO SEEDLOG"
+    s = str(w).strip()
+    u = s.upper()
+    if "SEEDLOG" in u or "SEEDCOM" in u or "KHO TỔNG" in u:
+        return "KHO SEEDLOG"
+    if "MEAT" in u or "THỊT" in u:
+        return "KHO MEATFISH"
+    if "RAU" in u or "KRC" in u:
+        return "KHO RAU CỦ"
+    if "ĐÔNG MÁT" in u or "BÌNH TÂN" in u or "ABA" in u:
+        return "KHO ĐÔNG MÁT"
+    if "ĐÔNG" in u:
+        return "KHO ĐÔNG"
+    if "MÁT" in u:
+        return "KHO MÁT"
+    import re
+    cleaned = re.sub(r'\(.*?\)', '', s).strip()
+    if not cleaned.upper().startswith("KHO ") and not cleaned.upper().startswith("DC "):
+        cleaned = f"KHO {cleaned}"
+    return cleaned.upper()
+
+
 # --- 1. TẠO QUYẾT ĐỊNH TRUY THU (.DOCX) ---
 def generate_quyet_dinh_docx(data, output_path):
     doc = docx.Document()
@@ -113,14 +137,18 @@ def generate_quyet_dinh_docx(data, output_path):
     # Lề phải: 20.0mm (0.79 in)
     # Lề trên: 20.0mm (0.79 in)
     # Lề dưới: 20.0mm (0.79 in)
-    # Vùng in khả dụng (printable width): 6.48 in
+    # Vùng in khả dụng: 6.48 in
     for sec in doc.sections:
         sec.top_margin = Inches(0.79)
         sec.bottom_margin = Inches(0.79)
         sec.left_margin = Inches(1.0)
         sec.right_margin = Inches(0.79)
 
-    # 1. Header Table (Quốc hiệu & Tên công ty)
+    w_name = clean_warehouse_name(data.get('warehouse_name', 'KHO SEEDLOG'))
+    month = str(data.get('month', '07')).zfill(2)
+    year = str(data.get('year', '2026'))
+
+    # 1. Header Table (Quốc hiệu & Tên công ty) - Không viền
     table_header = doc.add_table(rows=1, cols=2)
     table_header.alignment = WD_TABLE_ALIGNMENT.CENTER
     table_header.autofit = False
@@ -132,11 +160,12 @@ def generate_quyet_dinh_docx(data, output_path):
     p0.alignment = WD_ALIGN_PARAGRAPH.CENTER
     p0.paragraph_format.line_spacing = 1.15
     p0.paragraph_format.space_after = Pt(0)
-    r0 = p0.add_run("CÔNG TY CỔ PHẦN KINGFOOD MARKET\n")
+    r0 = p0.add_run("CÔNG TY CỔ PHẦN\nKING FOOD MARKET\n")
     r0.bold = True
     r0.font.size = Pt(10.5)
     r0.font.name = "Times New Roman"
-    r0_sub = p0.add_run("----------o0o----------")
+    r0_sub = p0.add_run("*****")
+    r0_sub.font.bold = True
     r0_sub.font.size = Pt(10.5)
     r0_sub.font.name = "Times New Roman"
 
@@ -150,37 +179,29 @@ def generate_quyet_dinh_docx(data, output_path):
     r1.font.size = Pt(10.5)
     r1.font.name = "Times New Roman"
     
-    # Ngày hóa đơn
+    # Ngày văn bản
     doc_date_str = data.get('doc_date', datetime.now().strftime('%d/%m/%Y'))
     try:
         dp = doc_date_str.split('/')
-        date_text = f"TP.HCM, ngày {dp[0]} tháng {dp[1]} năm {dp[2]}"
+        date_text = f"TPHCM, ngày {dp[0]} tháng {dp[1]} năm {dp[2]}"
     except:
-        date_text = f"TP.HCM, ngày {datetime.now().day} tháng {datetime.now().month} năm {datetime.now().year}"
+        date_text = f"TPHCM, ngày {datetime.now().day} tháng {datetime.now().month} năm {datetime.now().year}"
         
-    r1_sub = p1.add_run(f"----------o0o----------\n{date_text}")
+    r1_sub = p1.add_run(f"********\n{date_text}")
     r1_sub.font.italic = True
     r1_sub.font.size = Pt(10)
     r1_sub.font.name = "Times New Roman"
 
-    for row in table_header.rows:
-        for cell in row.cells:
-            set_cell_border(cell)
-
     # 2. Tiêu đề QUYẾT ĐỊNH
     p_title = doc.add_paragraph()
     p_title.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    p_title.paragraph_format.space_before = Pt(12)
+    p_title.paragraph_format.space_before = Pt(14)
     p_title.paragraph_format.space_after = Pt(6)
     p_title.paragraph_format.line_spacing = 1.15
     r_t1 = p_title.add_run("QUYẾT ĐỊNH\n")
     r_t1.bold = True
-    r_t1.font.size = Pt(13.5)
+    r_t1.font.size = Pt(14)
     r_t1.font.name = "Times New Roman"
-    
-    w_name = data.get('warehouse_name', 'KHO MEATFISH').upper()
-    month = data.get('month', '07')
-    year = data.get('year', '2026')
     
     r_t2 = p_title.add_run(f"Về việc truy thu giá trị claim {w_name} tháng {month}/{year}\n-------------------------")
     r_t2.bold = True
@@ -192,9 +213,8 @@ def generate_quyet_dinh_docx(data, output_path):
     p_cc.paragraph_format.space_before = Pt(4)
     p_cc.paragraph_format.space_after = Pt(6)
     p_cc.paragraph_format.line_spacing = 1.15
-    p_cc.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+    p_cc.alignment = WD_ALIGN_PARAGRAPH.LEFT
     r_cc = p_cc.add_run(f"- Căn cứ vào kết quả giao nhận và kiểm tra thực tế tháng {month}/{year}\n- Căn cứ kết quả đối chiếu của KFM và SCF")
-    r_cc.font.italic = True
     r_cc.font.size = Pt(10.5)
     r_cc.font.name = "Times New Roman"
 
@@ -203,7 +223,7 @@ def generate_quyet_dinh_docx(data, output_path):
     p_d1.paragraph_format.space_before = Pt(4)
     p_d1.paragraph_format.space_after = Pt(6)
     p_d1.paragraph_format.line_spacing = 1.15
-    p_d1.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+    p_d1.alignment = WD_ALIGN_PARAGRAPH.LEFT
     r_d1 = p_d1.add_run("Điều 1: ")
     r_d1.bold = True
     r_d1.font.size = Pt(10.5)
@@ -212,187 +232,213 @@ def generate_quyet_dinh_docx(data, output_path):
     r_d1_txt.font.size = Pt(10.5)
     r_d1_txt.font.name = "Times New Roman"
 
-    # 5. Bảng kê chi tiết
-    qty_val = abs(float(data.get('total_qty', 0)))
-    amt_val = abs(float(data.get('total_amount', 0)))
-    vat_type = data.get('vat_type', 'Chưa VAT')
-    is_post_vat = ('gồm' in vat_type.lower())
-    vat_label = 'Gồm VAT' if is_post_vat else 'Chưa VAT'
-    words = num_to_vietnamese_words(amt_val)
+    # 5. Xử lý dữ liệu bảng kê 7 CỘT CHUẨN
+    table_items = []
     inv_list = data.get('invoices', [])
+    if inv_list and len(inv_list) > 0:
+        for it in inv_list:
+            sl = abs(float(it.get('qty') or 0))
+            pre = abs(float(it.get('pre_tax') or 0.0))
+            post = abs(float(it.get('post_tax') or 0.0))
+            if post == 0 and pre > 0:
+                post = round(pre * 1.08)
+            if pre == 0 and post > 0:
+                pre = round(post / 1.08)
+            co = str(it.get('co_number') or it.get('content') or it.get('invoice_number') or '').strip()
+            table_items.append({'co': co, 'sl': sl, 'pre': pre, 'post': post})
 
-    if inv_list and len(inv_list) > 1:
-        # BẢNG KÊ NHIỀU HÓA ĐƠN (6 CỘT: STT | Biên bản | SL | GT | GT (Gồm VAT) | CO)
-        table_data = doc.add_table(rows=len(inv_list) + 2, cols=6)
-        table_data.alignment = WD_TABLE_ALIGNMENT.CENTER
-        table_data.autofit = False
+    if not table_items:
+        sl = abs(float(data.get('total_qty', 0)))
+        amt = abs(float(data.get('total_amount', 0)))
+        vat_type = data.get('vat_type', 'Chưa VAT')
+        is_post_vat = ('gồm' in str(vat_type).lower())
+        if is_post_vat:
+            post = amt
+            pre = round(amt / 1.08)
+        else:
+            pre = amt
+            post = round(amt * 1.08)
+        co = str(data.get('co_number', '')).strip()
+        table_items.append({'co': co, 'sl': sl, 'pre': pre, 'post': post})
 
-        headers = ["STT", "Biên bản", "SL", "GT", "GT (Gồm VAT)", "CO"]
-        col_widths = [Inches(0.45), Inches(2.65), Inches(0.55), Inches(1.05), Inches(1.05), Inches(0.73)]
+    num_rows = len(table_items)
+    tot_sl = sum(it['sl'] for it in table_items)
+    tot_pre = sum(it['pre'] for it in table_items)
+    tot_post = sum(it['post'] for it in table_items)
 
-        for j, h in enumerate(headers):
-            cell = table_data.cell(0, j)
+    table_data = doc.add_table(rows=num_rows + 2, cols=7)
+    table_data.alignment = WD_TABLE_ALIGNMENT.CENTER
+    table_data.autofit = False
+
+    headers = ["Tháng", "Tên kho", "CO", "SL Chênh lệch", "Giá trị", "Giá trị (VAT)", "Ghi chú"]
+    col_widths = [Inches(0.70), Inches(1.15), Inches(0.90), Inches(0.80), Inches(1.05), Inches(1.05), Inches(0.83)]
+
+    for j, w_col in enumerate(col_widths):
+        table_data.columns[j].width = w_col
+
+    # Dòng Header (index 0)
+    for j, h in enumerate(headers):
+        cell = table_data.cell(0, j)
+        cell.width = col_widths[j]
+        p = cell.paragraphs[0]
+        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        p.paragraph_format.line_spacing = 1.15
+        p.paragraph_format.space_before = Pt(2)
+        p.paragraph_format.space_after = Pt(2)
+        r = p.add_run(h)
+        r.bold = True
+        r.font.size = Pt(9.5)
+        r.font.name = "Times New Roman"
+        set_cell_margins(cell, 60, 60, 60, 60)
+        set_cell_border(cell, top=dict(val='single', sz='6', color='000000'),
+                              bottom=dict(val='single', sz='6', color='000000'),
+                              left=dict(val='single', sz='6', color='000000'),
+                              right=dict(val='single', sz='6', color='000000'))
+
+    # Các dòng dữ liệu (index 1 đến num_rows)
+    for i, it in enumerate(table_items):
+        row_idx = i + 1
+        sl_str = f"({it['sl']:,.0f})" if it['sl'] else "-"
+        pre_str = f"({it['pre']:,.0f})" if it['pre'] else "-"
+        post_str = f"({it['post']:,.0f})" if it['post'] else "-"
+
+        # Set borders & padding cho từng cell
+        for j in range(7):
+            cell = table_data.cell(row_idx, j)
             cell.width = col_widths[j]
-            p = cell.paragraphs[0]
-            p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            p.paragraph_format.line_spacing = 1.15
-            r = p.add_run(h)
-            r.bold = True
-            r.font.size = Pt(9.5)
-            r.font.name = "Times New Roman"
-            set_cell_margins(cell, 60, 60, 60, 60)
+            set_cell_margins(cell, 50, 50, 60, 60)
             set_cell_border(cell, top=dict(val='single', sz='6', color='000000'),
                                   bottom=dict(val='single', sz='6', color='000000'),
                                   left=dict(val='single', sz='6', color='000000'),
                                   right=dict(val='single', sz='6', color='000000'))
 
-        tot_sl = 0
-        tot_pre = 0.0
-        tot_post = 0.0
+        # Cột CO (j=2)
+        cell_co = table_data.cell(row_idx, 2)
+        p_co = cell_co.paragraphs[0]
+        p_co.alignment = WD_ALIGN_PARAGRAPH.LEFT
+        p_co.paragraph_format.line_spacing = 1.15
+        p_co.paragraph_format.space_before = Pt(2)
+        p_co.paragraph_format.space_after = Pt(2)
+        r_co = p_co.add_run(it['co'])
+        r_co.font.size = Pt(9)
+        r_co.font.name = "Times New Roman"
 
-        for i, it in enumerate(inv_list):
-            sl = it.get('qty', 0)
-            pre = it.get('pre_tax', 0.0)
-            post = it.get('post_tax', 0.0)
-            tot_sl += sl
-            tot_pre += pre
-            tot_post += post
+        # Cột SL Chênh lệch (j=3)
+        cell_sl = table_data.cell(row_idx, 3)
+        p_sl = cell_sl.paragraphs[0]
+        p_sl.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+        p_sl.paragraph_format.line_spacing = 1.15
+        p_sl.paragraph_format.space_before = Pt(2)
+        p_sl.paragraph_format.space_after = Pt(2)
+        r_sl = p_sl.add_run(sl_str)
+        r_sl.font.size = Pt(9)
+        r_sl.font.name = "Times New Roman"
 
-            sl_str = f"{sl:,.0f}".replace(',', '.') if (sl and sl > 0) else ""
-            pre_str = f"{pre:,.0f}".replace(',', '.')
-            post_str = f"{post:,.0f}".replace(',', '.')
+        # Cột Giá trị (j=4)
+        cell_pre = table_data.cell(row_idx, 4)
+        p_pre = cell_pre.paragraphs[0]
+        p_pre.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+        p_pre.paragraph_format.line_spacing = 1.15
+        p_pre.paragraph_format.space_before = Pt(2)
+        p_pre.paragraph_format.space_after = Pt(2)
+        r_pre = p_pre.add_run(pre_str)
+        r_pre.font.size = Pt(9)
+        r_pre.font.name = "Times New Roman"
 
-            row_vals = [
-                str(i + 1),
-                it.get('content', ''),
-                sl_str,
-                pre_str,
-                post_str,
-                it.get('co_number', '')
-            ]
-            for j, val in enumerate(row_vals):
-                cell = table_data.cell(i + 1, j)
-                cell.width = col_widths[j]
-                p = cell.paragraphs[0]
-                p.paragraph_format.line_spacing = 1.15
-                p.alignment = WD_ALIGN_PARAGRAPH.RIGHT if j in [2, 3, 4] else (WD_ALIGN_PARAGRAPH.CENTER if j in [0, 5] else WD_ALIGN_PARAGRAPH.LEFT)
-                r = p.add_run(val)
-                r.font.size = Pt(9)
-                r.font.name = "Times New Roman"
-                set_cell_margins(cell, 50, 50, 60, 60)
-                set_cell_border(cell, top=dict(val='single', sz='4', color='CCCCCC'),
-                                      bottom=dict(val='single', sz='4', color='CCCCCC'),
-                                      left=dict(val='single', sz='6', color='000000'),
-                                      right=dict(val='single', sz='6', color='000000'))
+        # Cột Giá trị (VAT) (j=5)
+        cell_post = table_data.cell(row_idx, 5)
+        p_post = cell_post.paragraphs[0]
+        p_post.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+        p_post.paragraph_format.line_spacing = 1.15
+        p_post.paragraph_format.space_before = Pt(2)
+        p_post.paragraph_format.space_after = Pt(2)
+        r_post = p_post.add_run(post_str)
+        r_post.font.size = Pt(9)
+        r_post.font.name = "Times New Roman"
 
-        # Total row
-        tot_sl_str = f"{tot_sl:,.0f}".replace(',', '.') if tot_sl else ""
-        tot_pre_str = f"{tot_pre:,.0f}".replace(',', '.')
-        tot_post_str = f"{tot_post:,.0f}".replace(',', '.')
-        last_row = ["", "Total", tot_sl_str, tot_pre_str, tot_post_str, ""]
-        for j, val in enumerate(last_row):
-            cell = table_data.cell(len(inv_list) + 1, j)
-            cell.width = col_widths[j]
-            p = cell.paragraphs[0]
-            p.paragraph_format.line_spacing = 1.15
-            p.alignment = WD_ALIGN_PARAGRAPH.RIGHT if j in [2, 3, 4] else (WD_ALIGN_PARAGRAPH.CENTER if j in [0, 1, 5] else WD_ALIGN_PARAGRAPH.LEFT)
-            r = p.add_run(val)
-            r.bold = True
-            r.font.size = Pt(9.5)
-            r.font.name = "Times New Roman"
-            set_cell_margins(cell, 60, 60, 60, 60)
-            set_cell_border(cell, top=dict(val='single', sz='6', color='000000'),
-                                  bottom=dict(val='single', sz='6', color='000000'),
-                                  left=dict(val='single', sz='6', color='000000'),
-                                  right=dict(val='single', sz='6', color='000000'))
-
-        amt_val = tot_post if is_post_vat else tot_pre
-        words = num_to_vietnamese_words(amt_val, include_dong=True)
-
+    # Merge các cột Tháng (0), Tên kho (1), Ghi chú (6) xuyên suốt tất cả các dòng dữ liệu
+    if num_rows > 1:
+        c0 = table_data.cell(1, 0).merge(table_data.cell(num_rows, 0))
+        c1 = table_data.cell(1, 1).merge(table_data.cell(num_rows, 1))
+        c6 = table_data.cell(1, 6).merge(table_data.cell(num_rows, 6))
     else:
-        # BẢNG TỔNG HỢP 5 CỘT
-        table_data = doc.add_table(rows=3, cols=5)
-        table_data.alignment = WD_TABLE_ALIGNMENT.CENTER
-        table_data.autofit = False
+        c0 = table_data.cell(1, 0)
+        c1 = table_data.cell(1, 1)
+        c6 = table_data.cell(1, 6)
 
-        headers = ["Tháng", "Tên kho", "SL Chênh lệch", "Giá trị (VNĐ)", "Ghi chú"]
-        col_widths = [Inches(0.7), Inches(1.8), Inches(1.1), Inches(1.44), Inches(1.44)]
+    for c, val in [(c0, f"Tháng {month}"), (c1, w_name), (c6, "Claim DC 100%")]:
+        c.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
+        p = c.paragraphs[0]
+        p.text = ""
+        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        p.paragraph_format.line_spacing = 1.15
+        p.paragraph_format.space_before = Pt(2)
+        p.paragraph_format.space_after = Pt(2)
+        r = p.add_run(val)
+        r.font.size = Pt(9)
+        r.font.name = "Times New Roman"
 
-        for j, h in enumerate(headers):
-            cell = table_data.cell(0, j)
-            cell.width = col_widths[j]
-            p = cell.paragraphs[0]
+    # Dòng Tổng cộng Grand Total (index num_rows + 1)
+    tot_sl_str = f"({tot_sl:,.0f})" if tot_sl else "-"
+    tot_pre_str = f"({tot_pre:,.0f})" if tot_pre else "-"
+    tot_post_str = f"({tot_post:,.0f})" if tot_post else "-"
+    last_row_vals = ["", "Grand Total", "", tot_sl_str, tot_pre_str, tot_post_str, ""]
+
+    for j, val in enumerate(last_row_vals):
+        cell = table_data.cell(num_rows + 1, j)
+        cell.width = col_widths[j]
+        p = cell.paragraphs[0]
+        p.paragraph_format.line_spacing = 1.15
+        p.paragraph_format.space_before = Pt(2)
+        p.paragraph_format.space_after = Pt(2)
+        if j in [3, 4, 5]:
+            p.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+        elif j == 1:
+            p.alignment = WD_ALIGN_PARAGRAPH.LEFT
+        else:
             p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            p.paragraph_format.line_spacing = 1.15
-            r = p.add_run(h)
-            r.bold = True
-            r.font.size = Pt(10)
-            r.font.name = "Times New Roman"
-            set_cell_margins(cell, 70, 70, 80, 80)
-            set_cell_border(cell, top=dict(val='single', sz='6', color='000000'),
-                                  bottom=dict(val='single', sz='6', color='000000'),
-                                  left=dict(val='single', sz='6', color='000000'),
-                                  right=dict(val='single', sz='6', color='000000'))
+        r = p.add_run(val)
+        r.bold = True
+        r.font.size = Pt(9.5)
+        r.font.name = "Times New Roman"
+        set_cell_margins(cell, 60, 60, 60, 60)
+        set_cell_border(cell, top=dict(val='single', sz='6', color='000000'),
+                              bottom=dict(val='single', sz='6', color='000000'),
+                              left=dict(val='single', sz='6', color='000000'),
+                              right=dict(val='single', sz='6', color='000000'))
 
-        qty_str = f"({qty_val:,.0f})".replace(',', '.')
-        amt_str = f"({amt_val:,.0f})".replace(',', '.')
-        row1 = [f"{month}", f"{w_name}", qty_str, amt_str, "Claim DC 100%"]
-        for j, val in enumerate(row1):
-            cell = table_data.cell(1, j)
-            cell.width = col_widths[j]
-            p = cell.paragraphs[0]
-            p.paragraph_format.line_spacing = 1.15
-            p.alignment = WD_ALIGN_PARAGRAPH.RIGHT if j in [2, 3] else (WD_ALIGN_PARAGRAPH.CENTER if j in [0, 4] else WD_ALIGN_PARAGRAPH.LEFT)
-            r = p.add_run(val)
-            r.font.size = Pt(9.5)
-            r.font.name = "Times New Roman"
-            set_cell_margins(cell, 60, 60, 80, 80)
-            set_cell_border(cell, top=dict(val='single', sz='4', color='CCCCCC'),
-                                  bottom=dict(val='single', sz='4', color='CCCCCC'),
-                                  left=dict(val='single', sz='6', color='000000'),
-                                  right=dict(val='single', sz='6', color='000000'))
-
-        row2 = ["Grand Total", "", qty_str, amt_str, ""]
-        for j, val in enumerate(row2):
-            cell = table_data.cell(2, j)
-            cell.width = col_widths[j]
-            p = cell.paragraphs[0]
-            p.paragraph_format.line_spacing = 1.15
-            p.alignment = WD_ALIGN_PARAGRAPH.RIGHT if j in [2, 3] else (WD_ALIGN_PARAGRAPH.CENTER if j == 0 else WD_ALIGN_PARAGRAPH.LEFT)
-            r = p.add_run(val)
-            r.bold = True
-            r.font.size = Pt(9.5)
-            r.font.name = "Times New Roman"
-            set_cell_margins(cell, 60, 60, 80, 80)
-            set_cell_border(cell, top=dict(val='single', sz='6', color='000000'),
-                                  bottom=dict(val='single', sz='6', color='000000'),
-                                  left=dict(val='single', sz='6', color='000000'),
-                                  right=dict(val='single', sz='6', color='000000'))
-
-    # 6. Chi tiết diễn giải
+    # 6. Chi tiết diễn giải bên dưới bảng
     p_exp = doc.add_paragraph()
-    p_exp.paragraph_format.space_before = Pt(6)
+    p_exp.paragraph_format.space_before = Pt(10)
     p_exp.paragraph_format.space_after = Pt(6)
-    p_exp.paragraph_format.line_spacing = 1.15
-    p_exp.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+    p_exp.paragraph_format.line_spacing = 1.25
+    p_exp.alignment = WD_ALIGN_PARAGRAPH.LEFT
     
-    amt_fmt = f"{amt_val:,.0f}".replace(',', '.')
-    r_exp = p_exp.add_run(
-        f"• Chi phí {w_name} T{month}/{year} ({vat_label.lower()}):\n"
-        f"  - Tổng giá trị chênh lệch kho: ({amt_fmt}) VNĐ ({vat_label})\n"
-        f"  - Tỷ lệ quy trách nhiệm: DC (SCF) chịu 100% giá trị.\n"
-        f"  - Tổng GT truy thu SCF (100%): ({amt_fmt} VNĐ) ({vat_label})\n"
-        f"    (Bằng chữ: {words})"
+    words = num_to_vietnamese_words(tot_post, include_dong=True)
+
+    r_b1 = p_exp.add_run(f"• Chi phí {w_name} T{month}/{year} (VAT): ")
+    r_b1.font.size = Pt(10.5)
+    r_b1.font.name = "Times New Roman"
+    
+    r_b1_amt = p_exp.add_run(f"{tot_post:,.0f} VNĐ\n")
+    r_b1_amt.bold = True
+    r_b1_amt.font.size = Pt(10.5)
+    r_b1_amt.font.name = "Times New Roman"
+
+    r_b2 = p_exp.add_run(
+        f"- Tổng giá trị chênh lệch kho: ({tot_pre:,.0f}) VNĐ (Chưa VAT)\n"
+        f"- Tỷ lệ quy trách nhiệm: DC (SCF) chịu 100% giá trị.\n"
+        f"(Bằng chữ: {words})"
     )
-    r_exp.font.size = Pt(10.5)
-    r_exp.font.name = "Times New Roman"
+    r_b2.font.size = Pt(10.5)
+    r_b2.font.name = "Times New Roman"
 
     # 7. Điều 2 & Điều 3
     p_d2 = doc.add_paragraph()
-    p_d2.paragraph_format.space_before = Pt(4)
-    p_d2.paragraph_format.space_after = Pt(10)
-    p_d2.paragraph_format.line_spacing = 1.15
-    p_d2.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+    p_d2.paragraph_format.space_before = Pt(6)
+    p_d2.paragraph_format.space_after = Pt(12)
+    p_d2.paragraph_format.line_spacing = 1.25
+    p_d2.alignment = WD_ALIGN_PARAGRAPH.LEFT
     
     r_d2_t = p_d2.add_run("Điều 2: ")
     r_d2_t.bold = True
@@ -410,7 +456,7 @@ def generate_quyet_dinh_docx(data, output_path):
     r_d3.font.size = Pt(10.5)
     r_d3.font.name = "Times New Roman"
 
-    # 8. Bảng Ký Tên 2 Cột Cân Đối Hoàn Toàn
+    # 8. Bảng Ký Tên 2 Cột Cân Đối Hoàn Toàn (Không viền)
     table_sign = doc.add_table(rows=1, cols=2)
     table_sign.alignment = WD_TABLE_ALIGNMENT.CENTER
     table_sign.autofit = False
@@ -418,7 +464,9 @@ def generate_quyet_dinh_docx(data, output_path):
     table_sign.columns[1].width = Inches(3.24)
 
     scf_name = data.get('representative_scf', 'Nguyễn Ngọc Xuân Quang')
-    kfm_name = data.get('representative_kfm', 'NGUYỄN HOÀNG LÂM')
+    kfm_name = data.get('representative_kfm', 'Nguyễn Hoàng Lâm')
+    if kfm_name == 'NGUYỄN HOÀNG LÂM':
+        kfm_name = 'Nguyễn Hoàng Lâm'
 
     # Cột Trái: Đại diện SCF
     s0 = table_sign.cell(0, 0)
@@ -432,7 +480,7 @@ def generate_quyet_dinh_docx(data, output_path):
     r_scf_t.font.size = Pt(10.5)
     r_scf_t.font.name = "Times New Roman"
     
-    r_scf_sub = ps0.add_run("(Ký, họ tên)\n\n\n\n")
+    r_scf_sub = ps0.add_run("(Ký, họ tên)\n\n\n\n\n")
     r_scf_sub.font.italic = True
     r_scf_sub.bold = False
     r_scf_sub.font.size = Pt(10)
@@ -455,7 +503,7 @@ def generate_quyet_dinh_docx(data, output_path):
     r_kfm_t.font.size = Pt(10.5)
     r_kfm_t.font.name = "Times New Roman"
     
-    r_kfm_sub = ps1.add_run("(Ký, họ tên)\n\n\n\n")
+    r_kfm_sub = ps1.add_run("(Ký, họ tên)\n\n\n\n\n")
     r_kfm_sub.font.italic = True
     r_kfm_sub.bold = False
     r_kfm_sub.font.size = Pt(10)
@@ -465,10 +513,6 @@ def generate_quyet_dinh_docx(data, output_path):
     r_kfm_n.bold = True
     r_kfm_n.font.size = Pt(10.5)
     r_kfm_n.font.name = "Times New Roman"
-
-    for row in table_sign.rows:
-        for cell in row.cells:
-            set_cell_border(cell)
 
     doc.save(output_path)
     return output_path

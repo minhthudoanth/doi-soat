@@ -1259,7 +1259,7 @@
                             </div>
                             <div class="col-6">
                                 <label class="form-label fw-bold text-dark small text-uppercase">Đại Diện KFM (TGĐ):</label>
-                                <input type="text" class="form-control form-control-sm fw-semibold" id="doc-input-kfm" value="NGUYỄN HOÀNG LÂM" onkeyup="updateDocPreview()">
+                                <input type="text" class="form-control form-control-sm fw-semibold" id="doc-input-kfm" value="Nguyễn Hoàng Lâm" onkeyup="updateDocPreview()">
                             </div>
                         </div>
 
@@ -4107,6 +4107,23 @@
             }
         }
 
+        function cleanWarehouseName(w) {
+            if (!w) return 'KHO SEEDLOG';
+            let s = w.trim();
+            let u = s.toUpperCase();
+            if (u.includes('SEEDLOG') || u.includes('SEEDCOM') || u.includes('KHO TỔNG')) return 'KHO SEEDLOG';
+            if (u.includes('MEAT') || u.includes('THỊT')) return 'KHO MEATFISH';
+            if (u.includes('RAU') || u.includes('KRC')) return 'KHO RAU CỦ';
+            if (u.includes('ĐÔNG MÁT') || u.includes('BÌNH TÂN') || u.includes('ABA')) return 'KHO ĐÔNG MÁT';
+            if (u.includes('ĐÔNG')) return 'KHO ĐÔNG';
+            if (u.includes('MÁT')) return 'KHO MÁT';
+            let cleaned = s.replace(/\(.*?\)/g, '').trim();
+            if (!cleaned.toUpperCase().startsWith('KHO ') && !cleaned.toUpperCase().startsWith('DC ')) {
+                cleaned = 'KHO ' + cleaned;
+            }
+            return cleaned.toUpperCase();
+        }
+
         function updateDocPreview() {
             const w = document.getElementById('doc-input-warehouse') ? document.getElementById('doc-input-warehouse').value : 'KHO MEATFISH';
             const m = document.getElementById('doc-input-month') ? document.getElementById('doc-input-month').value : '08';
@@ -4117,13 +4134,13 @@
             const vatType = document.getElementById('doc-input-vat') ? document.getElementById('doc-input-vat').value : 'Chưa VAT';
             const words = document.getElementById('doc-preview-words') ? document.getElementById('doc-preview-words').innerText : '';
             const scf = document.getElementById('doc-input-scf') ? document.getElementById('doc-input-scf').value : 'Nguyễn Ngọc Xuân Quang';
-            const kfm = document.getElementById('doc-input-kfm') ? document.getElementById('doc-input-kfm').value : 'NGUYỄN HOÀNG LÂM';
+            const kfm = document.getElementById('doc-input-kfm') ? document.getElementById('doc-input-kfm').value : 'Nguyễn Hoàng Lâm';
 
             const container = document.getElementById('doc-a4-preview-container');
             if (!container) return;
 
             let dp = dateStr.split('/');
-            let dateText = (dp.length === 3) ? `TP.HCM, ngày ${dp[0]} tháng ${dp[1]} năm ${dp[2]}` : `TP.HCM, ngày ${dateStr}`;
+            let dateText = (dp.length === 3) ? `TPHCM, ngày ${dp[0]} tháng ${dp[1]} năm ${dp[2]}` : `TPHCM, ngày ${dateStr}`;
 
             const isPostVat = vatType.includes('Gồm') || vatType.includes('gồm');
             const vatLabel = isPostVat ? 'Gồm VAT' : 'Chưa VAT';
@@ -4133,142 +4150,166 @@
             let totalPost = 0;
 
             if (currentDocPreviewSubtab === 'quyet_dinh') {
-                let tableHtml = '';
-                if (currentDocInvoices && currentDocInvoices.length > 1) {
-                    totalPre = currentDocInvoices.reduce((a, b) => a + (b.pre_tax || 0), 0);
-                    totalPost = currentDocInvoices.reduce((a, b) => a + (b.post_tax || 0), 0);
-                    totSl = currentDocInvoices.reduce((a, b) => a + (b.qty || 0), 0);
-                    effectiveAmt = isPostVat ? totalPost : totalPre;
+                const whClean = cleanWarehouseName(w);
 
-                    // BẢNG KÊ NHIỀU HÓA ĐƠN (6 CỘT)
-                    let rowsHtml = currentDocInvoices.map((it, idx) => `
-                        <tr>
-                            <td style="border: 1px solid #111; padding: 5px 6px; text-align: center;">${idx + 1}</td>
-                            <td style="border: 1px solid #111; padding: 5px 6px; font-size: 11px;">${it.content}</td>
-                            <td style="border: 1px solid #111; padding: 5px 6px; text-align: right; font-weight: bold;">${(it.qty && it.qty > 0) ? it.qty.toLocaleString('vi-VN') : ''}</td>
-                            <td style="border: 1px solid #111; padding: 5px 6px; text-align: right;">${new Intl.NumberFormat('vi-VN').format(it.pre_tax)}</td>
-                            <td style="border: 1px solid #111; padding: 5px 6px; text-align: right; font-weight: bold; color: #dc2626;">${new Intl.NumberFormat('vi-VN').format(it.post_tax)}</td>
-                            <td style="border: 1px solid #111; padding: 5px 6px; text-align: center; font-size: 11px;">${it.co_number || ''}</td>
-                        </tr>
-                    `).join('');
-
-                    tableHtml = `
-                        <table style="width: 100%; border-collapse: collapse; margin: 12px 0 16px 0; font-size: 12px;">
-                            <thead>
-                                <tr style="background-color: #f1f5f9;">
-                                    <th style="border: 1px solid #111; padding: 6px 4px; text-align: center; width: 35px;">STT</th>
-                                    <th style="border: 1px solid #111; padding: 6px 8px; text-align: center;">Biên bản</th>
-                                    <th style="border: 1px solid #111; padding: 6px 4px; text-align: right; width: 50px;">SL</th>
-                                    <th style="border: 1px solid #111; padding: 6px 6px; text-align: right; width: 85px;">GT</th>
-                                    <th style="border: 1px solid #111; padding: 6px 6px; text-align: right; width: 95px; color: #dc2626;">GT (Gồm VAT)</th>
-                                    <th style="border: 1px solid #111; padding: 6px 4px; text-align: center; width: 90px;">CO</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${rowsHtml}
-                                <tr style="font-weight: bold; background-color: #f8fafc;">
-                                    <td style="border: 1px solid #111; padding: 6px 4px;"></td>
-                                    <td style="border: 1px solid #111; padding: 6px 8px; text-align: center;">Total</td>
-                                    <td style="border: 1px solid #111; padding: 6px 4px; text-align: right;">${(totSl && totSl > 0) ? totSl.toLocaleString('vi-VN') : ''}</td>
-                                    <td style="border: 1px solid #111; padding: 6px 6px; text-align: right;">${new Intl.NumberFormat('vi-VN').format(totalPre)}</td>
-                                    <td style="border: 1px solid #111; padding: 6px 6px; text-align: right; color: #dc2626;">${new Intl.NumberFormat('vi-VN').format(totalPost)}</td>
-                                    <td style="border: 1px solid #111; padding: 6px 4px;"></td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    `;
-                } else {
-                    // BẢNG TỔNG HỢP 5 CỘT
-                    tableHtml = `
-                        <table style="width: 100%; border-collapse: collapse; margin: 12px 0 16px 0; font-size: 13px; text-align: left;">
-                            <thead>
-                                <tr style="background-color: #f8f9fa;">
-                                    <th style="border: 1px solid #111; padding: 6px 8px; text-align: center; width: 60px;">Tháng</th>
-                                    <th style="border: 1px solid #111; padding: 6px 8px;">Tên kho</th>
-                                    <th style="border: 1px solid #111; padding: 6px 8px; text-align: right; width: 100px;">SL Chênh lệch</th>
-                                    <th style="border: 1px solid #111; padding: 6px 8px; text-align: right; width: 130px;">Giá trị (VNĐ)</th>
-                                    <th style="border: 1px solid #111; padding: 6px 8px; text-align: center; width: 110px;">Ghi chú</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr>
-                                    <td style="border: 1px solid #111; padding: 6px 8px; text-align: center;">${m}</td>
-                                    <td style="border: 1px solid #111; padding: 6px 8px; font-weight: bold;">${w}</td>
-                                    <td style="border: 1px solid #111; padding: 6px 8px; text-align: right;">(${qty.toLocaleString('vi-VN')})</td>
-                                    <td style="border: 1px solid #111; padding: 6px 8px; text-align: right; font-weight: bold; color: #dc2626;">(${amt.toLocaleString('vi-VN')})</td>
-                                    <td style="border: 1px solid #111; padding: 6px 8px; text-align: center;">Claim DC 100%</td>
-                                </tr>
-                                <tr style="font-weight: bold; background-color: #fafafa;">
-                                    <td style="border: 1px solid #111; padding: 6px 8px; text-align: center;">Grand Total</td>
-                                    <td style="border: 1px solid #111; padding: 6px 8px;"></td>
-                                    <td style="border: 1px solid #111; padding: 6px 8px; text-align: right;">(${qty.toLocaleString('vi-VN')})</td>
-                                    <td style="border: 1px solid #111; padding: 6px 8px; text-align: right; color: #dc2626;">(${amt.toLocaleString('vi-VN')})</td>
-                                    <td style="border: 1px solid #111; padding: 6px 8px;"></td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    `;
+                let tableItems = [];
+                if (currentDocInvoices && currentDocInvoices.length > 0) {
+                    tableItems = currentDocInvoices.map(it => {
+                        let sl = Math.abs(parseFloat(it.qty) || 0);
+                        let pre = Math.abs(parseFloat(it.pre_tax) || 0);
+                        let post = Math.abs(parseFloat(it.post_tax) || 0);
+                        if (post === 0 && pre > 0) post = Math.round(pre * 1.08);
+                        if (pre === 0 && post > 0) pre = Math.round(post / 1.08);
+                        let co = it.co_number || it.content || it.invoice_number || '';
+                        return { co, sl, pre, post };
+                    });
                 }
+
+                if (tableItems.length === 0) {
+                    let sl = Math.abs(qty);
+                    let pre = 0, post = 0;
+                    if (isPostVat) {
+                        post = Math.abs(amt);
+                        pre = Math.round(post / 1.08);
+                    } else {
+                        pre = Math.abs(amt);
+                        post = Math.round(pre * 1.08);
+                    }
+                    tableItems.push({ co: '', sl, pre, post });
+                } else if (tableItems.length === 1 && (amt > 0 || qty > 0)) {
+                    tableItems[0].sl = Math.abs(qty);
+                    if (isPostVat) {
+                        tableItems[0].post = Math.abs(amt);
+                        tableItems[0].pre = Math.round(amt / 1.08);
+                    } else {
+                        tableItems[0].pre = Math.abs(amt);
+                        tableItems[0].post = Math.round(amt * 1.08);
+                    }
+                }
+
+                totSl = tableItems.reduce((a, b) => a + b.sl, 0);
+                totalPre = tableItems.reduce((a, b) => a + b.pre, 0);
+                totalPost = tableItems.reduce((a, b) => a + b.post, 0);
+
+                const numRows = tableItems.length;
+                const fmtComma = (val) => new Intl.NumberFormat('en-US').format(Math.round(val || 0));
+
+                let tbodyHtml = '';
+                tableItems.forEach((it, idx) => {
+                    let slStr = it.sl ? `(${fmtComma(it.sl)})` : '-';
+                    let preStr = it.pre ? `(${fmtComma(it.pre)})` : '-';
+                    let postStr = it.post ? `(${fmtComma(it.post)})` : '-';
+
+                    tbodyHtml += `<tr>`;
+                    if (idx === 0) {
+                        tbodyHtml += `<td rowspan="${numRows}" style="border: 1px solid #111; padding: 6px 6px; text-align: center; vertical-align: middle; width: 75px;">Tháng ${m}</td>`;
+                        tbodyHtml += `<td rowspan="${numRows}" style="border: 1px solid #111; padding: 6px 8px; text-align: center; vertical-align: middle; width: 115px;">${whClean}</td>`;
+                    }
+                    tbodyHtml += `<td style="border: 1px solid #111; padding: 6px 8px; text-align: left; vertical-align: middle; white-space: pre-line; width: 95px;">${it.co}</td>`;
+                    tbodyHtml += `<td style="border: 1px solid #111; padding: 6px 6px; text-align: right; vertical-align: middle; width: 85px;">${slStr}</td>`;
+                    tbodyHtml += `<td style="border: 1px solid #111; padding: 6px 6px; text-align: right; vertical-align: middle; width: 95px;">${preStr}</td>`;
+                    tbodyHtml += `<td style="border: 1px solid #111; padding: 6px 6px; text-align: right; vertical-align: middle; width: 100px;">${postStr}</td>`;
+                    if (idx === 0) {
+                        tbodyHtml += `<td rowspan="${numRows}" style="border: 1px solid #111; padding: 6px 6px; text-align: center; vertical-align: middle; width: 95px;">Claim DC 100%</td>`;
+                    }
+                    tbodyHtml += `</tr>`;
+                });
+
+                // Grand Total Row
+                let grandSlStr = totSl ? `(${fmtComma(totSl)})` : '-';
+                let grandPreStr = totalPre ? `(${fmtComma(totalPre)})` : '-';
+                let grandPostStr = totalPost ? `(${fmtComma(totalPost)})` : '-';
+
+                tbodyHtml += `
+                    <tr style="font-weight: bold;">
+                        <td style="border: 1px solid #111; padding: 6px 6px;"></td>
+                        <td style="border: 1px solid #111; padding: 6px 8px; text-align: left;">Grand Total</td>
+                        <td style="border: 1px solid #111; padding: 6px 8px;"></td>
+                        <td style="border: 1px solid #111; padding: 6px 6px; text-align: right;">${grandSlStr}</td>
+                        <td style="border: 1px solid #111; padding: 6px 6px; text-align: right;">${grandPreStr}</td>
+                        <td style="border: 1px solid #111; padding: 6px 6px; text-align: right;">${grandPostStr}</td>
+                        <td style="border: 1px solid #111; padding: 6px 6px;"></td>
+                    </tr>
+                `;
+
+                let tableHtml = `
+                    <table style="width: 100%; border-collapse: collapse; margin: 12px 0 16px 0; font-size: 12.5px; border: 1px solid #111;">
+                        <thead>
+                            <tr style="font-weight: bold;">
+                                <th style="border: 1px solid #111; padding: 6px 6px; text-align: center; width: 75px;">Tháng</th>
+                                <th style="border: 1px solid #111; padding: 6px 8px; text-align: center; width: 115px;">Tên kho</th>
+                                <th style="border: 1px solid #111; padding: 6px 8px; text-align: center; width: 95px;">CO</th>
+                                <th style="border: 1px solid #111; padding: 6px 6px; text-align: center; width: 85px;">SL Chênh lệch</th>
+                                <th style="border: 1px solid #111; padding: 6px 6px; text-align: center; width: 95px;">Giá trị</th>
+                                <th style="border: 1px solid #111; padding: 6px 6px; text-align: center; width: 100px;">Giá trị (VAT)</th>
+                                <th style="border: 1px solid #111; padding: 6px 6px; text-align: center; width: 95px;">Ghi chú</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${tbodyHtml}
+                        </tbody>
+                    </table>
+                `;
 
                 container.innerHTML = `
                     <div style="max-width: 650px; margin: 0 auto; line-height: 1.45; font-size: 13px; color: #111;">
                         <table style="width: 100%; border: none; margin-bottom: 18px;">
                             <tr>
-                                <td style="width: 48%; text-align: center; vertical-align: top; line-height: 1.3;">
-                                    <div style="font-weight: bold; font-size: 12.5px;">CÔNG TY CỔ PHẦN KINGFOOD MARKET</div>
-                                    <div style="font-size: 11px; margin-top: 2px;">---------o0o---------</div>
+                                <td style="width: 48%; text-align: center; vertical-align: top; line-height: 1.35;">
+                                    <div style="font-weight: bold; font-size: 13px;">CÔNG TY CỔ PHẦN</div>
+                                    <div style="font-weight: bold; font-size: 13px;">KING FOOD MARKET</div>
+                                    <div style="font-size: 11px; margin-top: 2px; letter-spacing: 2px;">*****</div>
                                 </td>
-                                <td style="width: 52%; text-align: center; vertical-align: top; line-height: 1.3;">
+                                <td style="width: 52%; text-align: center; vertical-align: top; line-height: 1.35;">
                                     <div style="font-weight: bold; font-size: 12.5px;">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</div>
-                                    <div style="font-weight: bold; font-size: 11.5px;">Độc lập – Tự do – Hạnh phúc</div>
-                                    <div style="font-size: 10.5px;">---------o0o---------</div>
+                                    <div style="font-weight: bold; font-size: 12px;">Độc lập – Tự do – Hạnh phúc</div>
+                                    <div style="font-size: 11px; letter-spacing: 2px;">********</div>
                                     <div style="font-style: italic; font-size: 11.5px; margin-top: 4px;">${dateText}</div>
                                 </td>
                             </tr>
                         </table>
 
                         <div style="text-align: center; margin: 18px 0 14px 0;">
-                            <div style="font-weight: bold; font-size: 15.5px; text-transform: uppercase; letter-spacing: 0.5px;">QUYẾT ĐỊNH</div>
-                            <div style="font-weight: bold; font-size: 13px; margin-top: 4px;">Về việc truy thu giá trị claim ${w} tháng ${m}/${y}</div>
-                            <div style="font-size: 11px; letter-spacing: 2px;">-------------------------</div>
+                            <div style="font-weight: bold; font-size: 16px; text-transform: uppercase; letter-spacing: 0.5px;">QUYẾT ĐỊNH</div>
+                            <div style="font-weight: bold; font-size: 13.5px; margin-top: 4px;">Về việc truy thu giá trị claim ${whClean} tháng ${m}/${y}</div>
+                            <div style="font-size: 11px; letter-spacing: 1px;">-------------------------</div>
                         </div>
 
-                        <div style="font-style: italic; font-size: 12.5px; margin-bottom: 10px; text-align: justify; line-height: 1.4;">
-                            - Căn cứ vào kết quả giao nhận và kiểm tra thực tế tháng ${m}/${y}<br>
-                            - Căn cứ kết quả đối chiếu của KFM và SCF
+                        <div style="font-style: italic; font-size: 13px; margin-bottom: 10px; text-align: justify; line-height: 1.45;">
+                            <div>- Căn cứ vào kết quả giao nhận và kiểm tra thực tế tháng ${m}/${y}</div>
+                            <div>- Căn cứ kết quả đối chiếu của KFM và SCF</div>
                         </div>
 
-                        <div style="font-size: 13px; margin-bottom: 8px; text-align: justify; line-height: 1.4;">
+                        <div style="font-size: 13px; margin-bottom: 8px; text-align: justify; line-height: 1.45;">
                             <strong>Điều 1:</strong> Ghi nhận truy thu/bồi hoàn số lượng và giá trị theo thông tin bên dưới và bảng kê đính kèm:
                         </div>
 
                         ${tableHtml}
 
-                        <div style="font-size: 12.5px; line-height: 1.45; margin: 10px 0; text-align: justify;">
-                            • Chi phí ${w} T${m}/${y} (${vatLabel.toLowerCase()}):<br>
-                            &nbsp;&nbsp;- Tổng giá trị chênh lệch kho: (${effectiveAmt.toLocaleString('vi-VN')}) VNĐ (${vatLabel})<br>
-                            &nbsp;&nbsp;- Tỷ lệ quy trách nhiệm: DC (SCF) chịu 100% giá trị.<br>
-                            &nbsp;&nbsp;- Tổng GT truy thu SCF (100%): (${effectiveAmt.toLocaleString('vi-VN')} VNĐ) (${vatLabel})<br>
-                            &nbsp;&nbsp;&nbsp;&nbsp;<em>(Bằng chữ: ${words})</em>
+                        <div style="font-size: 13px; line-height: 1.5; margin: 12px 0 10px 0; text-align: justify;">
+                            <div>&bull; Chi phí ${whClean} T${m}/${y} (VAT): <strong>${fmtComma(totalPost)} VNĐ</strong></div>
+                            <div style="margin-left: 10px;">- Tổng giá trị chênh lệch kho: (${fmtComma(totalPre)}) VNĐ (Chưa VAT)</div>
+                            <div style="margin-left: 10px;">- Tỷ lệ quy trách nhiệm: DC (SCF) chịu 100% giá trị.</div>
+                            <div style="margin-left: 10px;">(Bằng chữ: ${words})</div>
                         </div>
 
-                        <div style="font-size: 12.5px; margin-bottom: 10px; text-align: justify; line-height: 1.45;">
-                            <strong>Điều 2:</strong> Khoản truy thu này sẽ được ghi nhận vào điều chỉnh năm ${y}.<br>
-                            <strong>Điều 3:</strong> Quyết định có hiệu lực kể từ ngày ký. Các Phòng Ban SCF, KFM có nghĩa vụ thực hiện theo quyết định này.
+                        <div style="font-size: 13px; margin-bottom: 12px; text-align: justify; line-height: 1.5;">
+                            <div><strong>Điều 2:</strong> Khoản truy thu này sẽ được ghi nhận vào điều chỉnh năm ${y}.</div>
+                            <div><strong>Điều 3:</strong> Quyết định có hiệu lực kể từ ngày ký. Các Phòng Ban SCF, KFM có nghĩa vụ thực hiện theo quyết định này.</div>
                         </div>
 
-                        <table style="width: 100%; border: none; margin-top: 22px;">
+                        <table style="width: 100%; border: none; margin-top: 26px;">
                             <tr>
-                                <td style="width: 50%; text-align: center; vertical-align: top; line-height: 1.3;">
+                                <td style="width: 50%; text-align: center; vertical-align: top; line-height: 1.35;">
                                     <div style="font-weight: bold; font-size: 13px;">Đại diện SCF</div>
                                     <div style="font-style: italic; font-size: 11.5px; margin-top: 2px;">(Ký, họ tên)</div>
-                                    <div style="height: 48px;"></div>
+                                    <div style="height: 56px;"></div>
                                     <div style="font-weight: bold; font-size: 13px;">${scf}</div>
                                 </td>
-                                <td style="width: 50%; text-align: center; vertical-align: top; line-height: 1.3;">
+                                <td style="width: 50%; text-align: center; vertical-align: top; line-height: 1.35;">
                                     <div style="font-weight: bold; font-size: 13px;">Đại diện KFM</div>
                                     <div style="font-style: italic; font-size: 11.5px; margin-top: 2px;">(Ký, họ tên)</div>
-                                    <div style="height: 48px;"></div>
+                                    <div style="height: 56px;"></div>
                                     <div style="font-weight: bold; font-size: 13px;">${kfm}</div>
                                 </td>
                             </tr>
