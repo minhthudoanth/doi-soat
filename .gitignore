@@ -41,3 +41,4 @@ static/exports/**
 cloudflared.exe
 *.xlsx
 *.docx
+LINK_PUBLIC_HIEN_TAI.txt
