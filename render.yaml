@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: kingfood-scm-web
+    env: python
+    region: singapore
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python app.py
+    envVars:
+      - key: PORT
+        value: 5000
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: STARROCKS_HOST
+        value: 103.147.122.103
+      - key: STARROCKS_PORT
+        value: 9030
+      - key: STARROCKS_USER
+        value: kfm_scm_tho_nguyen
+      - key: STARROCKS_PASSWORD
+        value: oh1dtJwR4ihLGrX4E7bs
+      - key: STARROCKS_DB
+        value: kfm_scm

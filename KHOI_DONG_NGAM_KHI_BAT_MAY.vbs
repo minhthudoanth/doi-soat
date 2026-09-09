@@ -24,3 +24,6 @@ On Error GoTo 0
 
 WshShell.Run """" & pythonExe & """ """ & strCurDir & "\telegram_listener.py""", 0, False
 WshShell.Run """" & pythonExe & """ """ & strCurDir & "\app.py""", 0, False
+If FSO.FileExists(strCurDir & "\cloudflared.exe") Then
+    WshShell.Run """" & strCurDir & "\cloudflared.exe"" tunnel --url http://127.0.0.1:5000", 0, False
+End If
