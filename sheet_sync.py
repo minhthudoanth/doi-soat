@@ -479,10 +479,11 @@ def is_target_produce_or_bakery(cates, pname):
 def sync_inventory_from_sheet():
     """
     Đồng bộ dữ liệu Kiểm kê Nâng tồn (KK NÂNG TỒN) và Mã Âm tồn (DANH SÁCH MÃ ÂM TỒN)
-    từ ngày 01/08 đến nay cho các mặt hàng Rau Củ Quả, Trái Cây, Bánh Tươi / Bakery.
+    TRỰC TIẾP TỪ VPN NỘI BỘ (StarRocks kfm_scm: 103.147.122.103:9030), HOÀN TOÀN KHÔNG DÙNG TOKEN.
     """
     try:
-        from kingfood_api import get_headers
+        from starrocks_db import get_starrocks_conn
+
         conn = get_optimized_conn()
         cursor = conn.cursor()
         
@@ -530,133 +531,146 @@ def sync_inventory_from_sheet():
         cursor.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_neg_unique ON store_negative_stock_records (date, store_id, barcode)")
         conn.commit()
 
-        cursor.execute("SELECT store_id, store_name FROM sheet_store_list")
-        store_map = {r[0]: r[1] for r in cursor.fetchall()}
+        # 1. Truy vấn trực tiếp từ StarRocks VPN kfm_scm
+        conn_sr = get_starrocks_conn(timeout=25)
+        with conn_sr.cursor() as cur_sr:
+            cur_sr.execute("""
+                SELECT ngay, id_st, chi_nhanh, ma_hang, ten_hang, dvt, 
+                       sl_chuyen, sl_nhan, chenh_lech, don_gia, thanh_tien, note, trang_thai
+                FROM krc_dashboard_discrepancies
+                WHERE ngay LIKE '09/%/2026' OR ngay LIKE '08/%/2026'
+                ORDER BY ngay DESC
+            """)
+            disc_rows = cur_sr.fetchall()
 
-        # Tự động cập nhật các phiếu kiểm kê mới nhất
-        from datetime import datetime, timedelta
-        from concurrent.futures import ThreadPoolExecutor, as_completed
-        import urllib.request, json
-
-        skip = 0
-        limit = 100
-        while skip < 200:
-            url = f'https://api.kingfood.co/v1/stocktakes?status=5&sort_by=created_at&sort_type=-1&limit={limit}&skip={skip}'
+            # Lấy thêm các phiếu khiếu nại thiếu hàng từ CDC claim tickets
             try:
-                req = urllib.request.Request(url, headers=get_headers())
-                with urllib.request.urlopen(req, timeout=10) as resp:
-                    data = json.loads(resp.read().decode('utf-8'))
-                    items = data.get('items', [])
-                    if not items:
-                        break
-                    
-                    cutoff_date = (datetime.now() - timedelta(days=2)).strftime('%Y-%m-%d')
-                    reach_end = False
-                    batch_sts = []
-                    for st in items:
-                        created_at_str = st.get('created_at') or st.get('completed_at') or ''
-                        dt_vn = ''
-                        if created_at_str:
-                            try:
-                                dt = datetime.fromisoformat(created_at_str.replace('Z', '+00:00')) + timedelta(hours=7)
-                                dt_vn = dt.strftime('%Y-%m-%d')
-                            except Exception:
-                                dt_vn = created_at_str[:10]
-                        if dt_vn and dt_vn < cutoff_date:
-                            reach_end = True
-                            break
-                        if st.get('total_sku', 0) > 0:
-                            batch_sts.append((st, dt_vn))
-                    if reach_end:
-                        skip = 9999
-
-                    def process_st(item_tuple):
-                        st, date_iso = item_tuple
-                        st_id = st.get('id')
-                        st_code = st.get('code', '')
-                        m = re.search(r'^\d{6}-([A-Za-z0-9]+)-', st_code)
-                        store_code = m.group(1) if m else st.get('branch_id', '')[:8]
-                        store_name = store_map.get(store_code, f"KFM_{store_code}")
-
-                        lines_url = f'https://api.kingfood.co/v1/stocktakes/lines?stocktake_id={st_id}&limit=100'
-                        res_items = []
-                        try:
-                            r_lines = urllib.request.Request(lines_url, headers=get_headers())
-                            with urllib.request.urlopen(r_lines, timeout=8) as res_l:
-                                l_data = json.loads(res_l.read().decode('utf-8'))
-                                for line in l_data.get('items', []):
-                                    bcode = str(line.get('barcode') or '').strip()
-                                    pname = str(line.get('name') or '').strip()
-                                    if not bcode or not pname:
-                                        continue
-                                    cates = line.get('cates', [])
-                                    is_tgt, cat_name = is_target_produce_or_bakery(cates, pname)
-                                    if not is_tgt:
-                                        continue
-                                    diff_q = float(line.get('diff_quantity') or 0.0)
-                                    stock_q = float(line.get('stock_quantity') or 0.0)
-                                    actual_q = float(line.get('actual_stock_quantity') or 0.0)
-                                    diff_v = float(line.get('diff_value') or 0.0)
-                                    cost = float(line.get('cost') or 0.0)
-                                    price = float(line.get('price') or 0.0)
-                                    res_items.append((date_iso, store_code, store_name, st_code, bcode, pname, cat_name, stock_q, diff_q, diff_v, cost, price, actual_q))
-                        except Exception:
-                            pass
-                        return res_items
-
-                    nang_rows = []
-                    am_rows = []
-                    with ThreadPoolExecutor(max_workers=8) as ex:
-                        futures = [ex.submit(process_st, it) for it in batch_sts]
-                        for f in as_completed(futures):
-                            for (date_iso, store_code, store_name, st_code, bcode, pname, cat_name, stock_q, diff_q, diff_v, cost, price, actual_q) in f.result():
-                                if diff_v <= 0 and diff_q > 0:
-                                    diff_v = diff_q * (cost if cost > 0 else price)
-                                if diff_q > 0:
-                                    audit_note = f"Phiếu KK {st_code} (Sổ sách: {stock_q} -> Thực tế: {actual_q})"
-                                    status_lbl = "Bất thường" if diff_v > 200000 else ("Cần lưu ý" if diff_v > 50000 else "Đã kiểm kê")
-                                    nang_rows.append((
-                                        date_iso, store_code, store_name, bcode, bcode, pname, cat_name,
-                                        stock_q, diff_q, round(diff_v, 0), 0.0, 0.0, 0.0, actual_q,
-                                        audit_note, status_lbl
-                                    ))
-                                if stock_q < 0:
-                                    neg_val = abs(stock_q) * (cost if cost > 0 else price)
-                                    neg_note = f"Tồn sổ sách bị âm ({stock_q}) trước khi kiểm kê {st_code}"
-                                    am_rows.append((
-                                        date_iso, store_code, store_name, bcode, bcode, pname, cat_name,
-                                        abs(stock_q), round(neg_val, 0), stock_q, neg_note, "Cần bù tồn"
-                                    ))
-
-                    if nang_rows:
-                        cursor.executemany("""
-                            INSERT OR REPLACE INTO store_inventory_records (
-                                date, store_id, store_name, barcode, sku, product_name, category_name,
-                                opening_stock, stocktake_in_qty, stocktake_in_value, stocktake_out_qty, stocktake_out_value, damage_qty, closing_stock,
-                                audit_note, status
-                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                        """, nang_rows)
-                    if am_rows:
-                        cursor.executemany("""
-                            INSERT OR REPLACE INTO store_negative_stock_records (
-                                date, store_id, store_name, barcode, sku, product_name, category_name,
-                                negative_qty, negative_value, closing_stock, reason, status
-                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                        """, am_rows)
-                    conn.commit()
-                    skip += limit
+                cur_sr.execute("""
+                    SELECT created_at, request_branch__code, barcode, product_name, 
+                           requested_qty, request_claim_qty, code, note, inventory_transfer__code
+                    FROM __cdc_kfm_kf_inventories_kf_claim_tickets
+                    WHERE created_at >= '2026-08-01'
+                    ORDER BY created_at DESC
+                    LIMIT 5000
+                """)
+                claim_rows = cur_sr.fetchall()
             except Exception:
-                break
+                claim_rows = []
+
+        conn_sr.close()
+
+        def classify_category(name):
+            n = (name or '').lower()
+            if any(k in n for k in ['bơ', 'dưa', 'táo', 'nho', 'cam', 'quýt', 'chuối', 'bưởi', 'lê', 'sầu riêng', 'mận', 'cóc', 'ổi', 'xoài', 'thanh long', 'trái cây', 'dứa', 'kiwi', 'cherry']):
+                return 'Trái Cây'
+            if any(k in n for k in ['bánh', 'mì', 'sandwich', 'croissant', 'patis', 'bakery', 'flan', 'bánh mì']):
+                return 'Bánh Tươi / Bakery'
+            return 'Rau Củ Quả'
+
+        nang_records = []
+        am_records = []
+
+        for r in disc_rows:
+            ngay_raw = str(r[0] or '')
+            if '/' in ngay_raw:
+                p = ngay_raw.split('/')
+                if len(p) == 3:
+                    # Format trong StarRocks là MM/DD/YYYY
+                    date_iso = f"{p[2]}-{p[0].zfill(2)}-{p[1].zfill(2)}"
+                else:
+                    date_iso = ngay_raw
+            else:
+                date_iso = ngay_raw
+
+            store_id = str(r[1] or '').strip()
+            store_name = str(r[2] or '').strip()
+            barcode = str(r[3] or '').strip()
+            pname = str(r[4] or '').strip()
+            if not barcode or not pname:
+                continue
+
+            sl_chuyen = float(r[6] or 0.0)
+            sl_nhan = float(r[7] or 0.0)
+            chenh_lech = float(r[8] or 0.0)
+            don_gia = float(r[9] or 0.0)
+            thanh_tien = float(r[10] or 0.0)
+            if thanh_tien <= 0 and don_gia > 0 and chenh_lech != 0:
+                thanh_tien = abs(chenh_lech) * don_gia
+            note = str(r[11] or '').strip()
+            status = str(r[12] or 'Đã đối soát').strip()
+            cat = classify_category(pname)
+
+            if chenh_lech > 0:
+                audit_note = f"Chênh lệch thừa (+{chenh_lech}): {note}" if note else f"Phiếu lệch thừa (+{chenh_lech})"
+                nang_records.append((
+                    date_iso, store_id, store_name, barcode, barcode, pname, cat,
+                    sl_chuyen, chenh_lech, round(thanh_tien, 0), 0.0, 0.0, 0.0, sl_nhan,
+                    audit_note, status
+                ))
+            elif chenh_lech < 0:
+                audit_note = f"Chênh lệch thiếu ({chenh_lech}): {note}" if note else f"Phiếu lệch thiếu ({chenh_lech})"
+                am_records.append((
+                    date_iso, store_id, store_name, barcode, barcode, pname, cat,
+                    abs(chenh_lech), round(thanh_tien, 0), sl_nhan, audit_note, status
+                ))
+
+        # Thêm claim tickets
+        for r in claim_rows:
+            c_at = str(r[0] or '')[:10]
+            st_code = str(r[1] or '').strip()
+            bcode = str(r[2] or '').strip()
+            pname = str(r[3] or '').strip()
+            if not bcode or not pname:
+                continue
+            qty = float(r[5] or r[4] or 0.0)
+            code = str(r[6] or '')
+            note = str(r[7] or '')
+            pt = str(r[8] or '')
+            cat = classify_category(pname)
+            reason = f"Phiếu khiếu nại {code} (PT {pt}): {note}" if note else f"Khiếu nại {code} (PT {pt})"
+
+            am_records.append((
+                c_at, st_code, f"KFM_{st_code}", bcode, bcode, pname, cat,
+                qty, 0.0, 0.0, reason, "Cần bù tồn"
+            ))
+
+        cursor.execute("DELETE FROM store_inventory_records WHERE date >= '2026-08-01'")
+        cursor.execute("DELETE FROM store_negative_stock_records WHERE date >= '2026-08-01'")
+
+        cursor.executemany("""
+            INSERT OR REPLACE INTO store_inventory_records (
+                date, store_id, store_name, barcode, sku, product_name, category_name,
+                opening_stock, stocktake_in_qty, stocktake_in_value, stocktake_out_qty, stocktake_out_value, damage_qty, closing_stock,
+                audit_note, status
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, nang_records)
+
+        cursor.executemany("""
+            INSERT OR REPLACE INTO store_negative_stock_records (
+                date, store_id, store_name, barcode, sku, product_name, category_name,
+                negative_qty, negative_value, closing_stock, reason, status
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, am_records)
+
+        conn.commit()
 
         cursor.execute("SELECT COUNT(*) FROM store_inventory_records")
         cnt_nang = cursor.fetchone()[0]
         cursor.execute("SELECT COUNT(*) FROM store_negative_stock_records")
         cnt_am = cursor.fetchone()[0]
         conn.close()
-        return {"success": True, "increase_count": cnt_nang, "negative_count": cnt_am, "source": "api_live"}
+
+        return {
+            "success": True,
+            "increase_count": cnt_nang,
+            "negative_count": cnt_am,
+            "new_items_added": len(nang_records),
+            "source": "StarRocks VPN (103.147.122.103 kfm_scm)",
+            "vpn_connected": True
+        }
     except Exception as e:
-        print(f"[!] Lỗi sync_inventory_from_sheet: {e}", flush=True)
-        return {"success": False, "error": str(e)}
+        print(f"[!] Lỗi sync_inventory_from_vpn: {e}", flush=True)
+        return {"success": False, "error": f"Lỗi đồng bộ từ StarRocks VPN: {e}", "vpn_connected": False}
 
 
 DEFAULT_INVOICE_SHEET_URL = "https://docs.google.com/spreadsheets/d/1YfpVHQbowoSj6lN-8KW0d1UmCKy4sy2PesB7g9yNG4M/export?format=csv&gid=0"

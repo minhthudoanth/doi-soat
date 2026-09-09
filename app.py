@@ -62,12 +62,12 @@ import io
 import csv
 import sqlite3
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 
-from flask import Flask, render_template, jsonify, request, send_file, Response
+from flask import Flask, render_template, jsonify, request, send_file, Response, session, redirect, url_for
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment
-from config import DB_PATH
+from config import DB_PATH, DASHBOARD_AUTH_ENABLED, DASHBOARD_PASSWORD, SECRET_KEY
 from database import init_db
 from kingfood_api import lookup_pt_kingfood
 from telegram_sender import get_all_store_chats, send_telegram_messages
@@ -77,6 +77,8 @@ import asyncio
 from database import init_db, get_optimized_conn
 
 app = Flask(__name__)
+app.secret_key = SECRET_KEY
+app.permanent_session_lifetime = timedelta(days=7)
 app.config['TEMPLATES_AUTO_RELOAD'] = True
 app.jinja_env.auto_reload = True
 
@@ -304,6 +306,54 @@ def parse_full_audit(text, created_at=""):
 
 
 
+
+@app.before_request
+def check_dashboard_auth():
+    if not DASHBOARD_AUTH_ENABLED:
+        return None
+    
+    path = request.path
+    # Bỏ qua các tài nguyên tĩnh, trang login, logout và icon
+    if (path.startswith('/static/') or 
+        path in ('/login', '/logout', '/favicon.ico')):
+        return None
+
+    # Nếu chưa đăng nhập
+    if not session.get('logged_in'):
+        if path.startswith('/api/'):
+            return jsonify({
+                'success': False,
+                'error': 'Yêu cầu mật khẩu xác thực để truy cập dữ liệu SCM.',
+                'require_login': True
+            }), 401
+        return redirect(url_for('login', next=path))
+    return None
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if session.get('logged_in'):
+        return redirect(url_for('index'))
+    
+    next_url = request.args.get('next') or request.form.get('next') or '/'
+    error = None
+
+    if request.method == 'POST':
+        entered_password = request.form.get('password', '').strip()
+        if entered_password == DASHBOARD_PASSWORD:
+            session.permanent = True
+            session['logged_in'] = True
+            session['login_time'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            return redirect(next_url)
+        else:
+            error = "Mật khẩu không chính xác. Vui lòng kiểm tra lại!"
+
+    return render_template('login.html', error=error, next_url=next_url)
+
+@app.route('/logout', methods=['GET', 'POST'])
+def logout():
+    session.pop('logged_in', None)
+    session.clear()
+    return redirect(url_for('login'))
 
 @app.route('/')
 def index():
@@ -882,7 +932,23 @@ def api_inventory_vpn_status():
         'nodes': {}
     }
 
-    # 1. Kiểm tra socket kết nối đến Primary (10.99.0.1) và Secondary (10.100.0.1)
+    # 1. Kiểm tra socket kết nối đến StarRocks VPN (103.147.122.103:9030) và các node VPN
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.settimeout(1.2)
+        sr_res = s.connect_ex(('103.147.122.103', 9030))
+        s.close()
+        details['nodes']['103.147.122.103:9030'] = {
+            'label': 'StarRocks SCM Cluster (kfm_scm)',
+            'port_open': (sr_res == 0),
+            'status': 'ONLINE' if sr_res == 0 else 'UNREACHABLE'
+        }
+        if sr_res == 0:
+            vpn_online = True
+            details['starrocks_status'] = 'CONNECTED'
+    except Exception as e:
+        details['nodes']['103.147.122.103:9030'] = {'label': 'StarRocks', 'port_open': False, 'error': str(e)}
+
     for host_ip, label in [('10.99.0.1', 'Primary (VIETTEL)'), ('10.100.0.1', 'Secondary (VNPT)')]:
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -899,23 +965,6 @@ def api_inventory_vpn_status():
         except Exception as e:
             details['nodes'][host_ip] = {'label': label, 'port_open': False, 'error': str(e)}
 
-    # 2. Sử dụng pymongo thăm dò thông tin cụm ReplicaSet rs0
-    if vpn_online:
-        details['mongodb_status'] = 'CONNECTED'
-        try:
-            import pymongo
-            client = pymongo.MongoClient('mongodb://10.99.0.1:27017/?directConnection=true', serverSelectionTimeoutMS=1200)
-            hello_info = client.admin.command('hello')
-            details['replica_set'] = hello_info.get('setName', 'rs0')
-            details['primary_host'] = hello_info.get('primary', 'mongovpn01:27017')
-            details['is_writable_primary'] = hello_info.get('isWritablePrimary', True)
-            details['cluster_hosts'] = hello_info.get('hosts', [])
-            last_write = hello_info.get('lastWrite', {}).get('lastWriteDate')
-            if last_write:
-                details['last_write_utc'] = str(last_write)
-        except Exception as pe:
-            details['cluster_probe_note'] = str(pe)
-
     conn = get_optimized_conn()
     c = conn.cursor()
     c.execute("SELECT COUNT(*) FROM store_inventory_records")
@@ -927,7 +976,7 @@ def api_inventory_vpn_status():
     return jsonify({
         'success': True,
         'vpn_online': vpn_online,
-        'source': 'Mạng Nội Bộ VPN (Cụm MongoDB rs0 10.99.0.1/10.100.0.1)' if vpn_online else 'Bộ Nhớ Đệm CSDL Nội Bộ (Local Cache)',
+        'source': 'StarRocks VPN Chung (103.147.122.103:9030 kfm_scm)' if vpn_online else 'Bộ Nhớ Đệm CSDL Nội Bộ (Local Cache)',
         'inventory_records': inv_count,
         'negative_records': neg_count,
         'details': details
@@ -937,33 +986,42 @@ def api_inventory_vpn_status():
 @app.route('/api/inventory/sync_vpn', methods=['GET', 'POST'])
 def api_inventory_sync():
     """
-    Đồng bộ dữ liệu tồn kho trực tiếp từ nguồn mạng nội bộ VPN & SQLite
-    Đã ngắt hoàn toàn kết nối tới web kdb https://kdb.kingfood.co/login và https://next.kingfood.co/login
+    Đồng bộ dữ liệu tồn kho trực tiếp từ nguồn mạng nội bộ StarRocks VPN (103.147.122.103:9030, DB kfm_scm)
+    Hoàn toàn không cần token web hay đăng nhập
     """
-    import socket
-    vpn_connected = False
-    try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.settimeout(0.8)
-        vpn_connected = (s.connect_ex(('10.99.0.1', 27017)) == 0 or s.connect_ex(('10.100.0.1', 27017)) == 0)
-        s.close()
-    except Exception:
-        pass
-
     from sheet_sync import sync_inventory_from_sheet
     res = sync_inventory_from_sheet()
-    res['vpn_connected'] = vpn_connected
-    res['source'] = 'VPN_MONGODB_RS0' if vpn_connected else 'LOCAL_DATABASE_CACHE'
     return jsonify(res)
 
 @app.route('/api/kingfood/token', methods=['GET', 'POST'])
 def api_kingfood_token():
-    # Giữ endpoint giả lập tương thích ngược nhưng không còn yêu cầu đăng nhập web ngoài
+    """
+    Chế độ đồng bộ dữ liệu trực tiếp qua mạng VPN chung (StarRocks kfm_scm),
+    đã loại bỏ hoàn toàn việc dùng token web.
+    """
     return jsonify({
         'success': True,
-        'mode': 'VPN_INTERNAL',
-        'message': 'Đã chuyển sang dùng dữ liệu nội bộ qua cụm CSDL VPN 10.99.0.1:27017 (rs0), không cần token web ngoài.'
+        'mode': 'VPN_DIRECT',
+        'is_expired': False,
+        'message': 'Hệ thống chạy trực tiếp từ VPN chung (StarRocks kfm_scm). Đã loại bỏ hoàn toàn token web.'
     })
+
+@app.route('/api/starrocks/status')
+def api_starrocks_status():
+    """Kiểm tra kết nối mạng VPN và StarRocks 103.147.122.103:9030 (DB: kfm_scm)"""
+    from starrocks_db import check_vpn_and_starrocks
+    res = check_vpn_and_starrocks()
+    return jsonify(res)
+
+@app.route('/api/starrocks/sync', methods=['POST'])
+def api_starrocks_sync():
+    """Kích hoạt đồng bộ dữ liệu từ SQLite cục bộ lên StarRocks (kfm_scm)"""
+    from starrocks_db import sync_sqlite_to_starrocks
+    req_data = request.get_json(silent=True) or {}
+    limit_msg = req_data.get('limit_messages', 2000)
+    limit_disc = req_data.get('limit_discrepancies', 5000)
+    res = sync_sqlite_to_starrocks(limit_messages=limit_msg, limit_discrepancies=limit_disc)
+    return jsonify(res)
 
 
 # =========================================================================

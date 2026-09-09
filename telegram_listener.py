@@ -203,6 +203,24 @@ async def start_listener():
             
             conn.commit()
             print(f"[+] [TIN MỚI REALTIME] {chat_title} | {sender_name}: {text[:50]}...", flush=True)
+
+            # Tự động lưu lên StarRocks (kfm_scm) nếu kết nối VPN
+            try:
+                from starrocks_db import save_message_to_starrocks
+                save_message_to_starrocks(
+                    msg_id=event.id,
+                    chat_id=event.chat_id,
+                    chat_title=chat_title,
+                    sender_id=sender_id,
+                    sender_name=sender_name,
+                    text=text,
+                    category=category,
+                    priority=priority,
+                    issue_type=issue_type,
+                    created_at=date_str
+                )
+            except Exception:
+                pass
         except Exception as e:
             print(f"[!] Lỗi on_new_message: {e}", flush=True)
 

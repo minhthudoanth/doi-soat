@@ -1075,7 +1075,7 @@
                 </div>
                 <div class="d-flex align-items-center gap-2">
                     <span class="badge bg-success-subtle text-success border border-success fw-bold px-3 py-2" id="vpn-status-badge">
-                        <i class="fa-solid fa-shield-halved me-1"></i> NGUỒN: VPN NỘI BỘ (10.100.0.1)
+                        <i class="fa-solid fa-shield-halved me-1"></i> NGUỒN: VPN CHUNG (StarRocks kfm_scm)
                     </span>
                     <button class="btn btn-sm btn-outline-dark fw-semibold px-3 py-2" onclick="openVPNInfoModal()" title="Kiểm tra trạng thái kết nối VPN nội bộ">
                         <i class="fa-solid fa-network-wired me-1"></i> Kiểm Tra VPN
@@ -1572,29 +1572,29 @@
                 </div>
             </div>
 
-            <!-- MODAL THÔNG TIN MẠNG NỘI BỘ VPN (THAY THẾ TOÀN BỘ KDB TOKEN CŨ) -->
+            <!-- MODAL THÔNG TIN MẠNG NỘI BỘ VPN CHUNG (HOÀN TOÀN KHÔNG DÙNG TOKEN) -->
             <div class="modal fade" id="vpnInfoModal" tabindex="-1" aria-hidden="true">
                 <div class="modal-dialog modal-lg">
                     <div class="modal-content border-0 shadow">
                         <div class="modal-header bg-black text-white py-2 px-3">
-                            <h6 class="modal-title font-monospace"><i class="fa-solid fa-shield-halved me-2"></i>Trạng Thái Mạng Nội Bộ VPN (Thay Thế KDB Web)</h6>
+                            <h6 class="modal-title font-monospace"><i class="fa-solid fa-shield-halved me-2"></i>Trạng Thái Mạng VPN Chung (StarRocks kfm_scm)</h6>
                             <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                         </div>
                         <div class="modal-body p-4 bg-white">
                             <div class="alert alert-success border-success d-flex align-items-center mb-3">
                                 <i class="fa-solid fa-circle-check fs-4 me-3 text-success"></i>
                                 <div>
-                                    <div class="fw-bold">Đã ngắt hoàn toàn kết nối với web kdb.kingfood.co và next.kingfood.co</div>
-                                    <div class="small">Từ giờ, tab Tồn Kho kết nối trực tiếp đến Cụm CSDL MongoDB nội bộ (ReplicaSet rs0) qua mạng WireGuard VPN.</div>
+                                    <div class="fw-bold">Hoàn toàn không sử dụng Token web</div>
+                                    <div class="small">Toàn bộ dữ liệu kiểm kê nâng tồn và mã âm tồn được truy xuất trực tiếp từ CSDL StarRocks mạng VPN chung (103.147.122.103:9030) theo thời gian thực.</div>
                                 </div>
                             </div>
                             <div class="p-3 bg-light rounded border font-monospace small mb-3">
                                 <div class="row g-2">
-                                    <div class="col-sm-6"><strong>Server VPN:</strong> VIETTEL-VPN-01 & VNPT-VPN-01</div>
-                                    <div class="col-sm-6"><strong>IP Peer VPN của bạn:</strong> 10.99.0.45 & 10.100.0.50</div>
-                                    <div class="col-sm-6"><strong>Primary DB (Writable):</strong> 10.99.0.1:27017 (mongovpn01)</div>
-                                    <div class="col-sm-6"><strong>Secondary DB:</strong> 10.100.0.1:27017 (mongovpn02)</div>
-                                    <div class="col-12 mt-2"><strong>Cụm CSDL:</strong> MongoDB ReplicaSet <code>rs0</code> (auth: required)</div>
+                                    <div class="col-sm-6"><strong>Cụm VPN:</strong> WireGuard (10.100.0.50)</div>
+                                    <div class="col-sm-6"><strong>StarRocks FE:</strong> 103.147.122.103:9030</div>
+                                    <div class="col-sm-6"><strong>Database:</strong> kfm_scm</div>
+                                    <div class="col-sm-6"><strong>Tài Khoản:</strong> kfm_scm_tho_nguyen</div>
+                                    <div class="col-12 mt-2"><strong>Bảng Nguồn:</strong> <code>krc_dashboard_discrepancies</code> & <code>__cdc_kfm_kf_inventories_kf_claim_tickets</code></div>
                                 </div>
                             </div>
                             <div id="vpn-modal-live-status" class="small text-muted">
@@ -5240,29 +5240,26 @@
             }
         }
 
+
+
         async function openVPNInfoModal() {
             try {
                 const statusDiv = document.getElementById('vpn-modal-live-status');
-                if (statusDiv) statusDiv.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> Đang kiểm tra tín hiệu VPN...';
+                if (statusDiv) statusDiv.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> Đang kiểm tra tín hiệu StarRocks VPN...';
                 new bootstrap.Modal(document.getElementById('vpnInfoModal')).show();
 
                 const res = await fetch('/api/inventory/vpn_status');
                 const data = await res.json();
                 if (data.vpn_online) {
                     const d = data.details || {};
-                    let clusterInfo = '';
-                    if (d.replica_set) {
-                        clusterInfo = `<div class="mt-2 p-2 bg-light border rounded small">
-                            <div><strong>ReplicaSet:</strong> <code>${d.replica_set}</code> (${d.primary_host || 'mongovpn01'})</div>
-                            <div><strong>Primary:</strong> 10.99.0.1:27017 (ONLINE - Writable)</div>
-                            <div><strong>Secondary:</strong> 10.100.0.1:27017 (ONLINE)</div>
-                            <div><strong>Ghi Dữ Liệu Gần Nhất:</strong> ${d.last_write_utc || 'Realtime'} UTC</div>
-                            <div class="text-warning-emphasis mt-1"><i class="fa-solid fa-lock me-1"></i> <strong>Xác thực bảo mật:</strong> Cụm MongoDB yêu cầu tài khoản để truy xuất bảng dữ liệu.</div>
-                        </div>`;
-                    }
-                    statusDiv.innerHTML = `<span class="text-success fw-bold"><i class="fa-solid fa-circle-check me-1"></i> ĐÃ THÔNG TUYẾN VPN & CỤM CSDL MONGODB!</span><br>Hiện có <strong>${data.inventory_records || 0}</strong> mã nâng tồn và <strong>${data.negative_records || 0}</strong> mã âm tồn trong bộ đệm nội bộ.${clusterInfo}`;
+                    let clusterInfo = `<div class="mt-2 p-2 bg-light border rounded small">
+                        <div><strong>StarRocks Cluster:</strong> <code>103.147.122.103:9030</code> (Database: <code>kfm_scm</code>)</div>
+                        <div><strong>WireGuard Peer:</strong> 10.100.0.50 (ONLINE)</div>
+                        <div><strong>Trạng thái nguồn:</strong> Dữ liệu kéo trực tiếp từ CSDL StarRocks, hoàn toàn không phụ thuộc token web.</div>
+                    </div>`;
+                    statusDiv.innerHTML = `<span class="text-success fw-bold"><i class="fa-solid fa-circle-check me-1"></i> ĐÃ KẾT NỐI MẠNG VPN CHUNG & CSDL STARROCKS!</span><br>Hiện có <strong>${data.inventory_records || 0}</strong> mã nâng tồn và <strong>${data.negative_records || 0}</strong> mã âm tồn trong CSDL nội bộ.${clusterInfo}`;
                 } else {
-                    statusDiv.innerHTML = `<span class="text-danger fw-bold"><i class="fa-solid fa-triangle-exclamation me-1"></i> CHƯA THÔNG TUYẾN VPN!</span><br>Vui lòng mở ứng dụng <strong>WireGuard</strong> hoặc script kết nối để kích hoạt VPN trước khi đồng bộ.`;
+                    statusDiv.innerHTML = `<span class="text-danger fw-bold"><i class="fa-solid fa-triangle-exclamation me-1"></i> CHƯA THÔNG TUYẾN VPN!</span><br>Vui lòng kiểm tra ứng dụng <strong>WireGuard</strong> để đảm bảo tunnel VPN đang hoạt động trước khi đồng bộ.`;
                 }
             } catch (e) {
                 console.error("Lỗi openVPNInfoModal:", e);
@@ -5284,9 +5281,9 @@
                     }
                     if (badge) {
                         badge.className = 'badge bg-success-subtle text-success border border-success fw-bold px-3 py-2';
-                        badge.innerHTML = '<i class="fa-solid fa-shield-halved me-1"></i> NGUỒN: VPN NỘI BỘ (10.100.0.1)';
+                        badge.innerHTML = '<i class="fa-solid fa-shield-halved me-1"></i> NGUỒN: VPN CHUNG (StarRocks kfm_scm)';
                     }
-                    alert(`✅ Đồng bộ tồn kho qua VPN thành công!\n• Mã nâng tồn: ${data.increase_count || 0}\n• Mã âm tồn: ${data.negative_count || 0}`);
+                    alert(`✅ Đồng bộ tồn kho qua StarRocks VPN thành công!\n• Mã nâng tồn: ${data.increase_count || 0}\n• Mã âm tồn: ${data.negative_count || 0}`);
                 } else {
                     if (badge) {
                         badge.className = 'badge bg-warning-subtle text-warning border border-warning fw-bold px-3 py-2';

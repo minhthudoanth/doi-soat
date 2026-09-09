@@ -122,6 +122,21 @@ def save_message(msg_id, chat_id, chat_title, sender_id, sender_name, username, 
     conn.commit()
     conn.close()
 
+    try:
+        from starrocks_db import save_message_to_starrocks
+        save_message_to_starrocks(
+            msg_id=msg_id,
+            chat_id=chat_id,
+            chat_title=chat_title,
+            sender_id=sender_id,
+            sender_name=sender_name,
+            text=text,
+            category=category,
+            priority=priority
+        )
+    except Exception:
+        pass
+
 def get_recent_cases(limit=10, p1_only=False):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()

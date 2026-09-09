@@ -8,6 +8,28 @@ SESSION_NAME = "kingfood_scm_session"
 # Database path
 DB_PATH = os.path.join(os.path.dirname(__file__), "scm_monitor.db")
 
+# StarRocks Database Configuration (qua VPN WireGuard)
+STARROCKS_HOST = os.getenv("STARROCKS_HOST", "103.147.122.103")
+STARROCKS_PORT = int(os.getenv("STARROCKS_PORT", "9030"))
+STARROCKS_USER = os.getenv("STARROCKS_USER", "kfm_scm_tho_nguyen")
+STARROCKS_PASSWORD = os.getenv("STARROCKS_PASSWORD", "oh1dtJwR4ihLGrX4E7bs")
+STARROCKS_DB = os.getenv("STARROCKS_DB", "kfm_scm")
+
+# Cô lập & Khóa bảo vệ dữ liệu trên StarRocks VPN dưới tên Thư Đoàn (Chống các bot khác can thiệp)
+STARROCKS_ISOLATION_MODE = True
+DATA_OWNER = "Thư Đoàn"
+TABLE_DISCREPANCIES_THU = "krc_dashboard_discrepancies_thu_doan"
+TABLE_MESSAGES_THU = "krc_dashboard_messages_thu_doan"
+
+# Cho phép kết nối và lưu dữ liệu lên VPN bình thường vào vùng dữ liệu riêng
+STARROCKS_WRITE_LOCKED = False
+STARROCKS_READ_ONLY = False
+
+# Mở khóa Web Dashboard (Không yêu cầu mật khẩu web)
+DASHBOARD_AUTH_ENABLED = False
+DASHBOARD_PASSWORD = os.getenv("DASHBOARD_PASSWORD", "kingfood2026")
+SECRET_KEY = os.getenv("SECRET_KEY", "kfm-scm-secure-key-2026-protection")
+
 # DANH SÁCH CÁC NHÓM CẦN BỎ QUA HOÀN TOÀN
 EXCLUDED_GROUPS = [
     "RAU - Vấn đề chất lượng (CATE - STORE)",

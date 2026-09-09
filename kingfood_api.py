@@ -11,15 +11,36 @@ from config import DB_PATH
 # ================================================================
 ENABLE_KDB_ACCESS = False
 
-DEFAULT_KINGFOOD_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjp7ImlkIjoiNjk4MTYwYzkzMzljOTkwMDA3MTFjMTE3IiwiZnVsbF9uYW1lIjoixJBvw6BuIFRo4buLIE1pbmggVGjGsCIsImVtYWlsIjoidGh1LmRvYW50aGltaW5oQGtpbmdmb29kbWFydC5jb20iLCJlbXBsb3llZV9jb2RlIjoiU0MwMTcwODQiLCJsYXN0X2xvZ2luIjoxNzg4MDYzMjE3ODc1LCJleHRlbmRfcm9sZXMiOnt9LCJ1dWlkIjoiZDUwOThhNDBlNWQ0ODhkOTZlZTZjNmYxODQ3ZWNhNjgiLCJyYmFjIjpudWxsfSwiaWF0IjoxNzg4MDYzMjE3LCJleHAiOjE3ODg2NjgwMTd9.C49GIJ5ykwTuRnqkv-5doXbhVUrvL8qsJjOWclw9Wj4'
+DEFAULT_KINGFOOD_TOKEN = ""
 
 def get_kingfood_token():
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute("CREATE TABLE IF NOT EXISTS app_settings (key TEXT PRIMARY KEY, value TEXT)")
+        cursor.execute("SELECT value FROM app_settings WHERE key = 'kingfood_token'")
+        row = cursor.fetchone()
+        conn.close()
+        if row and row[0] and row[0].strip():
+            return row[0].strip()
+    except Exception:
+        pass
     return DEFAULT_KINGFOOD_TOKEN
 
 def set_kingfood_token(token):
-    return True
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute("CREATE TABLE IF NOT EXISTS app_settings (key TEXT PRIMARY KEY, value TEXT)")
+        cursor.execute("INSERT OR REPLACE INTO app_settings (key, value) VALUES ('kingfood_token', ?)", (token.strip(),))
+        conn.commit()
+        conn.close()
+        return True
+    except Exception as e:
+        print(f"Lỗi set_kingfood_token: {e}")
+        return False
 
-KINGFOOD_TOKEN = DEFAULT_KINGFOOD_TOKEN
+KINGFOOD_TOKEN = get_kingfood_token()
 
 
 # ID CHUẨN CỦA KHO RAU CỦ (KRC)

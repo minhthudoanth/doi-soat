@@ -50,7 +50,7 @@ def get_headers():
 
 def load_all_branches():
     """
-    Tải danh mục toàn bộ chi nhánh Kingfood từ API hoặc SQLite
+    Tải danh mục toàn bộ chi nhánh Kingfood từ CSDL nội bộ / SQLite
     """
     global BRANCHES_CACHE
     if BRANCHES_CACHE:
@@ -58,27 +58,11 @@ def load_all_branches():
 
     b_map = {}
     try:
-        headers = get_headers()
-        req = urllib.request.Request('https://api.kingfood.co/v1/branches?limit=500', headers=headers)
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            data = json.loads(resp.read().decode('utf-8'))
-            for b in data.get('items', []):
-                bid = b.get('id')
-                b_map[bid] = {
-                    'id': bid,
-                    'code': b.get('code', ''),
-                    'name': b.get('name', '')
-                }
-    except Exception as e:
-        print(f"[!] Lỗi tải chi nhánh từ API Kingfood: {e}", flush=True)
-
-    # Bổ sung/fallback từ bảng sheet_store_list trong SQLite
-    try:
         conn = sqlite3.connect(DB_PATH)
         c = conn.cursor()
         c.execute("SELECT store_id, store_name FROM sheet_store_list")
         for sid, sname in c.fetchall():
-            if sid and sid not in b_map:
+            if sid:
                 b_map[sid] = {'id': sid, 'code': sid, 'name': sname}
         conn.close()
     except Exception:
