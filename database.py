@@ -85,20 +85,78 @@ def init_db():
     """)
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_broadcast_batch ON sent_broadcast_history (batch_id, is_recalled);")
 
-    # Indexes tối ưu hóa tốc độ truy vấn
-    cursor.execute("CREATE INDEX IF NOT EXISTS idx_raw_chat_title ON raw_messages (chat_title);")
-    cursor.execute("CREATE INDEX IF NOT EXISTS idx_raw_created_at ON raw_messages (created_at);")
-    cursor.execute("CREATE INDEX IF NOT EXISTS idx_raw_msg_chat ON raw_messages (msg_id, chat_id);")
-    cursor.execute("CREATE INDEX IF NOT EXISTS idx_raw_sender ON raw_messages (sender_name);")
-    cursor.execute("CREATE INDEX IF NOT EXISTS idx_priority_status ON priority_cases (status, is_read, is_dismissed);")
-    cursor.execute("CREATE INDEX IF NOT EXISTS idx_priority_chat ON priority_cases (chat_title);")
-    cursor.execute("CREATE INDEX IF NOT EXISTS idx_audit_status ON audit_case_status (process_status, is_checked);")
-    cursor.execute("CREATE INDEX IF NOT EXISTS idx_sheet_date_st ON sheet_audit_records (transfer_date, store_id);")
-    cursor.execute("CREATE INDEX IF NOT EXISTS idx_sheet_error_date ON sheet_audit_records (error_type, transfer_date);")
-    cursor.execute("CREATE INDEX IF NOT EXISTS idx_sheet_sku ON sheet_audit_records (sku_code);")
-    cursor.execute("CREATE INDEX IF NOT EXISTS idx_inv_date_st ON store_inventory_records (date, store_id);")
-    cursor.execute("CREATE INDEX IF NOT EXISTS idx_inv_category ON store_inventory_records (category_name);")
-    
+    conn.commit()
+    conn.close()
+
+    try:
+        from sheet_sync import init_sheet_db, init_ds_st_db, init_settings_db
+        init_sheet_db()
+        init_ds_st_db()
+        init_settings_db()
+    except Exception as e:
+        pass
+
+    conn = get_optimized_conn()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS store_inventory_records (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            date TEXT,
+            store_id TEXT,
+            store_name TEXT,
+            barcode TEXT,
+            sku TEXT,
+            product_name TEXT,
+            category_name TEXT,
+            opening_stock REAL DEFAULT 0,
+            stocktake_in_qty REAL DEFAULT 0,
+            stocktake_in_value REAL DEFAULT 0,
+            stocktake_out_qty REAL DEFAULT 0,
+            stocktake_out_value REAL DEFAULT 0,
+            damage_qty REAL DEFAULT 0,
+            closing_stock REAL DEFAULT 0,
+            audit_note TEXT,
+            status TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS store_negative_stock_records (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            date TEXT,
+            store_id TEXT,
+            store_name TEXT,
+            barcode TEXT,
+            sku TEXT,
+            product_name TEXT,
+            category_name TEXT,
+            negative_qty REAL DEFAULT 0,
+            status TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    index_queries = [
+        "CREATE INDEX IF NOT EXISTS idx_raw_chat_title ON raw_messages (chat_title);",
+        "CREATE INDEX IF NOT EXISTS idx_raw_created_at ON raw_messages (created_at);",
+        "CREATE INDEX IF NOT EXISTS idx_raw_msg_chat ON raw_messages (msg_id, chat_id);",
+        "CREATE INDEX IF NOT EXISTS idx_raw_sender ON raw_messages (sender_name);",
+        "CREATE INDEX IF NOT EXISTS idx_priority_status ON priority_cases (status, is_read, is_dismissed);",
+        "CREATE INDEX IF NOT EXISTS idx_priority_chat ON priority_cases (chat_title);",
+        "CREATE INDEX IF NOT EXISTS idx_audit_status ON audit_case_status (process_status, is_checked);",
+        "CREATE INDEX IF NOT EXISTS idx_sheet_date_st ON sheet_audit_records (transfer_date, store_id);",
+        "CREATE INDEX IF NOT EXISTS idx_sheet_error_date ON sheet_audit_records (error_type, transfer_date);",
+        "CREATE INDEX IF NOT EXISTS idx_sheet_sku ON sheet_audit_records (sku_code);",
+        "CREATE INDEX IF NOT EXISTS idx_inv_date_st ON store_inventory_records (date, store_id);",
+        "CREATE INDEX IF NOT EXISTS idx_inv_category ON store_inventory_records (category_name);"
+    ]
+    for q in index_queries:
+        try:
+            cursor.execute(q)
+        except Exception:
+            pass
+
     conn.commit()
     conn.close()
 
