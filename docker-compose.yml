@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  scm-dashboard:
+    build: .
+    image: kingfood-scm-bot:latest
+    container_name: kingfood_scm_web
+    restart: always
+    ports:
+      - "5000:5000"
+    environment:
+      - TZ=Asia/Ho_Chi_Minh
+      - STARROCKS_HOST=103.147.122.103
+      - STARROCKS_PORT=9030
+      - STARROCKS_USER=kfm_scm_tho_nguyen
+      - STARROCKS_PASSWORD=oh1dtJwR4ihLGrX4E7bs
+      - STARROCKS_DB=kfm_scm
+    volumes:
+      - ./scm_monitor.db:/app/scm_monitor.db
+      - ./kingfood_scm_session.session:/app/kingfood_scm_session.session
+      - ./app.log:/app/app.log
