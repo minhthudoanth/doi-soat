@@ -38,8 +38,11 @@ async def _do_sync_telegram():
     dialogs = await client.get_dialogs(limit=200)
     audit_dialogs = []
     for d in dialogs:
-        if d.title and any(k in d.title for k in ['Đối soát', 'đối soát', 'ĐỐI SOÁT', 'SCM - KRC']):
-            audit_dialogs.append(d)
+        title = d.title or ""
+        lower_t = title.lower()
+        if any(k in title for k in ['Đối soát', 'đối soát', 'ĐỐI SOÁT', 'SCM - KRC']):
+            if not is_group_excluded(title) and 'bánh trái' not in lower_t and 'banh trai' not in lower_t:
+                audit_dialogs.append(d)
 
     saved_cnt = 0
     for audit_dialog in audit_dialogs:
