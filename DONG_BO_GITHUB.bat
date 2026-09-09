@@ -1,4 +1,5 @@
 @echo off
+setlocal enabledelayedexpansion
 title DONG BO CODE LEN GITHUB (minhthudoanth)
 color 0B
 
@@ -44,7 +45,6 @@ if %ERRORLEVEL% neq 0 (
     if %SILENT_MODE% equ 1 (
         "%GIT_EXE%" pull --rebase origin main >nul 2>&1
         "%GIT_EXE%" push -u origin main >nul 2>&1
-        "%GIT_EXE%" push -u gitlab main >nul 2>&1
     ) else (
         echo.
         echo [!] Ket noi GitHub yeu cau xac thuc Token.
@@ -53,6 +53,7 @@ if %ERRORLEVEL% neq 0 (
         if defined GITHUB_TOKEN (
             "%GIT_EXE%" remote set-url origin https://!GITHUB_TOKEN!@github.com/minhthudoanth/doi-soat.git
             "%GIT_EXE%" push -u origin main
+            "%GIT_EXE%" remote set-url origin https://github.com/minhthudoanth/doi-soat.git
         ) else (
             echo [*] Dang dong bo conflict va thu lai...
             "%GIT_EXE%" pull --rebase origin main
