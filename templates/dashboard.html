@@ -1198,21 +1198,34 @@
                         </div>
 
                         <!-- Kỳ Đối Soát & Ngày Ký -->
-                        <div class="row g-2 mb-3">
-                            <div class="col-6">
-                                <label class="form-label fw-bold text-dark small text-uppercase">Kỳ Đối Soát:</label>
+                        <div class="row g-2 mb-2">
+                            <div class="col-12">
+                                <label class="form-label fw-bold text-dark small text-uppercase mb-1">Kỳ Đối Soát:</label>
                                 <div class="input-group input-group-sm">
                                     <select class="form-select fw-bold font-monospace" id="doc-input-month" onchange="onDocWarehouseChange()">
                                         <option value="08" selected>Tháng 08</option>
                                         <option value="07">Tháng 07</option>
                                         <option value="09">Tháng 09</option>
                                     </select>
-                                    <input type="text" class="form-control fw-bold font-monospace text-center" id="doc-input-year" value="2026" style="max-width: 65px;" onchange="onDocWarehouseChange()">
+                                    <input type="text" class="form-control fw-bold font-monospace text-center" id="doc-input-year" value="2026" style="max-width: 80px;" onchange="onDocWarehouseChange()">
                                 </div>
                             </div>
+                        </div>
+
+                        <!-- Tách biệt: Ngày lập biên bản (QĐ) & Ngày hóa đơn (Đề nghị TT) -->
+                        <div class="row g-2 mb-3">
                             <div class="col-6">
-                                <label class="form-label fw-bold text-dark small text-uppercase">Ngày Hóa Đơn:</label>
-                                <input type="text" class="form-control form-control-sm font-monospace fw-bold" id="doc-input-date" value="31/08/2026" onkeyup="updateDocPreview()">
+                                <label class="form-label fw-bold text-primary small text-uppercase mb-1" title="Áp dụng cho văn bản Quyết Định">
+                                    <i class="fa-solid fa-file-signature me-1"></i>Ngày Lập BB (QĐ):
+                                </label>
+                                <input type="text" class="form-control form-control-sm font-monospace fw-bold border-primary-subtle" id="doc-input-decision-date" value="31/08/2026" onkeyup="updateDocPreview()" placeholder="dd/mm/yyyy">
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label fw-bold text-danger small text-uppercase mb-1" title="Áp dụng cho Đề Nghị Thanh Toán">
+                                    <i class="fa-solid fa-file-invoice-dollar me-1"></i>Ngày Hóa Đơn:
+                                </label>
+                                <input type="text" class="form-control form-control-sm font-monospace fw-bold border-danger-subtle" id="doc-input-invoice-date" value="28/08/2026" onkeyup="updateDocPreview()" placeholder="dd/mm/yyyy">
+                                <input type="hidden" id="doc-input-date" value="28/08/2026">
                             </div>
                         </div>
 
@@ -3573,17 +3586,25 @@
         function onDocWarehouseChange() {
             const w = document.getElementById('doc-input-warehouse').value;
             const m = document.getElementById('doc-input-month') ? document.getElementById('doc-input-month').value : '08';
+            const y = document.getElementById('doc-input-year') ? document.getElementById('doc-input-year').value : '2026';
+            const lastDay = (m === '02') ? '28' : (['04','06','09','11'].includes(m) ? '30' : '31');
+            const decDate = `${lastDay}/${m}/${y}`;
+            
+            let invDate = decDate;
             if (w.includes('MEAT')) {
-                document.getElementById('doc-input-date').value = (m === '08') ? '31/08/2026' : '31/07/2026';
+                invDate = (m === '08') ? '31/08/2026' : '31/07/2026';
             } else if (w.includes('SEEDLOG') || w.includes('TỔNG')) {
-                document.getElementById('doc-input-date').value = (m === '08') ? '31/08/2026' : '17/08/2026';
-            } else if (w.includes('ĐÔNG')) {
-                document.getElementById('doc-input-date').value = (m === '08') ? '31/08/2026' : '30/07/2026';
-            } else if (w.includes('MÁT')) {
-                document.getElementById('doc-input-date').value = (m === '08') ? '31/08/2026' : '30/07/2026';
+                invDate = (m === '08') ? '31/08/2026' : '17/08/2026';
+            } else if (w.includes('RAU')) {
+                invDate = (m === '08') ? '28/08/2026' : '30/07/2026';
             } else {
-                document.getElementById('doc-input-date').value = (m === '08') ? '31/08/2026' : '30/07/2026';
+                invDate = (m === '08') ? '31/08/2026' : '30/07/2026';
             }
+            
+            if (document.getElementById('doc-input-decision-date')) document.getElementById('doc-input-decision-date').value = decDate;
+            if (document.getElementById('doc-input-invoice-date')) document.getElementById('doc-input-invoice-date').value = invDate;
+            if (document.getElementById('doc-input-date')) document.getElementById('doc-input-date').value = invDate;
+            
             autoFillDocData();
         }
 
@@ -3826,7 +3847,9 @@
             const w = document.getElementById('doc-input-warehouse').value;
             const m = document.getElementById('doc-input-month').value;
             const y = document.getElementById('doc-input-year').value;
-            const dateStr = document.getElementById('doc-input-date').value;
+            const decisionDateStr = document.getElementById('doc-input-decision-date') ? document.getElementById('doc-input-decision-date').value : '31/08/2026';
+            const invoiceDateStr = document.getElementById('doc-input-invoice-date') ? document.getElementById('doc-input-invoice-date').value : '28/08/2026';
+            const dateStr = invoiceDateStr;
             const qty = parseFloat(document.getElementById('doc-input-qty').value) || 0;
             const amt = parseFloat(document.getElementById('doc-input-amount').value) || 0;
             const vatType = document.getElementById('doc-input-vat').value;
@@ -3838,6 +3861,8 @@
                 month: m,
                 year: y,
                 doc_date: dateStr,
+                decision_date: decisionDateStr,
+                invoice_date: invoiceDateStr,
                 total_qty: qty,
                 total_amount: amt,
                 vat_type: vatType,
@@ -4065,6 +4090,16 @@
                         // Nạp bản lưu tạm do người dùng đã chỉnh sửa
                         document.getElementById('doc-input-qty').value = draft.total_qty !== undefined ? draft.total_qty : d.total_qty;
                         document.getElementById('doc-input-amount').value = draft.total_amount !== undefined ? draft.total_amount : d.total_amount;
+                        if (draft.decision_date && document.getElementById('doc-input-decision-date')) {
+                            document.getElementById('doc-input-decision-date').value = draft.decision_date;
+                        } else if (draft.doc_date && document.getElementById('doc-input-decision-date')) {
+                            document.getElementById('doc-input-decision-date').value = draft.doc_date;
+                        }
+                        if (draft.invoice_date && document.getElementById('doc-input-invoice-date')) {
+                            document.getElementById('doc-input-invoice-date').value = draft.invoice_date;
+                        } else if (draft.doc_date && document.getElementById('doc-input-invoice-date')) {
+                            document.getElementById('doc-input-invoice-date').value = draft.doc_date;
+                        }
                         if (draft.doc_date && document.getElementById('doc-input-date')) {
                             document.getElementById('doc-input-date').value = draft.doc_date;
                         }
@@ -4087,6 +4122,14 @@
                         const isPostVat = vatType.includes('Gồm') || vatType.includes('gồm');
                         const defaultAmt = isPostVat ? (d.total_post_tax || d.total_amount) : (d.total_pre_tax || d.total_amount);
                         document.getElementById('doc-input-amount').value = Math.round(defaultAmt);
+                        if (d.decision_date && document.getElementById('doc-input-decision-date')) {
+                            document.getElementById('doc-input-decision-date').value = d.decision_date;
+                        }
+                        if (d.invoice_date && document.getElementById('doc-input-invoice-date')) {
+                            document.getElementById('doc-input-invoice-date').value = d.invoice_date;
+                        } else if (d.suggested_date && document.getElementById('doc-input-invoice-date')) {
+                            document.getElementById('doc-input-invoice-date').value = d.suggested_date;
+                        }
                         if (d.suggested_date && document.getElementById('doc-input-date')) {
                             document.getElementById('doc-input-date').value = d.suggested_date;
                         }
@@ -4162,7 +4205,8 @@
             const w = document.getElementById('doc-input-warehouse') ? document.getElementById('doc-input-warehouse').value : 'KHO MEATFISH';
             const m = document.getElementById('doc-input-month') ? document.getElementById('doc-input-month').value : '08';
             const y = document.getElementById('doc-input-year') ? document.getElementById('doc-input-year').value : '2026';
-            const dateStr = document.getElementById('doc-input-date') ? document.getElementById('doc-input-date').value : '26/08/2026';
+            const decisionDateStr = document.getElementById('doc-input-decision-date') ? document.getElementById('doc-input-decision-date').value : '31/08/2026';
+            const invoiceDateStr = document.getElementById('doc-input-invoice-date') ? document.getElementById('doc-input-invoice-date').value : (document.getElementById('doc-input-date') ? document.getElementById('doc-input-date').value : '28/08/2026');
             const qty = parseFloat(document.getElementById('doc-input-qty') ? document.getElementById('doc-input-qty').value : 0) || 0;
             const amt = parseFloat(document.getElementById('doc-input-amount') ? document.getElementById('doc-input-amount').value : 0) || 0;
             const vatType = document.getElementById('doc-input-vat') ? document.getElementById('doc-input-vat').value : 'Chưa VAT';
@@ -4173,9 +4217,6 @@
             const container = document.getElementById('doc-a4-preview-container');
             if (!container) return;
 
-            let dp = dateStr.split('/');
-            let dateText = (dp.length === 3) ? `TPHCM, ngày ${dp[0]} tháng ${dp[1]} năm ${dp[2]}` : `TPHCM, ngày ${dateStr}`;
-
             const isPostVat = vatType.includes('Gồm') || vatType.includes('gồm');
             const vatLabel = isPostVat ? 'Gồm VAT' : 'Chưa VAT';
             let effectiveAmt = amt;
@@ -4185,6 +4226,8 @@
 
             if (currentDocPreviewSubtab === 'quyet_dinh') {
                 const whClean = cleanWarehouseName(w);
+                let dp = decisionDateStr.split('/');
+                let dateText = (dp.length === 3) ? `TPHCM, ngày ${dp[0]} tháng ${dp[1]} năm ${dp[2]}` : `TPHCM, ngày ${decisionDateStr}`;
 
                 let tableItems = [];
                 if (currentDocInvoices && currentDocInvoices.length > 0) {
@@ -4337,7 +4380,7 @@
                             <div>&bull; Chi phí ${whClean} T${m}/${y} (VAT): <strong>${fmtComma(totalPost)} VNĐ</strong></div>
                             <div style="margin-left: 10px;">- Tổng giá trị chênh lệch kho: (${fmtComma(totalPre)}) VNĐ (Chưa VAT)</div>
                             <div style="margin-left: 10px;">- Tỷ lệ quy trách nhiệm: DC (SCF) chịu 100% giá trị.</div>
-                            <div style="margin-left: 10px;">(Bằng chữ: ${words})</div>
+                            <div style="margin-left: 10px; font-style: italic;">(Bằng chữ: ${words})</div>
                         </div>
 
                         <div style="font-size: 13px; margin-bottom: 12px; text-align: justify; line-height: 1.5;">
@@ -4366,6 +4409,8 @@
             } else {
                 const whClean = cleanWarehouseName(w);
                 const vatStr = isPostVat ? '(VAT)' : '(Chưa VAT)';
+                let dp = invoiceDateStr.split('/');
+                let dateText = (dp.length === 3) ? `TPHCM, ngày ${dp[0]} tháng ${dp[1]} năm ${dp[2]}` : `TPHCM, ngày ${invoiceDateStr}`;
 
                 container.innerHTML = `
                     <div style="max-width: 650px; margin: 0 auto; line-height: 1.45; font-size: 13px; color: #111;">
@@ -4400,7 +4445,7 @@
 
                         <div style="font-size: 12.5px; line-height: 1.5; margin-bottom: 10px; text-align: justify;">
                             <div>Chúng tôi kính đề nghị quý Công ty thanh toán số tiền là: ${effectiveAmt.toLocaleString('vi-VN')} VNĐ ${vatStr}</div>
-                            <div>(Bằng chữ: ${words})</div>
+                            <div style="font-style: italic;">(Bằng chữ: ${words})</div>
                         </div>
 
                         <div style="font-size: 12.5px; line-height: 1.5; margin-bottom: 6px;">
@@ -4438,7 +4483,9 @@
             const w = document.getElementById('doc-input-warehouse').value;
             const m = document.getElementById('doc-input-month').value;
             const y = document.getElementById('doc-input-year').value;
-            const dateStr = document.getElementById('doc-input-date').value;
+            const dateStr = document.getElementById('doc-input-date') ? document.getElementById('doc-input-date').value : '';
+            const decisionDate = document.getElementById('doc-input-decision-date') ? document.getElementById('doc-input-decision-date').value : dateStr;
+            const invoiceDate = document.getElementById('doc-input-invoice-date') ? document.getElementById('doc-input-invoice-date').value : dateStr;
             const qty = parseFloat(document.getElementById('doc-input-qty').value) || 0;
             const amt = parseFloat(document.getElementById('doc-input-amount').value) || 0;
             const vatType = document.getElementById('doc-input-vat').value;
@@ -4454,7 +4501,9 @@
                         warehouse_name: w,
                         month: m,
                         year: y,
-                        doc_date: dateStr,
+                        doc_date: (type === 'quyet_dinh') ? decisionDate : invoiceDate,
+                        decision_date: decisionDate,
+                        invoice_date: invoiceDate,
                         total_qty: qty,
                         total_amount: amt,
                         vat_type: vatType,

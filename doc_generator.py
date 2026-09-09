@@ -219,8 +219,8 @@ def generate_quyet_dinh_docx(data, output_path):
     r1.font.size = Pt(10.5)
     r1.font.name = "Times New Roman"
     
-    # Ngày văn bản
-    doc_date_str = data.get('doc_date', datetime.now().strftime('%d/%m/%Y'))
+    # Ngày văn bản Quyết Định (ngày lập biên bản)
+    doc_date_str = data.get('decision_date') or data.get('bien_ban_date') or data.get('doc_date') or datetime.now().strftime('%d/%m/%Y')
     try:
         dp = doc_date_str.split('/')
         date_text = f"TPHCM, ngày {dp[0]} tháng {dp[1]} năm {dp[2]}"
@@ -497,10 +497,14 @@ def generate_quyet_dinh_docx(data, output_path):
     r_b2 = p_exp.add_run(
         f"- Tổng giá trị chênh lệch kho: ({tot_pre:,.0f}) VNĐ (Chưa VAT)\n"
         f"- Tỷ lệ quy trách nhiệm: DC (SCF) chịu 100% giá trị.\n"
-        f"(Bằng chữ: {words})"
     )
     r_b2.font.size = Pt(10.5)
     r_b2.font.name = "Times New Roman"
+
+    r_b_words = p_exp.add_run(f"(Bằng chữ: {words})")
+    r_b_words.font.italic = True
+    r_b_words.font.size = Pt(10.5)
+    r_b_words.font.name = "Times New Roman"
 
     # 7. Điều 2 & Điều 3
     p_d2 = doc.add_paragraph()
@@ -628,7 +632,8 @@ def generate_de_nghi_thanh_toan_docx(data, output_path):
     r1.font.size = Pt(10.5)
     r1.font.name = "Times New Roman"
     
-    doc_date_str = data.get('doc_date', datetime.now().strftime('%d/%m/%Y'))
+    # Ngày văn bản Đề Nghị Thanh Toán (ngày hóa đơn)
+    doc_date_str = data.get('invoice_date') or data.get('doc_date') or datetime.now().strftime('%d/%m/%Y')
     try:
         dp = doc_date_str.split('/')
         date_text = f"TP.HCM, ngày {dp[0]} tháng {dp[1]} năm {dp[2]}"
@@ -715,6 +720,7 @@ def generate_de_nghi_thanh_toan_docx(data, output_path):
     r_req1.font.name = "Times New Roman"
     
     r_words = p_req.add_run(f"(Bằng chữ: {words})")
+    r_words.font.italic = True
     r_words.font.size = Pt(10.5)
     r_words.font.name = "Times New Roman"
 

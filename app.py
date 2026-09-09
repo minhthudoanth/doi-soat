@@ -1286,6 +1286,8 @@ def api_document_drafts():
             month TEXT,
             year TEXT,
             doc_date TEXT,
+            decision_date TEXT,
+            invoice_date TEXT,
             total_qty REAL,
             total_amount REAL,
             vat_type TEXT,
@@ -1295,6 +1297,14 @@ def api_document_drafts():
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
+    try:
+        cursor.execute("ALTER TABLE document_drafts ADD COLUMN decision_date TEXT")
+    except Exception:
+        pass
+    try:
+        cursor.execute("ALTER TABLE document_drafts ADD COLUMN invoice_date TEXT")
+    except Exception:
+        pass
     
     if request.method == 'GET':
         wh = request.args.get('warehouse', '').strip()
@@ -1339,6 +1349,8 @@ def api_document_drafts():
         
         draft_key = f"{wh}_{m}_{y}"
         doc_date = data.get('doc_date', '')
+        decision_date = data.get('decision_date') or doc_date
+        invoice_date = data.get('invoice_date') or doc_date
         total_qty = float(data.get('total_qty', 0) or 0)
         total_amount = float(data.get('total_amount', 0) or 0)
         vat_type = data.get('vat_type', 'Chưa VAT')
@@ -1350,15 +1362,17 @@ def api_document_drafts():
         
         cursor.execute("""
             INSERT INTO document_drafts (
-                draft_key, warehouse_name, month, year, doc_date,
+                draft_key, warehouse_name, month, year, doc_date, decision_date, invoice_date,
                 total_qty, total_amount, vat_type, representative_scf,
                 representative_kfm, invoices_json, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(draft_key) DO UPDATE SET
                 warehouse_name=excluded.warehouse_name,
                 month=excluded.month,
                 year=excluded.year,
                 doc_date=excluded.doc_date,
+                decision_date=excluded.decision_date,
+                invoice_date=excluded.invoice_date,
                 total_qty=excluded.total_qty,
                 total_amount=excluded.total_amount,
                 vat_type=excluded.vat_type,
@@ -1366,7 +1380,7 @@ def api_document_drafts():
                 representative_kfm=excluded.representative_kfm,
                 invoices_json=excluded.invoices_json,
                 updated_at=excluded.updated_at
-        """, (draft_key, wh, m, y, doc_date, total_qty, total_amount, vat_type, scf, kfm, inv_json, now_str))
+        """, (draft_key, wh, m, y, doc_date, decision_date, invoice_date, total_qty, total_amount, vat_type, scf, kfm, inv_json, now_str))
         conn.commit()
         conn.close()
         return jsonify({'success': True, 'draft_key': draft_key, 'saved_at': now_str})
@@ -1611,7 +1625,17 @@ def api_documents_auto_fill():
         tot_pre = sum(r['pre_tax'] or 0.0 for r in inv_rows)
         tot_post = sum(r['post_tax'] or 0.0 for r in inv_rows)
         sheet_qty = sum(r.get('quantity') or 0.0 for r in inv_rows)
-        latest_date = max((r['invoice_date'] for r in inv_rows if r['invoice_date']), default=f"31/{month}/{year}")
+        latest_date = max((r['invoice_date'] for r in inv_rows if r['invoice_date']), default=f"28/{month}/{year}")
+        invoice_date = latest_date
+        
+        # Ngày lập biên bản quyết định (cuối tháng hoặc ngày lập biên bản)
+        if month == '02':
+            last_day = '28'
+        elif month in ['04', '06', '09', '11']:
+            last_day = '30'
+        else:
+            last_day = '31'
+        decision_date = f"{last_day}/{month}/{year}"
         
         # Nhóm theo số hóa đơn để tạo danh sách biên bản chuẩn
         inv_grouped = {}
@@ -1669,6 +1693,8 @@ def api_documents_auto_fill():
             'total_post_tax': tot_post,
             'total_amount': target_amount,
             'suggested_date': latest_date,
+            'invoice_date': invoice_date,
+            'decision_date': decision_date,
             'has_draft': bool(saved_draft),
             'draft': saved_draft,
             'words': num_to_vietnamese_words(target_amount)
@@ -1726,6 +1752,15 @@ def api_documents_auto_fill():
             total_qty = 2500
             total_amt = 208792989
         
+    if month == '02':
+        last_day = '28'
+    elif month in ['04', '06', '09', '11']:
+        last_day = '30'
+    else:
+        last_day = '31'
+    decision_date = f"{last_day}/{month}/{year}"
+    invoice_date = f"28/{month}/{year}"
+
     conn.close()
     return jsonify({
         'success': True,
@@ -1734,7 +1769,9 @@ def api_documents_auto_fill():
         'invoices': [],
         'total_qty': total_qty,
         'total_amount': total_amt,
-        'suggested_date': f"31/{month}/{year}",
+        'suggested_date': invoice_date,
+        'decision_date': decision_date,
+        'invoice_date': invoice_date,
         'words': num_to_vietnamese_words(total_amt)
     })
 
@@ -1748,7 +1785,8 @@ def api_generate_documents():
     year = data.get('year', '2026')
     total_qty = data.get('total_qty', 0)
     vat_type = data.get('vat_type', 'Chưa VAT')
-    doc_date = data.get('doc_date', datetime.now().strftime('%d/%m/%Y'))
+    decision_date = data.get('decision_date') or data.get('doc_date') or datetime.now().strftime('%d/%m/%Y')
+    invoice_date = data.get('invoice_date') or data.get('doc_date') or datetime.now().strftime('%d/%m/%Y')
     representative_kfm = data.get('representative_kfm', 'NGUYỄN HOÀNG LÂM')
     representative_scf = data.get('representative_scf', 'Nguyễn Ngọc Xuân Quang')
     invoices = data.get('invoices', [])
@@ -1777,7 +1815,8 @@ def api_generate_documents():
             'warehouse_name': warehouse_name,
             'month': month,
             'year': year,
-            'doc_date': doc_date,
+            'doc_date': decision_date,
+            'decision_date': decision_date,
             'total_qty': total_qty,
             'total_amount': total_amount,
             'vat_type': vat_type,
@@ -1797,7 +1836,8 @@ def api_generate_documents():
             'warehouse_name': warehouse_name,
             'month': month,
             'year': year,
-            'doc_date': doc_date,
+            'doc_date': invoice_date,
+            'invoice_date': invoice_date,
             'total_amount': total_amount,
             'vat_type': vat_type,
             'bank_account': data.get('bank_account', '04001010091039'),

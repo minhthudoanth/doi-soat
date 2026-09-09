@@ -18,8 +18,9 @@ Tập tin Word mẫu đính kèm: **`QUYET_DINH_KHO_SEEDLOG_T07_2026_MAU_CHUAN.d
   CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM
       Độc lập – Tự do – Hạnh phúc
                ********
-       TPHCM, ngày 17 tháng 08 năm 2026
+       TPHCM, ngày {Ngày lập biên bản}
   ```
+  *(Lưu ý: Ngày trên Quyết Định là **Ngày Lập Biên Bản**, tách bạch với Ngày Hóa Đơn trên Đề Nghị Thanh Toán).*
 
 ### Tiêu đề & Căn cứ:
 * **QUYẾT ĐỊNH**
@@ -75,7 +76,7 @@ Tập tin Word mẫu đính kèm: **`DE_NGHI_THANH_TOAN_KHO_SEEDLOG_T07_2026_MAU
 
 ### Quy cách định dạng chuẩn (Đã lưu vào CSDL & áp dụng trên Web, file Word .docx):
 * **Header Trái**: `CÔNG TY CỔ PHẦN KINGFOOD MARKET` / `---------o0o---------`
-* **Header Phải**: `CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM` / `Độc Lập – Tự Do – Hạnh Phúc` / `---------o0o---------` / `TP.HCM, ngày 17 tháng 08 năm 2026` *(in nghiêng)*
+* **Header Phải**: `CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM` / `Độc Lập – Tự Do – Hạnh Phúc` / `---------o0o---------` / `TP.HCM, ngày {Ngày hóa đơn}` *(in nghiêng - Lấy theo Ngày Hóa Đơn)*
 * **Tiêu đề**:
   * **ĐỀ NGHỊ THANH TOÁN** *(In hoa, đậm, cỡ chữ 14, căn giữa)*
   * **V/v Đề nghị thanh toán tiền truy thu {Tên kho} tháng {tháng}/{năm}** *(In đậm, cỡ chữ 11, căn giữa)*
@@ -85,7 +86,7 @@ Tập tin Word mẫu đính kèm: **`DE_NGHI_THANH_TOAN_KHO_SEEDLOG_T07_2026_MAU
   * *- Căn cứ vào kết quả đối chiếu, kiểm tra chứng từ của KFM và SCF*
 * **Đề nghị thanh toán**:
   * Chúng tôi kính đề nghị quý Công ty thanh toán số tiền là: **{Số tiền} VNĐ (VAT)**
-  * *(Bằng chữ: {Số tiền bằng chữ})*
+  * *(Bằng chữ: {Số tiền bằng chữ})* *(Định dạng in nghiêng)*
 * **Thông tin tài khoản nhận tiền** *(Dạng danh sách gạch đầu dòng bullet, không kẻ khung bảng)*:
   * Số tiền trên đề nghị chuyển vào tài khoản:
   * • Số tài khoản: 04001010091039
