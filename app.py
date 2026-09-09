@@ -388,11 +388,20 @@ def api_stats():
     count_tagged = sum(1 for r in raw_tag_rows if is_truly_tagged_me(r['message_text']))
     
     cursor.execute("""
-        SELECT message_text, created_at FROM raw_messages
+        SELECT sender_name, message_text, created_at FROM raw_messages
         WHERE chat_title = 'SCM - KRC (Đối soát)'
+        AND sender_name NOT LIKE '%Thu Doàn%'
         AND sender_name NOT LIKE '%Thư Đoàn%'
+        AND sender_name NOT LIKE '%Thu Doan%'
         AND sender_name NOT LIKE '%SC017084%'
         AND sender_name NOT LIKE '%Đối soát SCM%'
+        AND sender_name NOT LIKE '%Doi soat SCM%'
+        AND sender_name NOT LIKE '%SCM%'
+        AND sender_name NOT LIKE '%Ny Ng%'
+        AND sender_name NOT LIKE '%Thọ Ng%'
+        AND sender_name NOT LIKE '%Tho Ng%'
+        AND sender_name NOT LIKE '%SC017797%'
+        AND sender_name NOT LIKE '%SC006747%'
         AND message_text NOT LIKE '%phản hồi giúp e case này%'
         AND message_text NOT LIKE '%phản hồi case này giúp e%'
         AND message_text NOT LIKE '%có cam nhận hàng hem%'
@@ -400,6 +409,10 @@ def api_stats():
         AND message_text NOT LIKE '%add giá cost%'
         AND message_text NOT LIKE '%các nhóm hàng còn lại rà lại%'
         AND message_text NOT LIKE '%mấy case này đã phản hồi%'
+        AND message_text NOT LIKE '%rút tồn%'
+        AND message_text NOT LIKE '%thao tác sai nhận phiếu%'
+        AND message_text NOT LIKE '%nhập sai số lượng%'
+        AND message_text NOT LIKE '%cam kiểm hàng%'
     """)
     audit_rows = cursor.fetchall()
 
@@ -510,9 +523,18 @@ def api_cases_audit_group():
         FROM raw_messages r
         LEFT JOIN audit_case_status s ON r.msg_id = s.msg_id
         WHERE r.chat_title = 'SCM - KRC (Đối soát)'
+        AND r.sender_name NOT LIKE '%Thu Doàn%'
         AND r.sender_name NOT LIKE '%Thư Đoàn%'
+        AND r.sender_name NOT LIKE '%Thu Doan%'
         AND r.sender_name NOT LIKE '%SC017084%'
         AND r.sender_name NOT LIKE '%Đối soát SCM%'
+        AND r.sender_name NOT LIKE '%Doi soat SCM%'
+        AND r.sender_name NOT LIKE '%SCM%'
+        AND r.sender_name NOT LIKE '%Ny Ng%'
+        AND r.sender_name NOT LIKE '%Thọ Ng%'
+        AND r.sender_name NOT LIKE '%Tho Ng%'
+        AND r.sender_name NOT LIKE '%SC017797%'
+        AND r.sender_name NOT LIKE '%SC006747%'
         AND r.message_text NOT LIKE '%phản hồi giúp e case này%'
         AND r.message_text NOT LIKE '%phản hồi case này giúp e%'
         AND r.message_text NOT LIKE '%có cam nhận hàng hem%'
@@ -520,6 +542,10 @@ def api_cases_audit_group():
         AND r.message_text NOT LIKE '%add giá cost%'
         AND r.message_text NOT LIKE '%các nhóm hàng còn lại rà lại%'
         AND r.message_text NOT LIKE '%mấy case này đã phản hồi%'
+        AND r.message_text NOT LIKE '%rút tồn%'
+        AND r.message_text NOT LIKE '%thao tác sai nhận phiếu%'
+        AND r.message_text NOT LIKE '%nhập sai số lượng%'
+        AND r.message_text NOT LIKE '%cam kiểm hàng%'
         ORDER BY r.id DESC
     """
     cursor.execute(query)
@@ -688,7 +714,24 @@ def api_cases_audit_group():
     invalid_st_phrases = ['rút tồn', 'kiểm tra giúp', 'nhờ check', 'gửi chị', 'chị ơi', 'phiếu pt', 'cho st nhé', 'cho st luôn', 'dạ e check', 'dạ check']
 
     audit_list = []
+    scm_senders_check = [
+        'scm', 'thu đoàn', 'thư đoàn', 'thu doan', 'sc017084',
+        'ny nguyễn', 'ny nguỹn', 'ny ngỹn', 'sc017797',
+        'thọ nguyễn', 'tho nguyen', 'sc006747', 'đối soát scm', 'doi soat scm'
+    ]
+    scm_req_phrases = [
+        'rút tồn', 'rut ton', 'thao tác sai nhận phiếu', 'nhập sai số lượng',
+        'cam kiểm hàng', 'đoạn cam', 'nhờ team check và xác nhận', 'nhờ team check giup',
+        'xác nhận rút tồn', 'hỗ trợ rút tồn'
+    ]
+
     for r in rows:
+        # BỎ QUA các tin nhắn do thành viên SCM gửi hoặc tin nhờ rút tồn/thao tác sai
+        sender_clean = (r['sender_name'] or '').lower()
+        txt_clean = (r['message_text'] or '').lower()
+        if any(k in sender_clean for k in scm_senders_check) or any(k in txt_clean for k in scm_req_phrases):
+            continue
+
         parsed = parse_full_audit(r['message_text'], r['created_at'])
         
         st = parsed.get('st_name', '')
@@ -3456,13 +3499,16 @@ def api_export():
         SELECT id, created_at, chat_title, sender_name, message_text 
         FROM raw_messages 
         WHERE chat_title = 'SCM - KRC (Đối soát)'
+        AND sender_name NOT LIKE '%Thu Doàn%'
         AND sender_name NOT LIKE '%Thư Đoàn%'
+        AND sender_name NOT LIKE '%Thu Doan%'
         AND sender_name NOT LIKE '%SC017084%'
+        AND sender_name NOT LIKE '%SCM%'
+        AND sender_name NOT LIKE '%Ny Ng%'
+        AND sender_name NOT LIKE '%Thọ Ng%'
         AND message_text NOT LIKE '%phản hồi giúp e case này%'
-        AND message_text NOT LIKE '%phản hồi case này giúp e%'
-        AND message_text NOT LIKE '%có cam nhận hàng hem%'
-        AND message_text NOT LIKE '%mở quyền%'
-        AND message_text NOT LIKE '%add giá cost%'
+        AND message_text NOT LIKE '%rút tồn%'
+        AND message_text NOT LIKE '%thao tác sai nhận phiếu%'
         ORDER BY id DESC
     """)
     for r in cursor.fetchall():

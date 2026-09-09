@@ -240,10 +240,33 @@ def get_recent_sent_batches(limit: int = 15):
 
 def get_all_store_chats():
     """
-    Lấy toàn bộ danh sách group Siêu Thị & Kho hợp lệ từ SQLite
+    Lấy toàn bộ danh sách group Siêu Thị & Kho hợp lệ từ SQLite (ưu tiên từ bảng telegram_store_groups)
     """
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
+    
+    # 1. Kiểm tra bảng telegram_store_groups (chứa toàn bộ 431 group ST đã được đồng bộ chuẩn)
+    try:
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='telegram_store_groups'")
+        if cursor.fetchone():
+            cursor.execute("""
+                SELECT chat_id, chat_title, department, store_code 
+                FROM telegram_store_groups 
+                ORDER BY chat_title ASC
+            """)
+            rows = cursor.fetchall()
+            if rows:
+                conn.close()
+                return [{
+                    "chat_id": r[0],
+                    "chat_title": r[1],
+                    "department": r[2],
+                    "store_code": r[3]
+                } for r in rows]
+    except Exception:
+        pass
+
+    # 2. Fallback nếu bảng telegram_store_groups chưa có data
     cursor.execute("""
         SELECT DISTINCT chat_id, chat_title 
         FROM raw_messages 
@@ -253,24 +276,39 @@ def get_all_store_chats():
     rows = cursor.fetchall()
     conn.close()
 
+    NON_STORE_KEYWORDS = [
+        "scm", "qc", "seedlog", "support", "hub", "đối soát", "doi soat", 
+        "chênh lệch", "chenh lech", "báo cáo", "soe", "internal", 
+        "nội bộ", "it support", "cskh", "kho tổng", "bakery", "kdb", 
+        "logistic", "quạo", "hải đăng", "ghknn"
+    ]
+
     stores = []
     for cid, title in rows:
         if is_group_excluded(title):
             continue
-        # Xác định nhóm kho
         t_low = title.lower()
+        if any(k in t_low for k in NON_STORE_KEYWORDS) or title.startswith("26.") or title.startswith("IC -"):
+            continue
+            
+        # Xác định nhóm kho
         dept = "KRC"
-        if "aba" in t_low or "đông mát" in t_low or "thịt" in t_low or "cá" in t_low or "mđ" in t_low:
-            dept = "Đông Mát Thịt Cá"
-        elif "dc" in t_low or "kho tổng" in t_low:
+        if "aba" in t_low or "đông mát" in t_low or "dong mat" in t_low or "thịt" in t_low or "cá" in t_low or "md" in t_low:
+            dept = "Đông Mát"
+        elif "dc" in t_low or "kho" in t_low:
             dept = "DC"
         elif "krc" in t_low or "rau" in t_low:
             dept = "KRC"
 
+        # Tìm mã ST
+        m_code = re.search(r'\b([A-Z]\d{3})\b', title, re.IGNORECASE)
+        store_code = m_code.group(1).upper() if m_code else ""
+
         stores.append({
             "chat_id": cid,
             "chat_title": title,
-            "department": dept
+            "department": dept,
+            "store_code": store_code
         })
     return stores
 

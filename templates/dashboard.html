@@ -216,9 +216,7 @@
                 <button class="btn btn-sm btn-outline-dark px-3 py-2 fw-bold text-uppercase" id="btn-module-docs" onclick="switchModule('docs')">
                     CHỨNG TỪ
                 </button>
-                <button class="btn btn-sm btn-outline-dark px-3 py-2 fw-bold text-uppercase" id="btn-module-discrepancy" onclick="openDiscrepancyTab()">
-                    <i class="fa-solid fa-table-list me-1 text-warning"></i> LỆCH KHO (DC GIAO THIẾU)
-                </button>
+                
 
 
 
@@ -2776,7 +2774,7 @@
 
         function updateSelectedStoresCount() {
             const el = document.getElementById('selected-stores-count');
-            if (el) el.innerText = `Đã chọn: ${selectedStoreIds.size} / ${allStoresList.length} ST`;
+            if (el) el.innerText = `Đã chọn: ${selectedStoreIds.size} / ${allStoresList.length} Group ST`;
             const btn = document.getElementById('btn-send-broadcast');
             if (btn && !btn.disabled) {
                 btn.innerHTML = `<i class="fa-solid fa-paper-plane me-1 text-warning"></i> GỬI TIN NHẮN TỨC THÌ (${selectedStoreIds.size} ST)`;

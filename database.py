@@ -122,6 +122,16 @@ def init_db():
         )
     """)
     cursor.execute("""
+        CREATE TABLE IF NOT EXISTS telegram_store_groups (
+            chat_id INTEGER PRIMARY KEY,
+            chat_title TEXT NOT NULL,
+            department TEXT NOT NULL,
+            store_code TEXT,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS store_negative_stock_records (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             date TEXT,
