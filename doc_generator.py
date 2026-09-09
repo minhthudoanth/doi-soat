@@ -1,5 +1,6 @@
 import os
 import sys
+import re
 from datetime import datetime
 import docx
 from docx.shared import Pt, Inches, RGBColor
@@ -127,6 +128,43 @@ def clean_warehouse_name(w):
     return cleaned.upper()
 
 
+def format_co_display(co_val, content_val=None):
+    """
+    Quy tắc định dạng cột CO chuẩn theo yêu cầu:
+    1. Nếu là Hủy hàng Hậu kiểm (chứa từ khóa HẬU KIỂM, HAU KIEM, HỦY HÀNG HK hoặc mã HK) -> hiển thị 'HK'
+    2. Nếu có mã CO (tìm thấy mã dạng CO... trong co_val hoặc content) -> hiển thị mã CO
+    3. Nếu không có CO và không phải Hậu kiểm -> để trống '' (không điền tên hóa đơn hay diễn giải dài vào ô CO)
+    """
+    co_str = str(co_val or '').strip()
+    content_str = str(content_val or '').strip()
+    combined = f"{co_str} {content_str}".strip()
+    combined_upper = combined.upper()
+
+    # 1. Kiểm tra Hủy hàng Hậu kiểm / HK
+    if any(k in combined_upper for k in ['HẬU KIỂM', 'HAU KIEM', 'HỦY HÀNG HK', 'HUY HANG HK']) or co_str.upper() == 'HK':
+        return 'HK'
+
+    # 2. Tìm mã CO dạng CO... trong co_val hoặc content
+    co_matches = re.findall(r'CO[-\s]?\d+', combined, re.IGNORECASE)
+    if co_matches:
+        seen = set()
+        distinct = []
+        for m in co_matches:
+            m_norm = re.sub(r'\s+', '', m).upper()
+            if m_norm not in seen:
+                seen.add(m_norm)
+                distinct.append(m_norm)
+        return ', '.join(distinct)
+
+    # 3. Nếu người dùng nhập trực tiếp một mã ngắn gọn hợp lệ (không phải văn bản/nội dung hóa đơn dài)
+    noise_keywords = ['XHD', 'TRUY THU', 'BIÊN BẢN', 'HÓA ĐƠN', 'THEO', 'NGÀY', 'THANH LÝ', 'HƯ HỎNG', 'THẤT THOÁT', 'CLAIM']
+    if co_str and len(co_str) <= 25 and not any(k in co_str.upper() for k in noise_keywords):
+        return co_str
+
+    # 4. Không có CO -> để trống
+    return ''
+
+
 # --- 1. TẠO QUYẾT ĐỊNH TRUY THU (.DOCX) ---
 def generate_quyet_dinh_docx(data, output_path):
     doc = docx.Document()
@@ -244,7 +282,7 @@ def generate_quyet_dinh_docx(data, output_path):
                 post = round(pre * 1.08)
             if pre == 0 and post > 0:
                 pre = round(post / 1.08)
-            co = str(it.get('co_number') or it.get('content') or it.get('invoice_number') or '').strip()
+            co = format_co_display(it.get('co_number') or it.get('co'), it.get('content'))
             table_items.append({'co': co, 'sl': sl, 'pre': pre, 'post': post})
 
     if not table_items:
@@ -258,7 +296,7 @@ def generate_quyet_dinh_docx(data, output_path):
         else:
             pre = amt
             post = round(amt * 1.08)
-        co = str(data.get('co_number', '')).strip()
+        co = format_co_display(data.get('co_number') or data.get('co'), data.get('content'))
         table_items.append({'co': co, 'sl': sl, 'pre': pre, 'post': post})
 
     num_rows = len(table_items)

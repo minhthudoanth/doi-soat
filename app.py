@@ -1440,6 +1440,9 @@ def api_get_claim_invoices():
             ORDER BY month DESC, warehouse_code ASC, id ASC
         """)
     rows = [dict(r) for r in cursor.fetchall()]
+    from doc_generator import format_co_display
+    for r in rows:
+        r['co_number'] = format_co_display(r['co_number'], r['content'])
 
     cursor.execute("SELECT DISTINCT month FROM warehouse_claim_invoices WHERE month != '' ORDER BY CAST(month AS INTEGER) DESC")
     available_months = [r[0] for r in cursor.fetchall()]
@@ -1602,7 +1605,7 @@ def api_documents_auto_fill():
             latest_m = all_wh_rows[0]['month']
             inv_rows = [r for r in all_wh_rows if r['month'] == latest_m]
     
-    from doc_generator import num_to_vietnamese_words
+    from doc_generator import num_to_vietnamese_words, format_co_display
 
     if inv_rows:
         tot_pre = sum(r['pre_tax'] or 0.0 for r in inv_rows)
@@ -1619,7 +1622,7 @@ def api_documents_auto_fill():
                     'stt': len(inv_grouped) + 1,
                     'content': r['content'],
                     'invoice_number': r['invoice_number'],
-                    'co_number': r['co_number'],
+                    'co_number': format_co_display(r['co_number'], r['content']),
                     'date': r['invoice_date'],
                     'qty': r.get('quantity') or 0,
                     'pre_tax': 0.0,
@@ -1629,8 +1632,8 @@ def api_documents_auto_fill():
             inv_grouped[inv_no]['post_tax'] += (r['post_tax'] or 0.0)
             if r.get('quantity') and not inv_grouped[inv_no]['qty']:
                 inv_grouped[inv_no]['qty'] = r['quantity']
-            if r['co_number'] and not inv_grouped[inv_no]['co_number']:
-                inv_grouped[inv_no]['co_number'] = r['co_number']
+            if not inv_grouped[inv_no]['co_number']:
+                inv_grouped[inv_no]['co_number'] = format_co_display(r['co_number'], r['content'])
 
         invoices_list = list(inv_grouped.values())
         

@@ -41,6 +41,11 @@ Tập tin Word mẫu đính kèm: **`QUYET_DINH_KHO_SEEDLOG_T07_2026_MAU_CHUAN.d
 
 *(Các cột `Tháng`, `Tên kho`, `Ghi chú` được gộp dòng (merge / rowspan) căn giữa toàn bộ).*
 
+#### Quy tắc hiển thị Cột CO:
+1. **Có mã CO**: Giữ nguyên mã CO (ví dụ: `CO804605`, `CO804618, CO804622`).
+2. **Hủy hàng Hậu kiểm (HK)**: Ghi chú là `HK`.
+3. **Không có CO**: Để trống hoàn toàn `""` (không chèn diễn giải hóa đơn dài dòng vào ô CO).
+
 ### Diễn giải dưới bảng & Điều khoản:
 * • Chi phí KHO SEEDLOG T07/2026 (VAT): **64,558,843 VNĐ**
 * \- Tổng giá trị chênh lệch kho: (59,774,727) VNĐ (Chưa VAT)

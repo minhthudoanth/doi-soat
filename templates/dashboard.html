@@ -3994,11 +3994,11 @@
                         <td class="font-monospace small text-muted">${r.invoice_date || '-'}</td>
                         <td class="small fw-semibold text-dark">${r.content}</td>
                         <td class="text-center">${qtyDisplay}</td>
-                        <td class="text-center"><span class="badge bg-light text-dark border font-monospace">${r.co_number || '-'}</span></td>
+                        <td class="text-center"><span class="badge bg-light text-dark border font-monospace">${formatCoDisplay(r.co_number, r.content) || '-'}</span></td>
                         <td class="text-end font-monospace fw-semibold">${new Intl.NumberFormat('vi-VN').format(r.pre_tax)} đ</td>
                         <td class="text-end font-monospace fw-bold text-danger">${new Intl.NumberFormat('vi-VN').format(r.post_tax)} đ</td>
                         <td class="text-center">
-                            <button class="btn btn-xs btn-outline-dark fw-semibold py-0 px-2" style="font-size: 0.72rem;" onclick="loadSingleInvoiceToForm('${escWh}', '${r.month}', '${r.invoice_date || ''}', ${r.pre_tax || 0}, ${r.post_tax || 0}, '${r.invoice_number || ''}', '${r.co_number || ''}', ${r.quantity || 0})" title="Chọn đưa vào mẫu chứng từ">
+                            <button class="btn btn-xs btn-outline-dark fw-semibold py-0 px-2" style="font-size: 0.72rem;" onclick="loadSingleInvoiceToForm('${escWh}', '${r.month}', '${r.invoice_date || ''}', ${r.pre_tax || 0}, ${r.post_tax || 0}, '${r.invoice_number || ''}', '${formatCoDisplay(r.co_number, r.content)}', ${r.quantity || 0})" title="Chọn đưa vào mẫu chứng từ">
                                 <i class="fa-solid fa-arrow-up-from-bracket me-1"></i>Chọn
                             </button>
                         </td>
@@ -4124,6 +4124,40 @@
             return cleaned.toUpperCase();
         }
 
+        function formatCoDisplay(coVal, contentVal) {
+            const coStr = (coVal || '').toString().trim();
+            const contentStr = (contentVal || '').toString().trim();
+            const combined = `${coStr} ${contentStr}`.trim();
+            const combinedUpper = combined.toUpperCase();
+
+            // 1. Hủy hàng hậu kiểm -> note 'HK'
+            if (combinedUpper.includes('HẬU KIỂM') || combinedUpper.includes('HAU KIEM') || 
+                combinedUpper.includes('HỦY HÀNG HK') || combinedUpper.includes('HUY HANG HK') || 
+                coStr.toUpperCase() === 'HK') {
+                return 'HK';
+            }
+
+            // 2. Tìm các mã CO (CO[-\s]?\d+)
+            const matches = combined.match(/CO[-\s]?\d+/gi);
+            if (matches && matches.length > 0) {
+                const distinct = [];
+                matches.forEach(m => {
+                    const mNorm = m.replace(/\s+/g, '').toUpperCase();
+                    if (!distinct.includes(mNorm)) distinct.push(mNorm);
+                });
+                return distinct.join(', ');
+            }
+
+            // 3. Nếu coStr là mã ngắn hợp lệ và không chứa từ khóa diễn giải dài dòng
+            const noiseKeywords = ['XHD', 'TRUY THU', 'BIÊN BẢN', 'HÓA ĐƠN', 'THEO', 'NGÀY', 'THANH LÝ', 'HƯ HỎNG', 'THẤT THOÁT', 'CLAIM'];
+            if (coStr && coStr.length <= 25 && !noiseKeywords.some(k => coStr.toUpperCase().includes(k))) {
+                return coStr;
+            }
+
+            // 4. Không có CO -> để trống
+            return '';
+        }
+
         function updateDocPreview() {
             const w = document.getElementById('doc-input-warehouse') ? document.getElementById('doc-input-warehouse').value : 'KHO MEATFISH';
             const m = document.getElementById('doc-input-month') ? document.getElementById('doc-input-month').value : '08';
@@ -4160,7 +4194,7 @@
                         let post = Math.abs(parseFloat(it.post_tax) || 0);
                         if (post === 0 && pre > 0) post = Math.round(pre * 1.08);
                         if (pre === 0 && post > 0) pre = Math.round(post / 1.08);
-                        let co = it.co_number || it.content || it.invoice_number || '';
+                        let co = formatCoDisplay(it.co_number || it.co, it.content);
                         return { co, sl, pre, post };
                     });
                 }
@@ -4175,7 +4209,8 @@
                         pre = Math.abs(amt);
                         post = Math.round(pre * 1.08);
                     }
-                    tableItems.push({ co: '', sl, pre, post });
+                    let defaultCo = (currentDocInvoices && currentDocInvoices.length > 0) ? formatCoDisplay(currentDocInvoices[0].co_number || currentDocInvoices[0].co, currentDocInvoices[0].content) : '';
+                    tableItems.push({ co: defaultCo, sl, pre, post });
                 } else if (tableItems.length === 1 && (amt > 0 || qty > 0)) {
                     tableItems[0].sl = Math.abs(qty);
                     if (isPostVat) {
