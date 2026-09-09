@@ -58,7 +58,10 @@ EXCLUDED_GROUPS = [
     "LOG - Xử lý lệch nội bộ",
     "LOG -",
     "SCM- KRC Nội bộ",
-    "SCM - KRC Nội bộ"
+    "SCM - KRC Nội bộ",
+    "[SCM ĐỐI SOÁT] BÁNH TRÁI",
+    "BÁNH TRÁI",
+    "Banh Trai"
 ]
 
 

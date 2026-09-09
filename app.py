@@ -380,7 +380,7 @@ def api_stats():
         WHERE sender_name NOT LIKE '%Thư Đoàn%'
         AND sender_name NOT LIKE '%SC017084%'
         AND sender_name NOT LIKE '%Đối soát SCM%'
-        AND chat_title NOT LIKE '%Đối soát%'
+        AND (chat_title NOT LIKE '%Đối soát%' AND chat_title NOT LIKE '%ĐỐI SOÁT%' AND chat_title NOT LIKE '%đối soát%' AND chat_title NOT LIKE '%BÁNH TRÁI%' AND chat_title NOT LIKE '%Bánh Trái%')
         AND (is_read = 0 OR is_read IS NULL)
         AND (is_dismissed = 0 OR is_dismissed IS NULL)
     """)
@@ -419,7 +419,7 @@ def api_stats():
     
     cursor.execute("""
         SELECT COUNT(*) FROM priority_cases 
-        WHERE chat_title NOT LIKE '%Đối soát%'
+        WHERE (chat_title NOT LIKE '%Đối soát%' AND chat_title NOT LIKE '%ĐỐI SOÁT%' AND chat_title NOT LIKE '%đối soát%' AND chat_title NOT LIKE '%BÁNH TRÁI%' AND chat_title NOT LIKE '%Bánh Trái%')
         AND (is_read = 0 OR is_read IS NULL)
         AND (is_dismissed = 0 OR is_dismissed IS NULL)
         AND content NOT LIKE '%[KFM - SCM Team]%'
@@ -471,7 +471,7 @@ def api_cases_tagged_me():
         WHERE sender_name NOT LIKE '%Thư Đoàn%'
         AND sender_name NOT LIKE '%SC017084%'
         AND sender_name NOT LIKE '%Đối soát SCM%'
-        AND chat_title NOT LIKE '%Đối soát%'
+        AND (chat_title NOT LIKE '%Đối soát%' AND chat_title NOT LIKE '%ĐỐI SOÁT%' AND chat_title NOT LIKE '%đối soát%' AND chat_title NOT LIKE '%BÁNH TRÁI%' AND chat_title NOT LIKE '%Bánh Trái%')
         AND message_text NOT LIKE '%phản hồi giúp e case này%'
         AND message_text NOT LIKE '%phản hồi case này giúp e%'
         {filter_read_sql}
@@ -2375,7 +2375,7 @@ def api_cases_store_issues():
     
     cursor.execute(f"""
         SELECT * FROM priority_cases 
-        WHERE chat_title NOT LIKE '%Đối soát%'
+        WHERE (chat_title NOT LIKE '%Đối soát%' AND chat_title NOT LIKE '%ĐỐI SOÁT%' AND chat_title NOT LIKE '%đối soát%' AND chat_title NOT LIKE '%BÁNH TRÁI%' AND chat_title NOT LIKE '%Bánh Trái%')
         AND content NOT LIKE '%[KFM - SCM Team]%'
         AND content NOT LIKE '%ST lưu ý bắt đầu từ nay trở về sau%'
         AND content NOT LIKE '%chuyển tồn về kho giảm chất lượng%'
@@ -3485,7 +3485,7 @@ def api_export():
     cursor.execute("""
         SELECT id, created_at, chat_title, sender_name, issue_type, content, status 
         FROM priority_cases 
-        WHERE chat_title NOT LIKE '%Đối soát%'
+        WHERE (chat_title NOT LIKE '%Đối soát%' AND chat_title NOT LIKE '%ĐỐI SOÁT%' AND chat_title NOT LIKE '%đối soát%' AND chat_title NOT LIKE '%BÁNH TRÁI%' AND chat_title NOT LIKE '%Bánh Trái%')
         ORDER BY id DESC
     """)
     for r in cursor.fetchall():
