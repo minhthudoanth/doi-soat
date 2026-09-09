@@ -306,12 +306,30 @@ def generate_quyet_dinh_docx(data, output_path):
     tot_pre = sum(it['pre'] for it in table_items)
     tot_post = sum(it['post'] for it in table_items)
 
-    table_data = doc.add_table(rows=num_rows + 2, cols=7)
+    num_rows = len(table_items)
+    tot_sl = sum(it['sl'] for it in table_items)
+    tot_pre = sum(it['pre'] for it in table_items)
+    tot_post = sum(it['post'] for it in table_items)
+
+    # Kiểm tra xem có cột CO hay không:
+    # 1. Các kho Rau củ, Thịt cá (Meatfish), Đông, Mát, Đông Mát không sử dụng cột CO
+    # 2. Hoặc khi không có bất kỳ dòng nào có mã CO / HK
+    is_no_co_wh = any(k in w_name.upper() for k in ['RAU CỦ', 'RAU CU', 'MEATFISH', 'THỊT CÁ', 'THIT CA', 'ĐÔNG', 'DONG', 'MÁT', 'MAT'])
+    has_co = (not is_no_co_wh) and any(bool(it.get('co')) for it in table_items)
+
+    num_cols = 7 if has_co else 6
+    table_data = doc.add_table(rows=num_rows + 2, cols=num_cols)
     table_data.alignment = WD_TABLE_ALIGNMENT.CENTER
     table_data.autofit = False
 
-    headers = ["Tháng", "Tên kho", "CO", "SL Chênh lệch", "Giá trị", "Giá trị (VAT)", "Ghi chú"]
-    col_widths = [Inches(0.70), Inches(1.15), Inches(0.90), Inches(0.80), Inches(1.05), Inches(1.05), Inches(0.83)]
+    if has_co:
+        headers = ["Tháng", "Tên kho", "CO", "SL Chênh lệch", "Giá trị", "Giá trị (VAT)", "Ghi chú"]
+        col_widths = [Inches(0.70), Inches(1.15), Inches(0.90), Inches(0.80), Inches(1.05), Inches(1.05), Inches(0.83)]
+        note_col_idx = 6
+    else:
+        headers = ["Tháng", "Tên kho", "SL Chênh lệch", "Giá trị", "Giá trị (VAT)", "Ghi chú"]
+        col_widths = [Inches(0.80), Inches(1.40), Inches(1.00), Inches(1.15), Inches(1.15), Inches(0.98)]
+        note_col_idx = 5
 
     for j, w_col in enumerate(col_widths):
         table_data.columns[j].width = w_col
@@ -343,7 +361,7 @@ def generate_quyet_dinh_docx(data, output_path):
         post_str = f"({it['post']:,.0f})" if it['post'] else "-"
 
         # Set borders & padding cho từng cell
-        for j in range(7):
+        for j in range(num_cols):
             cell = table_data.cell(row_idx, j)
             cell.width = col_widths[j]
             set_cell_margins(cell, 50, 50, 60, 60)
@@ -352,19 +370,24 @@ def generate_quyet_dinh_docx(data, output_path):
                                   left=dict(val='single', sz='6', color='000000'),
                                   right=dict(val='single', sz='6', color='000000'))
 
-        # Cột CO (j=2)
-        cell_co = table_data.cell(row_idx, 2)
-        p_co = cell_co.paragraphs[0]
-        p_co.alignment = WD_ALIGN_PARAGRAPH.LEFT
-        p_co.paragraph_format.line_spacing = 1.15
-        p_co.paragraph_format.space_before = Pt(2)
-        p_co.paragraph_format.space_after = Pt(2)
-        r_co = p_co.add_run(it['co'])
-        r_co.font.size = Pt(9)
-        r_co.font.name = "Times New Roman"
+        if has_co:
+            # Cột CO (j=2)
+            cell_co = table_data.cell(row_idx, 2)
+            p_co = cell_co.paragraphs[0]
+            p_co.alignment = WD_ALIGN_PARAGRAPH.LEFT
+            p_co.paragraph_format.line_spacing = 1.15
+            p_co.paragraph_format.space_before = Pt(2)
+            p_co.paragraph_format.space_after = Pt(2)
+            r_co = p_co.add_run(it['co'])
+            r_co.font.size = Pt(9)
+            r_co.font.name = "Times New Roman"
 
-        # Cột SL Chênh lệch (j=3)
-        cell_sl = table_data.cell(row_idx, 3)
+            sl_col, pre_col, post_col = 3, 4, 5
+        else:
+            sl_col, pre_col, post_col = 2, 3, 4
+
+        # Cột SL Chênh lệch
+        cell_sl = table_data.cell(row_idx, sl_col)
         p_sl = cell_sl.paragraphs[0]
         p_sl.alignment = WD_ALIGN_PARAGRAPH.RIGHT
         p_sl.paragraph_format.line_spacing = 1.15
@@ -374,8 +397,8 @@ def generate_quyet_dinh_docx(data, output_path):
         r_sl.font.size = Pt(9)
         r_sl.font.name = "Times New Roman"
 
-        # Cột Giá trị (j=4)
-        cell_pre = table_data.cell(row_idx, 4)
+        # Cột Giá trị
+        cell_pre = table_data.cell(row_idx, pre_col)
         p_pre = cell_pre.paragraphs[0]
         p_pre.alignment = WD_ALIGN_PARAGRAPH.RIGHT
         p_pre.paragraph_format.line_spacing = 1.15
@@ -385,8 +408,8 @@ def generate_quyet_dinh_docx(data, output_path):
         r_pre.font.size = Pt(9)
         r_pre.font.name = "Times New Roman"
 
-        # Cột Giá trị (VAT) (j=5)
-        cell_post = table_data.cell(row_idx, 5)
+        # Cột Giá trị (VAT)
+        cell_post = table_data.cell(row_idx, post_col)
         p_post = cell_post.paragraphs[0]
         p_post.alignment = WD_ALIGN_PARAGRAPH.RIGHT
         p_post.paragraph_format.line_spacing = 1.15
@@ -396,17 +419,17 @@ def generate_quyet_dinh_docx(data, output_path):
         r_post.font.size = Pt(9)
         r_post.font.name = "Times New Roman"
 
-    # Merge các cột Tháng (0), Tên kho (1), Ghi chú (6) xuyên suốt tất cả các dòng dữ liệu
+    # Merge các cột Tháng (0), Tên kho (1), Ghi chú (note_col_idx) xuyên suốt tất cả các dòng dữ liệu
     if num_rows > 1:
         c0 = table_data.cell(1, 0).merge(table_data.cell(num_rows, 0))
         c1 = table_data.cell(1, 1).merge(table_data.cell(num_rows, 1))
-        c6 = table_data.cell(1, 6).merge(table_data.cell(num_rows, 6))
+        cnote = table_data.cell(1, note_col_idx).merge(table_data.cell(num_rows, note_col_idx))
     else:
         c0 = table_data.cell(1, 0)
         c1 = table_data.cell(1, 1)
-        c6 = table_data.cell(1, 6)
+        cnote = table_data.cell(1, note_col_idx)
 
-    for c, val in [(c0, f"Tháng {month}"), (c1, w_name), (c6, "Claim DC 100%")]:
+    for c, val in [(c0, f"Tháng {month}"), (c1, w_name), (cnote, "Claim DC 100%")]:
         c.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
         p = c.paragraphs[0]
         p.text = ""
@@ -422,7 +445,13 @@ def generate_quyet_dinh_docx(data, output_path):
     tot_sl_str = f"({tot_sl:,.0f})" if tot_sl else "-"
     tot_pre_str = f"({tot_pre:,.0f})" if tot_pre else "-"
     tot_post_str = f"({tot_post:,.0f})" if tot_post else "-"
-    last_row_vals = ["", "Grand Total", "", tot_sl_str, tot_pre_str, tot_post_str, ""]
+
+    if has_co:
+        last_row_vals = ["", "Grand Total", "", tot_sl_str, tot_pre_str, tot_post_str, ""]
+        right_align_cols = [3, 4, 5]
+    else:
+        last_row_vals = ["", "Grand Total", tot_sl_str, tot_pre_str, tot_post_str, ""]
+        right_align_cols = [2, 3, 4]
 
     for j, val in enumerate(last_row_vals):
         cell = table_data.cell(num_rows + 1, j)
@@ -431,7 +460,7 @@ def generate_quyet_dinh_docx(data, output_path):
         p.paragraph_format.line_spacing = 1.15
         p.paragraph_format.space_before = Pt(2)
         p.paragraph_format.space_after = Pt(2)
-        if j in [3, 4, 5]:
+        if j in right_align_cols:
             p.alignment = WD_ALIGN_PARAGRAPH.RIGHT
         elif j == 1:
             p.alignment = WD_ALIGN_PARAGRAPH.LEFT

@@ -4229,6 +4229,9 @@
                 const numRows = tableItems.length;
                 const fmtComma = (val) => new Intl.NumberFormat('en-US').format(Math.round(val || 0));
 
+                const isNoCoWh = ['RAU CỦ', 'RAU CU', 'MEATFISH', 'THỊT CÁ', 'THIT CA', 'ĐÔNG', 'DONG', 'MÁT', 'MAT'].some(k => whClean.toUpperCase().includes(k));
+                const hasCo = (!isNoCoWh) && tableItems.some(it => !!it.co);
+
                 let tbodyHtml = '';
                 tableItems.forEach((it, idx) => {
                     let slStr = it.sl ? `(${fmtComma(it.sl)})` : '-';
@@ -4237,15 +4240,24 @@
 
                     tbodyHtml += `<tr>`;
                     if (idx === 0) {
-                        tbodyHtml += `<td rowspan="${numRows}" style="border: 1px solid #111; padding: 6px 6px; text-align: center; vertical-align: middle; width: 75px;">Tháng ${m}</td>`;
-                        tbodyHtml += `<td rowspan="${numRows}" style="border: 1px solid #111; padding: 6px 8px; text-align: center; vertical-align: middle; width: 115px;">${whClean}</td>`;
+                        const mWidth = hasCo ? '75px' : '85px';
+                        const whWidth = hasCo ? '115px' : '140px';
+                        tbodyHtml += `<td rowspan="${numRows}" style="border: 1px solid #111; padding: 6px 6px; text-align: center; vertical-align: middle; width: ${mWidth};">Tháng ${m}</td>`;
+                        tbodyHtml += `<td rowspan="${numRows}" style="border: 1px solid #111; padding: 6px 8px; text-align: center; vertical-align: middle; width: ${whWidth};">${whClean}</td>`;
                     }
-                    tbodyHtml += `<td style="border: 1px solid #111; padding: 6px 8px; text-align: left; vertical-align: middle; white-space: pre-line; width: 95px;">${it.co}</td>`;
-                    tbodyHtml += `<td style="border: 1px solid #111; padding: 6px 6px; text-align: right; vertical-align: middle; width: 85px;">${slStr}</td>`;
-                    tbodyHtml += `<td style="border: 1px solid #111; padding: 6px 6px; text-align: right; vertical-align: middle; width: 95px;">${preStr}</td>`;
-                    tbodyHtml += `<td style="border: 1px solid #111; padding: 6px 6px; text-align: right; vertical-align: middle; width: 100px;">${postStr}</td>`;
+                    if (hasCo) {
+                        tbodyHtml += `<td style="border: 1px solid #111; padding: 6px 8px; text-align: left; vertical-align: middle; white-space: pre-line; width: 95px;">${it.co}</td>`;
+                    }
+                    const slWidth = hasCo ? '85px' : '100px';
+                    const preWidth = hasCo ? '95px' : '110px';
+                    const postWidth = hasCo ? '100px' : '115px';
+                    const noteWidth = hasCo ? '95px' : '100px';
+
+                    tbodyHtml += `<td style="border: 1px solid #111; padding: 6px 6px; text-align: right; vertical-align: middle; width: ${slWidth};">${slStr}</td>`;
+                    tbodyHtml += `<td style="border: 1px solid #111; padding: 6px 6px; text-align: right; vertical-align: middle; width: ${preWidth};">${preStr}</td>`;
+                    tbodyHtml += `<td style="border: 1px solid #111; padding: 6px 6px; text-align: right; vertical-align: middle; width: ${postWidth};">${postStr}</td>`;
                     if (idx === 0) {
-                        tbodyHtml += `<td rowspan="${numRows}" style="border: 1px solid #111; padding: 6px 6px; text-align: center; vertical-align: middle; width: 95px;">Claim DC 100%</td>`;
+                        tbodyHtml += `<td rowspan="${numRows}" style="border: 1px solid #111; padding: 6px 6px; text-align: center; vertical-align: middle; width: ${noteWidth};">Claim DC 100%</td>`;
                     }
                     tbodyHtml += `</tr>`;
                 });
@@ -4259,7 +4271,7 @@
                     <tr style="font-weight: bold;">
                         <td style="border: 1px solid #111; padding: 6px 6px;"></td>
                         <td style="border: 1px solid #111; padding: 6px 8px; text-align: left;">Grand Total</td>
-                        <td style="border: 1px solid #111; padding: 6px 8px;"></td>
+                        ${hasCo ? `<td style="border: 1px solid #111; padding: 6px 8px;"></td>` : ''}
                         <td style="border: 1px solid #111; padding: 6px 6px; text-align: right;">${grandSlStr}</td>
                         <td style="border: 1px solid #111; padding: 6px 6px; text-align: right;">${grandPreStr}</td>
                         <td style="border: 1px solid #111; padding: 6px 6px; text-align: right;">${grandPostStr}</td>
@@ -4271,13 +4283,13 @@
                     <table style="width: 100%; border-collapse: collapse; margin: 12px 0 16px 0; font-size: 12.5px; border: 1px solid #111;">
                         <thead>
                             <tr style="font-weight: bold;">
-                                <th style="border: 1px solid #111; padding: 6px 6px; text-align: center; width: 75px;">Tháng</th>
-                                <th style="border: 1px solid #111; padding: 6px 8px; text-align: center; width: 115px;">Tên kho</th>
-                                <th style="border: 1px solid #111; padding: 6px 8px; text-align: center; width: 95px;">CO</th>
-                                <th style="border: 1px solid #111; padding: 6px 6px; text-align: center; width: 85px;">SL Chênh lệch</th>
-                                <th style="border: 1px solid #111; padding: 6px 6px; text-align: center; width: 95px;">Giá trị</th>
-                                <th style="border: 1px solid #111; padding: 6px 6px; text-align: center; width: 100px;">Giá trị (VAT)</th>
-                                <th style="border: 1px solid #111; padding: 6px 6px; text-align: center; width: 95px;">Ghi chú</th>
+                                <th style="border: 1px solid #111; padding: 6px 6px; text-align: center; width: ${hasCo ? '75px' : '85px'};">Tháng</th>
+                                <th style="border: 1px solid #111; padding: 6px 8px; text-align: center; width: ${hasCo ? '115px' : '140px'};">Tên kho</th>
+                                ${hasCo ? `<th style="border: 1px solid #111; padding: 6px 8px; text-align: center; width: 95px;">CO</th>` : ''}
+                                <th style="border: 1px solid #111; padding: 6px 6px; text-align: center; width: ${hasCo ? '85px' : '100px'};">SL Chênh lệch</th>
+                                <th style="border: 1px solid #111; padding: 6px 6px; text-align: center; width: ${hasCo ? '95px' : '110px'};">Giá trị</th>
+                                <th style="border: 1px solid #111; padding: 6px 6px; text-align: center; width: ${hasCo ? '100px' : '115px'};">Giá trị (VAT)</th>
+                                <th style="border: 1px solid #111; padding: 6px 6px; text-align: center; width: ${hasCo ? '95px' : '100px'};">Ghi chú</th>
                             </tr>
                         </thead>
                         <tbody>
