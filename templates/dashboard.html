@@ -216,6 +216,9 @@
                 <button class="btn btn-sm btn-outline-dark px-3 py-2 fw-bold text-uppercase" id="btn-module-docs" onclick="switchModule('docs')">
                     CHỨNG TỪ
                 </button>
+                <button class="btn btn-sm btn-outline-dark px-3 py-2 fw-bold text-uppercase" id="btn-module-discrepancy" onclick="openDiscrepancyTab()">
+                    <i class="fa-solid fa-table-list me-1 text-warning"></i> LỆCH KHO (DC GIAO THIẾU)
+                </button>
 
 
 
@@ -380,9 +383,17 @@
                                     Vận hành (<span id="cnt-vanhanh">0</span>)
                                 </button>
                             </div>
-                            <div>
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <button class="btn btn-sm btn-outline-dark fw-bold" id="btn-store-filter-unread" onclick="toggleStoreIssuesReadFilter(false)">
+                                        Chưa xử lý
+                                    </button>
+                                    <button class="btn btn-sm btn-dark fw-bold" id="btn-store-filter-all" onclick="toggleStoreIssuesReadFilter(true)">
+                                        Tất cả / Lịch sử (<span id="store-badge-all-count">500</span>)
+                                    </button>
+                                </div>
                                 <button class="btn btn-sm btn-success fw-bold px-3 shadow-sm" onclick="dismissAllItems('priority')" title="Đánh dấu đã đọc toàn bộ danh sách sự cố chênh lệch">
-                                    <i class="fa-solid fa-check-double me-1"></i> Đánh dấu đã đọc tất cả
+                                    <i class="fa-solid fa-check-double me-1"></i> Đã xử lý tất cả
                                 </button>
                             </div>
                         </div>
@@ -1710,6 +1721,13 @@
                 const url = currentShowReadTagged ? '/api/cases/tagged_me?show_read=1' : '/api/cases/tagged_me';
                 const res = await fetch(url);
                 const data = await res.json();
+                
+                // Tự động chuyển sang Tất cả/Lịch sử nếu chưa đọc = 0 để người dùng thấy ngay dữ liệu
+                if (!currentShowReadTagged && (!data || data.length === 0) && !window._hasAutoSwitchedTagged) {
+                    window._hasAutoSwitchedTagged = true;
+                    toggleTaggedReadFilter(true);
+                    return;
+                }
                 const hash = JSON.stringify(data) + '_' + currentShowReadTagged;
                 
                 if (_cacheHash.tagged === hash && isBackground) return;
@@ -1800,11 +1818,38 @@
             renderTaggedTable(filtered);
         }
 
+        function openDiscrepancyTab() {
+            switchModule('tele');
+            const bTab = document.getElementById('broadcast-tab');
+            if (bTab) {
+                const tabInstance = bootstrap.Tab.getOrCreateInstance(bTab);
+                tabInstance.show();
+            }
+            applyTemplate(2);
+        }
+
+        let currentShowReadStoreIssues = true; // Mặc định hiển thị đầy đủ lịch sử để luôn có dữ liệu
+        function toggleStoreIssuesReadFilter(showAll) {
+            currentShowReadStoreIssues = showAll;
+            const btnUnread = document.getElementById('btn-store-filter-unread');
+            const btnAll = document.getElementById('btn-store-filter-all');
+            
+            if (showAll) {
+                if (btnUnread) btnUnread.className = 'btn btn-sm btn-outline-dark fw-bold';
+                if (btnAll) btnAll.className = 'btn btn-sm btn-dark fw-bold';
+            } else {
+                if (btnUnread) btnUnread.className = 'btn btn-sm btn-dark fw-bold';
+                if (btnAll) btnAll.className = 'btn btn-sm btn-outline-dark fw-bold';
+            }
+            fetchStoreIssues(false);
+        }
+
         async function fetchStoreIssues(isBackground = false) {
             try {
-                const res = await fetch('/api/cases/store_issues');
+                const url = currentShowReadStoreIssues ? '/api/cases/store_issues?show_read=1' : '/api/cases/store_issues';
+                const res = await fetch(url);
                 const data = await res.json();
-                const hash = JSON.stringify(data);
+                const hash = JSON.stringify(data) + '_' + currentShowReadStoreIssues;
                 
                 if (_cacheHash.storeIssues === hash && isBackground) return;
                 _cacheHash.storeIssues = hash;
