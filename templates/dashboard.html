@@ -4275,6 +4275,19 @@
                 const isNoCoWh = ['RAU CỦ', 'RAU CU', 'MEATFISH', 'THỊT CÁ', 'THIT CA', 'ĐÔNG', 'DONG', 'MÁT', 'MAT'].some(k => whClean.toUpperCase().includes(k));
                 const hasCo = (!isNoCoWh) && tableItems.some(it => !!it.co);
 
+                if (!hasCo) {
+                    // Nếu không có CO: gom toàn bộ thành 1 dòng duy nhất
+                    tableItems = [{
+                        co: '',
+                        sl: totSl,
+                        pre: totalPre,
+                        post: totalPost
+                    }];
+                }
+
+                const numRows = tableItems.length;
+                const fmtComma = (val) => new Intl.NumberFormat('en-US').format(Math.round(val || 0));
+
                 let tbodyHtml = '';
                 tableItems.forEach((it, idx) => {
                     let slStr = it.sl ? `(${fmtComma(it.sl)})` : '-';
@@ -4285,8 +4298,8 @@
                     if (idx === 0) {
                         const mWidth = hasCo ? '75px' : '85px';
                         const whWidth = hasCo ? '115px' : '140px';
-                        tbodyHtml += `<td rowspan="${numRows}" style="border: 1px solid #111; padding: 6px 6px; text-align: center; vertical-align: middle; width: ${mWidth};">Tháng ${m}</td>`;
-                        tbodyHtml += `<td rowspan="${numRows}" style="border: 1px solid #111; padding: 6px 8px; text-align: center; vertical-align: middle; width: ${whWidth};">${whClean}</td>`;
+                        tbodyHtml += `<td ${numRows > 1 ? `rowspan="${numRows}"` : ''} style="border: 1px solid #111; padding: 6px 6px; text-align: center; vertical-align: middle; width: ${mWidth};">Tháng ${m}</td>`;
+                        tbodyHtml += `<td ${numRows > 1 ? `rowspan="${numRows}"` : ''} style="border: 1px solid #111; padding: 6px 8px; text-align: center; vertical-align: middle; width: ${whWidth};">${whClean}</td>`;
                     }
                     if (hasCo) {
                         tbodyHtml += `<td style="border: 1px solid #111; padding: 6px 8px; text-align: left; vertical-align: middle; white-space: pre-line; width: 95px;">${it.co}</td>`;
@@ -4300,27 +4313,29 @@
                     tbodyHtml += `<td style="border: 1px solid #111; padding: 6px 6px; text-align: right; vertical-align: middle; width: ${preWidth};">${preStr}</td>`;
                     tbodyHtml += `<td style="border: 1px solid #111; padding: 6px 6px; text-align: right; vertical-align: middle; width: ${postWidth};">${postStr}</td>`;
                     if (idx === 0) {
-                        tbodyHtml += `<td rowspan="${numRows}" style="border: 1px solid #111; padding: 6px 6px; text-align: center; vertical-align: middle; width: ${noteWidth};">Claim DC 100%</td>`;
+                        tbodyHtml += `<td ${numRows > 1 ? `rowspan="${numRows}"` : ''} style="border: 1px solid #111; padding: 6px 6px; text-align: center; vertical-align: middle; width: ${noteWidth};">Claim DC 100%</td>`;
                     }
                     tbodyHtml += `</tr>`;
                 });
 
-                // Grand Total Row
-                let grandSlStr = totSl ? `(${fmtComma(totSl)})` : '-';
-                let grandPreStr = totalPre ? `(${fmtComma(totalPre)})` : '-';
-                let grandPostStr = totalPost ? `(${fmtComma(totalPost)})` : '-';
+                if (hasCo) {
+                    // Grand Total Row chỉ hiện khi có cột CO
+                    let grandSlStr = totSl ? `(${fmtComma(totSl)})` : '-';
+                    let grandPreStr = totalPre ? `(${fmtComma(totalPre)})` : '-';
+                    let grandPostStr = totalPost ? `(${fmtComma(totalPost)})` : '-';
 
-                tbodyHtml += `
-                    <tr style="font-weight: bold;">
-                        <td style="border: 1px solid #111; padding: 6px 6px;"></td>
-                        <td style="border: 1px solid #111; padding: 6px 8px; text-align: left;">Grand Total</td>
-                        ${hasCo ? `<td style="border: 1px solid #111; padding: 6px 8px;"></td>` : ''}
-                        <td style="border: 1px solid #111; padding: 6px 6px; text-align: right;">${grandSlStr}</td>
-                        <td style="border: 1px solid #111; padding: 6px 6px; text-align: right;">${grandPreStr}</td>
-                        <td style="border: 1px solid #111; padding: 6px 6px; text-align: right;">${grandPostStr}</td>
-                        <td style="border: 1px solid #111; padding: 6px 6px;"></td>
-                    </tr>
-                `;
+                    tbodyHtml += `
+                        <tr style="font-weight: bold;">
+                            <td style="border: 1px solid #111; padding: 6px 6px;"></td>
+                            <td style="border: 1px solid #111; padding: 6px 8px; text-align: left;">Grand Total</td>
+                            <td style="border: 1px solid #111; padding: 6px 8px;"></td>
+                            <td style="border: 1px solid #111; padding: 6px 6px; text-align: right;">${grandSlStr}</td>
+                            <td style="border: 1px solid #111; padding: 6px 6px; text-align: right;">${grandPreStr}</td>
+                            <td style="border: 1px solid #111; padding: 6px 6px; text-align: right;">${grandPostStr}</td>
+                            <td style="border: 1px solid #111; padding: 6px 6px;"></td>
+                        </tr>
+                    `;
+                }
 
                 let tableHtml = `
                     <table style="width: 100%; border-collapse: collapse; margin: 12px 0 16px 0; font-size: 12.5px; border: 1px solid #111;">

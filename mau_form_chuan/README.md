@@ -42,19 +42,16 @@ Tập tin Word mẫu đính kèm: **`QUYET_DINH_KHO_SEEDLOG_T07_2026_MAU_CHUAN.d
 | | | CO804605 | (844) | (14,276,484) | (15,470,638) | |
 | | **Grand Total** | | **(3,324)** | **(59,774,727)** | **(64,558,843)** | |
 
-#### 2. Định dạng 6 Cột Chuẩn (Bỏ cột CO cho các kho Rau Củ, Thịt Cá (Meatfish), Đông, Mát, Đông Mát...):
+#### 2. Định dạng 6 Cột Chuẩn (Gom thành 1 dòng duy nhất cho các kho không có CO như Rau Củ, Thịt Cá / Meatfish, Đông, Mát, Đông Mát...):
 | Tháng | Tên kho | SL Chênh lệch | Giá trị | Giá trị (VAT) | Ghi chú |
 | :---: | :---: | :---: | :---: | :---: | :---: |
-| Tháng 08 | KHO MEATFISH | (10) | (1,000,000) | (1,080,000) | Claim DC 100% |
-| | | (20) | (2,000,000) | (2,160,000) | |
-| | **Grand Total** | **(30)** | **(3,000,000)** | **(3,240,000)** | |
+| Tháng 08 | KHO RAU CỦ | (10,519) | (155,734,191) | (163,685,294) | Claim DC 100% |
 
-*(Các cột `Tháng`, `Tên kho`, `Ghi chú` được gộp dòng (merge / rowspan) căn giữa toàn bộ).*
+*(Kho không có CO sẽ được gom toàn bộ các khoản claim thành đúng 1 dòng duy nhất, không tách dòng lẻ và không lặp lại dòng Grand Total).*
 
-#### Quy tắc hiển thị Cột CO:
-1. **Kho có mã CO (như SEEDLOG)**: Giữ nguyên mã CO (ví dụ: `CO804605`, `CO804618, CO804622`).
-2. **Hủy hàng Hậu kiểm (HK)**: Ghi chú là `HK`.
-3. **Các kho không có CO (Rau củ, Thịt cá / Meatfish, Đông, Mát, Đông Mát)**: Bỏ hẳn cột CO, tự động căn chỉnh bảng 6 cột cân đối tỷ lệ trên khổ A4 chuẩn.
+#### Quy tắc hiển thị Bảng Kê:
+1. **Kho có mã CO (như SEEDLOG)**: Giữ nguyên mã CO (ví dụ: `CO804605`, `CO804618, CO804622`), Hủy hàng Hậu kiểm ghi `HK`, có dòng tổng cộng `Grand Total` ở cuối.
+2. **Các kho không có CO (Rau củ, Thịt cá / Meatfish, Đông, Mát, Đông Mát)**: Bỏ hẳn cột CO, gom tất cả số liệu thành đúng 1 dòng duy nhất cân đối trên khổ A4 chuẩn.
 
 ### Diễn giải dưới bảng & Điều khoản:
 * • Chi phí KHO SEEDLOG T07/2026 (VAT): **64,558,843 VNĐ**

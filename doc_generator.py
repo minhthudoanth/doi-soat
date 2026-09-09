@@ -301,12 +301,6 @@ def generate_quyet_dinh_docx(data, output_path):
         co = format_co_display(data.get('co_number') or data.get('co'), data.get('content'))
         table_items.append({'co': co, 'sl': sl, 'pre': pre, 'post': post})
 
-    num_rows = len(table_items)
-    tot_sl = sum(it['sl'] for it in table_items)
-    tot_pre = sum(it['pre'] for it in table_items)
-    tot_post = sum(it['post'] for it in table_items)
-
-    num_rows = len(table_items)
     tot_sl = sum(it['sl'] for it in table_items)
     tot_pre = sum(it['pre'] for it in table_items)
     tot_post = sum(it['post'] for it in table_items)
@@ -317,8 +311,15 @@ def generate_quyet_dinh_docx(data, output_path):
     is_no_co_wh = any(k in w_name.upper() for k in ['RAU CỦ', 'RAU CU', 'MEATFISH', 'THỊT CÁ', 'THIT CA', 'ĐÔNG', 'DONG', 'MÁT', 'MAT'])
     has_co = (not is_no_co_wh) and any(bool(it.get('co')) for it in table_items)
 
+    if not has_co:
+        # Nếu không có CO: gom toàn bộ hóa đơn/khoản claim thành 1 dòng duy nhất
+        table_items = [{'co': '', 'sl': tot_sl, 'pre': tot_pre, 'post': tot_post}]
+
+    num_rows = len(table_items)
+
     num_cols = 7 if has_co else 6
-    table_data = doc.add_table(rows=num_rows + 2, cols=num_cols)
+    num_table_rows = (num_rows + 2) if has_co else 2
+    table_data = doc.add_table(rows=num_table_rows, cols=num_cols)
     table_data.alignment = WD_TABLE_ALIGNMENT.CENTER
     table_data.autofit = False
 
@@ -419,8 +420,8 @@ def generate_quyet_dinh_docx(data, output_path):
         r_post.font.size = Pt(9)
         r_post.font.name = "Times New Roman"
 
-    # Merge các cột Tháng (0), Tên kho (1), Ghi chú (note_col_idx) xuyên suốt tất cả các dòng dữ liệu
-    if num_rows > 1:
+    # Merge các cột Tháng (0), Tên kho (1), Ghi chú (note_col_idx) xuyên suốt tất cả các dòng dữ liệu (nếu có nhiều dòng)
+    if has_co and num_rows > 1:
         c0 = table_data.cell(1, 0).merge(table_data.cell(num_rows, 0))
         c1 = table_data.cell(1, 1).merge(table_data.cell(num_rows, 1))
         cnote = table_data.cell(1, note_col_idx).merge(table_data.cell(num_rows, note_col_idx))
@@ -441,40 +442,36 @@ def generate_quyet_dinh_docx(data, output_path):
         r.font.size = Pt(9)
         r.font.name = "Times New Roman"
 
-    # Dòng Tổng cộng Grand Total (index num_rows + 1)
-    tot_sl_str = f"({tot_sl:,.0f})" if tot_sl else "-"
-    tot_pre_str = f"({tot_pre:,.0f})" if tot_pre else "-"
-    tot_post_str = f"({tot_post:,.0f})" if tot_post else "-"
-
+    # Dòng Tổng cộng Grand Total: chỉ áp dụng khi có cột CO (has_co)
     if has_co:
+        tot_sl_str = f"({tot_sl:,.0f})" if tot_sl else "-"
+        tot_pre_str = f"({tot_pre:,.0f})" if tot_pre else "-"
+        tot_post_str = f"({tot_post:,.0f})" if tot_post else "-"
         last_row_vals = ["", "Grand Total", "", tot_sl_str, tot_pre_str, tot_post_str, ""]
         right_align_cols = [3, 4, 5]
-    else:
-        last_row_vals = ["", "Grand Total", tot_sl_str, tot_pre_str, tot_post_str, ""]
-        right_align_cols = [2, 3, 4]
 
-    for j, val in enumerate(last_row_vals):
-        cell = table_data.cell(num_rows + 1, j)
-        cell.width = col_widths[j]
-        p = cell.paragraphs[0]
-        p.paragraph_format.line_spacing = 1.15
-        p.paragraph_format.space_before = Pt(2)
-        p.paragraph_format.space_after = Pt(2)
-        if j in right_align_cols:
-            p.alignment = WD_ALIGN_PARAGRAPH.RIGHT
-        elif j == 1:
-            p.alignment = WD_ALIGN_PARAGRAPH.LEFT
-        else:
-            p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        r = p.add_run(val)
-        r.bold = True
-        r.font.size = Pt(9.5)
-        r.font.name = "Times New Roman"
-        set_cell_margins(cell, 60, 60, 60, 60)
-        set_cell_border(cell, top=dict(val='single', sz='6', color='000000'),
-                              bottom=dict(val='single', sz='6', color='000000'),
-                              left=dict(val='single', sz='6', color='000000'),
-                              right=dict(val='single', sz='6', color='000000'))
+        for j, val in enumerate(last_row_vals):
+            cell = table_data.cell(num_rows + 1, j)
+            cell.width = col_widths[j]
+            p = cell.paragraphs[0]
+            p.paragraph_format.line_spacing = 1.15
+            p.paragraph_format.space_before = Pt(2)
+            p.paragraph_format.space_after = Pt(2)
+            if j in right_align_cols:
+                p.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+            elif j == 1:
+                p.alignment = WD_ALIGN_PARAGRAPH.LEFT
+            else:
+                p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            r = p.add_run(val)
+            r.bold = True
+            r.font.size = Pt(9.5)
+            r.font.name = "Times New Roman"
+            set_cell_margins(cell, 60, 60, 60, 60)
+            set_cell_border(cell, top=dict(val='single', sz='6', color='000000'),
+                                  bottom=dict(val='single', sz='6', color='000000'),
+                                  left=dict(val='single', sz='6', color='000000'),
+                                  right=dict(val='single', sz='6', color='000000'))
 
     # 6. Chi tiết diễn giải bên dưới bảng
     p_exp = doc.add_paragraph()
