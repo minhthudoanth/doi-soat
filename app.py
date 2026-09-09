@@ -3610,14 +3610,15 @@ def background_github_push_loop():
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
-    import socket
-    _test_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    try:
-        _test_sock.bind(('127.0.0.1', port))
-        _test_sock.close()
-    except OSError:
-        print(f"[*] Web Dashboard đã đang chạy trên cổng {port}. Bỏ qua tiến trình trùng lặp.", flush=True)
-        sys.exit(0)
+    if sys.platform == 'win32':
+        import socket
+        _test_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            _test_sock.bind(('127.0.0.1', port))
+            _test_sock.close()
+        except OSError:
+            print(f"[*] Web Dashboard đã đang chạy trên cổng {port}. Bỏ qua tiến trình trùng lặp.", flush=True)
+            sys.exit(0)
 
     init_db()
     start_background_sheet_sync()
