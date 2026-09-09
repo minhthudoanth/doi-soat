@@ -1202,17 +1202,17 @@
                             <div class="col-6">
                                 <label class="form-label fw-bold text-dark small text-uppercase">Kỳ Đối Soát:</label>
                                 <div class="input-group input-group-sm">
-                                    <select class="form-select fw-bold font-monospace" id="doc-input-month" onchange="updateDocPreview()">
-                                        <option value="08">Tháng 08</option>
+                                    <select class="form-select fw-bold font-monospace" id="doc-input-month" onchange="onDocWarehouseChange()">
+                                        <option value="08" selected>Tháng 08</option>
                                         <option value="07">Tháng 07</option>
                                         <option value="09">Tháng 09</option>
                                     </select>
-                                    <input type="text" class="form-control fw-bold font-monospace text-center" id="doc-input-year" value="2026" style="max-width: 65px;" onchange="updateDocPreview()">
+                                    <input type="text" class="form-control fw-bold font-monospace text-center" id="doc-input-year" value="2026" style="max-width: 65px;" onchange="onDocWarehouseChange()">
                                 </div>
                             </div>
                             <div class="col-6">
                                 <label class="form-label fw-bold text-dark small text-uppercase">Ngày Hóa Đơn:</label>
-                                <input type="text" class="form-control form-control-sm font-monospace fw-bold" id="doc-input-date" value="31/07/2026" onkeyup="updateDocPreview()">
+                                <input type="text" class="form-control form-control-sm font-monospace fw-bold" id="doc-input-date" value="31/08/2026" onkeyup="updateDocPreview()">
                             </div>
                         </div>
 
@@ -1237,9 +1237,9 @@
                         <!-- Loại Thuế VAT -->
                         <div class="mb-3">
                             <label class="form-label fw-bold text-dark small text-uppercase">Loại Thuế VAT:</label>
-                            <select class="form-select form-select-sm fw-bold" id="doc-input-vat" onchange="updateDocPreview()">
+                            <select class="form-select form-select-sm fw-bold" id="doc-input-vat" onchange="onVatTypeChanged()">
                                 <option value="Chưa VAT">Chưa VAT</option>
-                                <option value="Đã gồm VAT">Đã gồm VAT</option>
+                                <option value="Gồm VAT">Gồm VAT</option>
                             </select>
                         </div>
 
@@ -1260,6 +1260,29 @@
                             <div class="col-6">
                                 <label class="form-label fw-bold text-dark small text-uppercase">Đại Diện KFM (TGĐ):</label>
                                 <input type="text" class="form-control form-control-sm fw-semibold" id="doc-input-kfm" value="NGUYỄN HOÀNG LÂM" onkeyup="updateDocPreview()">
+                            </div>
+                        </div>
+
+                        <!-- KHU VỰC LƯU TẠM THAY ĐỔI CHO BỘ CHỨNG TỪ NÀY -->
+                        <div class="p-2 mb-3 bg-light rounded border">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <span class="small fw-bold text-uppercase" style="font-size: 0.72rem;">
+                                    <i class="fa-solid fa-bookmark me-1 text-warning"></i> Trạng Thái Bộ Này:
+                                </span>
+                                <span id="doc-draft-badge" class="badge bg-secondary-subtle text-muted border font-monospace" style="font-size: 0.7rem;">
+                                    <i class="fa-solid fa-sheet-plastic me-1"></i> Gốc từ Google Sheet
+                                </span>
+                            </div>
+                            <div class="d-flex gap-2 mt-2">
+                                <button type="button" class="btn btn-warning btn-sm fw-bold flex-fill py-1 shadow-sm" id="btn-save-doc-draft" onclick="saveCurrentDocDraft()">
+                                    <i class="fa-solid fa-floppy-disk me-1"></i> Lưu Tạm Bộ Này
+                                </button>
+                                <button type="button" class="btn btn-outline-danger btn-sm fw-semibold py-1" id="btn-reset-doc-draft" onclick="resetCurrentDocDraft()" style="display: none;" title="Hủy bản lưu tạm và khôi phục số liệu gốc từ Google Sheet">
+                                    <i class="fa-solid fa-rotate-left me-1"></i> Khôi Phục Gốc
+                                </button>
+                            </div>
+                            <div id="doc-draft-note" class="text-muted fst-italic mt-1" style="font-size: 0.68rem;">
+                                * Bấm <strong>"Lưu Tạm Bộ Này"</strong> nếu bạn đã chỉnh sửa SL, số tiền hoặc ngày ký của bộ chứng từ này.
                             </div>
                         </div>
 
@@ -1324,8 +1347,8 @@
                             <span class="small fw-bold text-muted text-uppercase" style="font-size: 0.75rem;"><i class="fa-regular fa-calendar me-1"></i> Kỳ Hóa Đơn:</span>
                             <select class="form-select form-select-sm fw-bold font-monospace border-dark" id="select-invoice-month-filter" style="width: 155px;" onchange="onInvoiceMonthFilterChanged(this.value)">
                                 <option value="09">Tháng 09/2026</option>
-                                <option value="08">Tháng 08/2026</option>
-                                <option value="07" selected>Tháng 07/2026</option>
+                                <option value="08" selected>Tháng 08/2026</option>
+                                <option value="07">Tháng 07/2026</option>
                                 <option value="06">Tháng 06/2026</option>
                                 <option value="05">Tháng 05/2026</option>
                                 <option value="04">Tháng 04/2026</option>
@@ -1436,6 +1459,7 @@
                                 <th style="width: 140px;">Kho</th>
                                 <th style="width: 105px;">Ngày HĐ</th>
                                 <th>Nội Dung Biên Bản / Hóa Đơn</th>
+                                <th style="width: 80px; text-align: center;">SL</th>
                                 <th style="width: 120px; text-align: center;">Phiếu Hủy CO</th>
                                 <th style="width: 135px; text-align: right;">Chưa VAT (VNĐ)</th>
                                 <th style="width: 135px; text-align: right; color: #dc2626;">Gồm VAT (VNĐ)</th>
@@ -1443,7 +1467,7 @@
                             </tr>
                         </thead>
                         <tbody id="doc-invoices-tbody">
-                            <tr><td colspan="8" class="text-center py-4 text-muted">Đang tải danh sách hóa đơn từ Google Sheet...</td></tr>
+                            <tr><td colspan="9" class="text-center py-4 text-muted">Đang tải danh sách hóa đơn từ Google Sheet...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -3570,8 +3594,11 @@
                 try {
                     const res = await fetch(`/api/documents/num_to_words?amount=${amt || 0}`);
                     const d = await res.json();
-                    if (d.success && document.getElementById('doc-preview-words')) {
-                        document.getElementById('doc-preview-words').innerText = d.words;
+                    if (d.success) {
+                        if (document.getElementById('doc-preview-words')) {
+                            document.getElementById('doc-preview-words').innerText = d.words;
+                        }
+                        window.currentDocWordsNoDong = d.words_no_dong;
                     }
                 } catch (e) {}
                 updateDocPreview();
@@ -3590,9 +3617,9 @@
 
         async function fetchDocInvoicesList() {
             const selectFilter = document.getElementById('select-invoice-month-filter');
-            const selectedMonth = selectFilter ? selectFilter.value : '07';
+            const selectedMonth = selectFilter ? selectFilter.value : '08';
             const tbody = document.getElementById('doc-invoices-tbody');
-            if (tbody) tbody.innerHTML = '<tr><td colspan="8" class="text-center py-4 text-muted"><span class="spinner-border spinner-border-sm me-2"></span>Đang tải dữ liệu từ Google Sheet...</td></tr>';
+            if (tbody) tbody.innerHTML = '<tr><td colspan="9" class="text-center py-4 text-muted"><span class="spinner-border spinner-border-sm me-2"></span>Đang tải dữ liệu từ Google Sheet...</td></tr>';
             try {
                 const res = await fetch('/api/documents/invoices');
                 const data = await res.json();
@@ -3612,7 +3639,7 @@
                 }
             } catch (e) {
                 console.error("Lỗi fetchDocInvoicesList:", e);
-                if (tbody) tbody.innerHTML = `<tr><td colspan="8" class="text-center py-4 text-danger">Lỗi tải dữ liệu: ${e.message}</td></tr>`;
+                if (tbody) tbody.innerHTML = `<tr><td colspan="9" class="text-center py-4 text-danger">Lỗi tải dữ liệu: ${e.message}</td></tr>`;
             }
         }
 
@@ -3711,7 +3738,7 @@
             applyTableFilters();
         }
 
-        function loadSingleInvoiceToForm(whName, month, date, preTax, postTax, invNumber, coNumber) {
+        function loadSingleInvoiceToForm(whName, month, date, preTax, postTax, invNumber, coNumber, quantity = 0) {
             let matchedWh = 'KHO TỔNG (SEEDLOG)';
             if (whName.includes('MEAT') || whName.includes('THỊT')) {
                 matchedWh = 'KHO MEATFISH';
@@ -3738,8 +3765,12 @@
             }
             if (document.getElementById('doc-input-month')) document.getElementById('doc-input-month').value = month.toString().padStart(2, '0');
             if (document.getElementById('doc-input-date') && date && date !== '-') document.getElementById('doc-input-date').value = date;
+            if (quantity && quantity > 0 && document.getElementById('doc-input-qty')) {
+                document.getElementById('doc-input-qty').value = quantity;
+            }
             
-            const isPostVat = document.getElementById('doc-input-vat') && document.getElementById('doc-input-vat').value === 'Đã gồm VAT';
+            const vatVal = document.getElementById('doc-input-vat') ? document.getElementById('doc-input-vat').value : 'Chưa VAT';
+            const isPostVat = vatVal.includes('Gồm') || vatVal.includes('gồm');
             const chosenAmt = isPostVat ? postTax : preTax;
             if (document.getElementById('doc-input-amount')) {
                 document.getElementById('doc-input-amount').value = Math.round(chosenAmt);
@@ -3750,85 +3781,158 @@
             if (formCard) formCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
 
+        async function onVatTypeChanged() {
+            const vatSel = document.getElementById('doc-input-vat') ? document.getElementById('doc-input-vat').value : 'Chưa VAT';
+            const isPostVat = vatSel.includes('Gồm') || vatSel.includes('gồm');
+            
+            if (currentDocInvoices && currentDocInvoices.length > 0) {
+                let totPre = 0;
+                let totPost = 0;
+                currentDocInvoices.forEach(it => {
+                    totPre += (it.pre_tax || 0);
+                    totPost += (it.post_tax || 0);
+                });
+                const newAmt = isPostVat ? totPost : totPre;
+                if (document.getElementById('doc-input-amount')) {
+                    document.getElementById('doc-input-amount').value = Math.round(newAmt);
+                }
+            }
+            await onDocAmountInput();
+            updateDocPreview();
+        }
+
+        function updateDocDraftBadge(hasDraft, timeText) {
+            const badge = document.getElementById('doc-draft-badge');
+            const btnReset = document.getElementById('btn-reset-doc-draft');
+            const note = document.getElementById('doc-draft-note');
+            if (hasDraft) {
+                if (badge) {
+                    badge.className = 'badge bg-warning text-dark border border-warning font-monospace';
+                    badge.innerHTML = `<i class="fa-solid fa-bookmark me-1"></i> Có bản lưu tạm (${timeText || 'Đã sửa'})`;
+                }
+                if (btnReset) btnReset.style.display = 'inline-block';
+                if (note) note.innerHTML = `<span class="text-warning-emphasis fw-semibold"><i class="fa-solid fa-circle-check me-1"></i> Đang hiển thị số liệu lưu tạm do bạn đã chỉnh sửa riêng cho bộ này.</span>`;
+            } else {
+                if (badge) {
+                    badge.className = 'badge bg-secondary-subtle text-muted border font-monospace';
+                    badge.innerHTML = `<i class="fa-solid fa-sheet-plastic me-1"></i> Gốc từ Google Sheet`;
+                }
+                if (btnReset) btnReset.style.display = 'none';
+                if (note) note.innerHTML = `* Bấm <strong>"Lưu Tạm Bộ Này"</strong> nếu bạn đã chỉnh sửa SL, số tiền hoặc ngày ký của bộ chứng từ này.`;
+            }
+        }
+
+        async function saveCurrentDocDraft() {
+            const w = document.getElementById('doc-input-warehouse').value;
+            const m = document.getElementById('doc-input-month').value;
+            const y = document.getElementById('doc-input-year').value;
+            const dateStr = document.getElementById('doc-input-date').value;
+            const qty = parseFloat(document.getElementById('doc-input-qty').value) || 0;
+            const amt = parseFloat(document.getElementById('doc-input-amount').value) || 0;
+            const vatType = document.getElementById('doc-input-vat').value;
+            const scf = document.getElementById('doc-input-scf').value;
+            const kfm = document.getElementById('doc-input-kfm').value;
+
+            const payload = {
+                warehouse_name: w,
+                month: m,
+                year: y,
+                doc_date: dateStr,
+                total_qty: qty,
+                total_amount: amt,
+                vat_type: vatType,
+                representative_scf: scf,
+                representative_kfm: kfm,
+                invoices: currentDocInvoices || []
+            };
+
+            const draftKey = `${w}_${m}_${y}`;
+            const timeStr = new Date().toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'}) + ' ' + new Date().toLocaleDateString('vi-VN', {day: '2-digit', month: '2-digit'});
+            payload.saved_at = timeStr;
+
+            // 1. Lưu LocalStorage
+            try {
+                let localDrafts = JSON.parse(localStorage.getItem('scm_doc_drafts') || '{}');
+                localDrafts[draftKey] = payload;
+                localStorage.setItem('scm_doc_drafts', JSON.stringify(localDrafts));
+            } catch (e) {
+                console.warn("Lỗi lưu localStorage:", e);
+            }
+
+            // 2. Lưu Server API
+            try {
+                await fetch('/api/documents/drafts', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+            } catch (e) {
+                console.warn("Lỗi lưu server draft:", e);
+            }
+
+            updateDocDraftBadge(true, timeStr);
+            updateDocPreview();
+
+            // Re-render summary cards để cập nhật huy hiệu lưu tạm
+            const selectFilter = document.getElementById('select-invoice-month-filter');
+            const selectedMonth = selectFilter ? selectFilter.value : '08';
+            if (selectedMonth !== 'all') {
+                const mStr = selectedMonth.padStart(2, '0');
+                renderDocWarehouseSummaryCards(allDocInvoicesSummary.filter(s => s.month === mStr), selectedMonth);
+            } else {
+                renderDocWarehouseSummaryCards(allDocInvoicesSummary, 'all');
+            }
+
+            alert(`💾 Đã lưu tạm thành công bộ chứng từ [${w} - Tháng ${m}/${y}]!\nSố liệu bạn vừa sửa sẽ được tự động ghi nhớ kể cả khi đổi kho hoặc tải lại trang.`);
+        }
+
+        async function resetCurrentDocDraft() {
+            const w = document.getElementById('doc-input-warehouse').value;
+            const m = document.getElementById('doc-input-month').value;
+            const y = document.getElementById('doc-input-year').value;
+            const draftKey = `${w}_${m}_${y}`;
+
+            if (!confirm(`Bạn có chắc muốn hủy bản lưu tạm của bộ chứng từ [${w} - Tháng ${m}/${y}] và khôi phục số liệu gốc từ Google Sheet không?`)) {
+                return;
+            }
+
+            // 1. Xóa khỏi localStorage
+            try {
+                let localDrafts = JSON.parse(localStorage.getItem('scm_doc_drafts') || '{}');
+                delete localDrafts[draftKey];
+                localStorage.setItem('scm_doc_drafts', JSON.stringify(localDrafts));
+            } catch (e) {}
+
+            // 2. Xóa khỏi server
+            try {
+                await fetch('/api/documents/drafts', {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ draft_key: draftKey, warehouse_name: w, month: m, year: y })
+                });
+            } catch (e) {}
+
+            updateDocDraftBadge(false);
+            await autoFillDocData(true);
+
+            // Re-render summary cards
+            const selectFilter = document.getElementById('select-invoice-month-filter');
+            const selectedMonth = selectFilter ? selectFilter.value : '08';
+            if (selectedMonth !== 'all') {
+                const mStr = selectedMonth.padStart(2, '0');
+                renderDocWarehouseSummaryCards(allDocInvoicesSummary.filter(s => s.month === mStr), selectedMonth);
+            } else {
+                renderDocWarehouseSummaryCards(allDocInvoicesSummary, 'all');
+            }
+            alert(`🔄 Đã khôi phục số liệu gốc từ Google Sheet cho bộ chứng từ [${w} - Tháng ${m}/${y}]!`);
+        }
+
         function renderDocWarehouseSummaryCards(summaryList, selectedMonth) {
             const container = document.getElementById('doc-wh-summary-cards');
             if (!container) return;
 
-            if (selectedMonth === '08') {
-                // THÁNG 08/2026: Dữ liệu thực tế và đối soát chuẩn bị ra quyết định
-                container.innerHTML = `
-                    <div class="col-md-6 col-xl-3">
-                        <div class="p-3 bg-white border rounded shadow-sm d-flex flex-column justify-content-between h-100">
-                            <div>
-                                <div class="d-flex justify-content-between align-items-center mb-1">
-                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle small fw-bold">THÁNG 08/2026</span>
-                                    <span class="badge bg-secondary-subtle text-dark border small">Số liệu Đối soát</span>
-                                </div>
-                                <div class="small fw-bold text-dark text-uppercase mt-1">KHO RAU CỦ (FRESH)</div>
-                                <div class="fs-5 fw-bold text-danger font-monospace my-1">84,084,551 đ <span class="small text-muted fw-normal" style="font-size: 0.7rem;">(Chưa VAT)</span></div>
-                                <div class="small text-muted font-monospace mb-2">SL chênh lệch: <strong>4,592.4</strong> | 4,244 đơn</div>
-                            </div>
-                            <button class="btn btn-sm btn-black fw-semibold w-100 mt-2" onclick="loadWarehouseToForm('KHO RAU CỦ', '08', '2026')">
-                                <i class="fa-solid fa-file-signature me-1"></i> Chọn Nhập Mẫu
-                            </button>
-                        </div>
-                    </div>
-                    <div class="col-md-6 col-xl-3">
-                        <div class="p-3 bg-white border rounded shadow-sm d-flex flex-column justify-content-between h-100">
-                            <div>
-                                <div class="d-flex justify-content-between align-items-center mb-1">
-                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle small fw-bold">THÁNG 08/2026</span>
-                                    <span class="badge bg-secondary-subtle text-dark border small">Quyết định mẫu</span>
-                                </div>
-                                <div class="small fw-bold text-dark text-uppercase mt-1">KHO MEATFISH (THỊT CÁ)</div>
-                                <div class="fs-5 fw-bold text-danger font-monospace my-1">170,618,353 đ <span class="small text-muted fw-normal" style="font-size: 0.7rem;">(Chưa VAT)</span></div>
-                                <div class="small text-muted font-monospace mb-2">Gồm VAT: <strong>179,239,232 đ</strong> | 3,191 items</div>
-                            </div>
-                            <button class="btn btn-sm btn-black fw-semibold w-100 mt-2" onclick="loadWarehouseToForm('KHO MEATFISH', '08', '2026')">
-                                <i class="fa-solid fa-file-signature me-1"></i> Chọn Nhập Mẫu
-                            </button>
-                        </div>
-                    </div>
-                    <div class="col-md-6 col-xl-3">
-                        <div class="p-3 bg-white border rounded shadow-sm d-flex flex-column justify-content-between h-100">
-                            <div>
-                                <div class="d-flex justify-content-between align-items-center mb-1">
-                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle small fw-bold">THÁNG 08/2026</span>
-                                    <span class="badge bg-secondary-subtle text-dark border small">Quyết định mẫu</span>
-                                </div>
-                                <div class="small fw-bold text-dark text-uppercase mt-1">KHO TỔNG (SEEDLOG)</div>
-                                <div class="fs-5 fw-bold text-danger font-monospace my-1">94,434,064 đ <span class="small text-muted fw-normal" style="font-size: 0.7rem;">(Chưa VAT)</span></div>
-                                <div class="small text-muted font-monospace mb-2">Gồm VAT: <strong>101,789,916 đ</strong> | 3,324 items</div>
-                            </div>
-                            <button class="btn btn-sm btn-black fw-semibold w-100 mt-2" onclick="loadWarehouseToForm('KHO TỔNG (SEEDLOG)', '08', '2026')">
-                                <i class="fa-solid fa-file-signature me-1"></i> Chọn Nhập Mẫu
-                            </button>
-                        </div>
-                    </div>
-                    <div class="col-md-6 col-xl-3">
-                        <div class="p-3 bg-white border rounded shadow-sm d-flex flex-column justify-content-between h-100">
-                            <div>
-                                <div class="d-flex justify-content-between align-items-center mb-1">
-                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle small fw-bold">THÁNG 08/2026</span>
-                                    <span class="badge bg-secondary-subtle text-dark border small">Quyết định mẫu</span>
-                                </div>
-                                <div class="small fw-bold text-dark text-uppercase mt-1">KHO ĐÔNG / KHO MÁT (ABA)</div>
-                                <div class="fs-5 fw-bold text-danger font-monospace my-1">208,792,989 đ <span class="small text-muted fw-normal" style="font-size: 0.7rem;">(Chưa VAT)</span></div>
-                                <div class="small text-muted font-monospace mb-2">Gồm VAT: <strong>222,749,667 đ</strong> | 2,500 items</div>
-                            </div>
-                            <div class="d-flex gap-1 mt-2">
-                                <button class="btn btn-sm btn-black fw-semibold flex-fill" onclick="loadWarehouseToForm('KHO ĐÔNG', '08', '2026')">
-                                    <i class="fa-solid fa-snowflake me-1"></i> Kho Đông
-                                </button>
-                                <button class="btn btn-sm btn-outline-dark fw-semibold flex-fill" onclick="loadWarehouseToForm('KHO MÁT', '08', '2026')">
-                                    <i class="fa-solid fa-temperature-half me-1"></i> Kho Mát
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                `;
-                return;
-            }
+            let localDrafts = {};
+            try { localDrafts = JSON.parse(localStorage.getItem('scm_doc_drafts') || '{}'); } catch (e) {}
 
             if (!summaryList || summaryList.length === 0) {
                 container.innerHTML = `
@@ -3843,20 +3947,27 @@
 
             container.innerHTML = summaryList.map(s => {
                 const mText = `T${s.month}/2026`;
+                const draftKey = `${s.warehouse_name}_${s.month}_2026`;
+                const isDrafted = !!localDrafts[draftKey];
+                const qtyText = (s.total_quantity && s.total_quantity > 0) ? ` | SL: <strong>${new Intl.NumberFormat('vi-VN').format(s.total_quantity)}</strong>` : '';
+
                 return `
                     <div class="col-md-6 col-xl-3">
-                        <div class="p-3 bg-white border rounded shadow-sm d-flex flex-column justify-content-between h-100">
+                        <div class="p-3 bg-white border rounded shadow-sm d-flex flex-column justify-content-between h-100 ${isDrafted ? 'border-warning' : ''}" style="${isDrafted ? 'border-width: 2px !important;' : ''}">
                             <div>
                                 <div class="d-flex justify-content-between align-items-center mb-1">
                                     <span class="badge bg-dark-subtle text-dark border small fw-bold">${mText}</span>
-                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle small font-monospace">${s.invoice_count} HĐ</span>
+                                    <div>
+                                        ${isDrafted ? '<span class="badge bg-warning text-dark me-1"><i class="fa-solid fa-bookmark me-1"></i>Đã sửa</span>' : ''}
+                                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle small font-monospace">${s.invoice_count} HĐ</span>
+                                    </div>
                                 </div>
                                 <div class="small fw-bold text-dark text-uppercase mt-1">${s.warehouse_name}</div>
                                 <div class="fs-5 fw-bold text-danger font-monospace my-1">${new Intl.NumberFormat('vi-VN').format(s.total_pre_tax)} đ <span class="small text-muted fw-normal" style="font-size: 0.7rem;">(Chưa VAT)</span></div>
-                                <div class="small text-muted font-monospace mb-2">Gồm VAT: <strong class="text-dark">${new Intl.NumberFormat('vi-VN').format(s.total_post_tax)} đ</strong></div>
+                                <div class="small text-muted font-monospace mb-2">Gồm VAT: <strong class="text-dark">${new Intl.NumberFormat('vi-VN').format(s.total_post_tax)} đ</strong>${qtyText}</div>
                             </div>
-                            <button class="btn btn-sm btn-black fw-semibold w-100 mt-2" onclick="loadWarehouseToForm('${s.warehouse_name}', '${s.month}', '2026')">
-                                <i class="fa-solid fa-file-signature me-1"></i> Chọn Nhập Mẫu
+                            <button class="btn btn-sm ${isDrafted ? 'btn-warning' : 'btn-black'} fw-semibold w-100 mt-2" onclick="loadWarehouseToForm('${s.warehouse_name}', '${s.month}', '2026')">
+                                <i class="fa-solid fa-file-signature me-1"></i> ${isDrafted ? 'Xem Bản Đã Sửa' : 'Chọn Nhập Mẫu'}
                             </button>
                         </div>
                     </div>
@@ -3875,17 +3986,19 @@
             tbody.innerHTML = records.map(r => {
                 const whBadgeColor = r.warehouse_code === 'SL' ? 'bg-dark' : (r.warehouse_code === 'MF' ? 'bg-primary' : (r.warehouse_code === 'RC' ? 'bg-success' : 'bg-secondary'));
                 const escWh = (r.warehouse_name || '').replace(/'/g, "\\'");
+                const qtyDisplay = (r.quantity && r.quantity > 0) ? `<span class="badge bg-light text-dark border font-monospace">${new Intl.NumberFormat('vi-VN').format(r.quantity)}</span>` : '-';
                 return `
                     <tr>
                         <td class="text-center font-monospace fw-bold">${r.month}</td>
                         <td><span class="badge ${whBadgeColor} text-white">${r.warehouse_name}</span></td>
                         <td class="font-monospace small text-muted">${r.invoice_date || '-'}</td>
                         <td class="small fw-semibold text-dark">${r.content}</td>
+                        <td class="text-center">${qtyDisplay}</td>
                         <td class="text-center"><span class="badge bg-light text-dark border font-monospace">${r.co_number || '-'}</span></td>
                         <td class="text-end font-monospace fw-semibold">${new Intl.NumberFormat('vi-VN').format(r.pre_tax)} đ</td>
                         <td class="text-end font-monospace fw-bold text-danger">${new Intl.NumberFormat('vi-VN').format(r.post_tax)} đ</td>
                         <td class="text-center">
-                            <button class="btn btn-xs btn-outline-dark fw-semibold py-0 px-2" style="font-size: 0.72rem;" onclick="loadSingleInvoiceToForm('${escWh}', '${r.month}', '${r.invoice_date || ''}', ${r.pre_tax || 0}, ${r.post_tax || 0}, '${r.invoice_number || ''}', '${r.co_number || ''}')" title="Chọn đưa vào mẫu chứng từ">
+                            <button class="btn btn-xs btn-outline-dark fw-semibold py-0 px-2" style="font-size: 0.72rem;" onclick="loadSingleInvoiceToForm('${escWh}', '${r.month}', '${r.invoice_date || ''}', ${r.pre_tax || 0}, ${r.post_tax || 0}, '${r.invoice_number || ''}', '${r.co_number || ''}', ${r.quantity || 0})" title="Chọn đưa vào mẫu chứng từ">
                                 <i class="fa-solid fa-arrow-up-from-bracket me-1"></i>Chọn
                             </button>
                         </td>
@@ -3906,7 +4019,7 @@
                 if (d.success) {
                     await fetchDocInvoicesList();
                     await autoFillDocData();
-                    alert(`✅ Đồng bộ thành công ${d.count} dòng hóa đơn truy thu từ Google Sheet!`);
+                    alert(`✅ Đồng bộ thành công ${d.count} dòng hóa đơn truy thu từ Google Sheet mới!`);
                 } else {
                     alert(`❌ Lỗi đồng bộ: ${d.error || 'Thất bại'}`);
                 }
@@ -3920,20 +4033,72 @@
             }
         }
 
-        async function autoFillDocData() {
+        async function autoFillDocData(forceReset = false) {
             const w = document.getElementById('doc-input-warehouse').value;
             const m = document.getElementById('doc-input-month').value;
             const y = document.getElementById('doc-input-year').value;
             const vatType = document.getElementById('doc-input-vat').value;
+            const draftKey = `${w}_${m}_${y}`;
+
+            // Kiểm tra xem bộ chứng từ này đã có bản lưu tạm ở LocalStorage chưa
+            let draft = null;
+            if (!forceReset) {
+                try {
+                    const localDrafts = JSON.parse(localStorage.getItem('scm_doc_drafts') || '{}');
+                    if (localDrafts[draftKey]) {
+                        draft = localDrafts[draftKey];
+                    }
+                } catch (e) {}
+            }
+
             try {
                 const res = await fetch(`/api/documents/auto_fill?warehouse=${encodeURIComponent(w)}&month=${m}&year=${y}&vat_type=${encodeURIComponent(vatType)}`);
                 const d = await res.json();
                 if (d.success) {
                     currentDocInvoices = d.invoices || [];
-                    document.getElementById('doc-input-qty').value = d.total_qty;
-                    document.getElementById('doc-input-amount').value = d.total_amount;
+
+                    if (!forceReset && !draft && d.has_draft && d.draft) {
+                        draft = d.draft;
+                    }
+
+                    if (draft) {
+                        // Nạp bản lưu tạm do người dùng đã chỉnh sửa
+                        document.getElementById('doc-input-qty').value = draft.total_qty !== undefined ? draft.total_qty : d.total_qty;
+                        document.getElementById('doc-input-amount').value = draft.total_amount !== undefined ? draft.total_amount : d.total_amount;
+                        if (draft.doc_date && document.getElementById('doc-input-date')) {
+                            document.getElementById('doc-input-date').value = draft.doc_date;
+                        }
+                        if (draft.vat_type && document.getElementById('doc-input-vat')) {
+                            document.getElementById('doc-input-vat').value = draft.vat_type;
+                        }
+                        if (draft.representative_scf && document.getElementById('doc-input-scf')) {
+                            document.getElementById('doc-input-scf').value = draft.representative_scf;
+                        }
+                        if (draft.representative_kfm && document.getElementById('doc-input-kfm')) {
+                            document.getElementById('doc-input-kfm').value = draft.representative_kfm;
+                        }
+                        if (draft.invoices && draft.invoices.length > 0) {
+                            currentDocInvoices = draft.invoices;
+                        }
+                        updateDocDraftBadge(true, draft.saved_at || draft.updated_at);
+                    } else {
+                        // Nạp số liệu gốc từ Google Sheet
+                        document.getElementById('doc-input-qty').value = d.total_qty;
+                        const isPostVat = vatType.includes('Gồm') || vatType.includes('gồm');
+                        const defaultAmt = isPostVat ? (d.total_post_tax || d.total_amount) : (d.total_pre_tax || d.total_amount);
+                        document.getElementById('doc-input-amount').value = Math.round(defaultAmt);
+                        if (d.suggested_date && document.getElementById('doc-input-date')) {
+                            document.getElementById('doc-input-date').value = d.suggested_date;
+                        }
+                        updateDocDraftBadge(false);
+                    }
+
                     if (document.getElementById('doc-preview-words')) {
-                        document.getElementById('doc-preview-words').innerText = d.words;
+                        const amt = document.getElementById('doc-input-amount').value;
+                        const wRes = await fetch(`/api/documents/num_to_words?amount=${amt || 0}`);
+                        const wData = await wRes.json();
+                        document.getElementById('doc-preview-words').innerText = wData.words || d.words;
+                        window.currentDocWordsNoDong = wData.words_no_dong;
                     }
                     updateDocPreview();
                 }
@@ -3960,23 +4125,32 @@
             let dp = dateStr.split('/');
             let dateText = (dp.length === 3) ? `TP.HCM, ngày ${dp[0]} tháng ${dp[1]} năm ${dp[2]}` : `TP.HCM, ngày ${dateStr}`;
 
+            const isPostVat = vatType.includes('Gồm') || vatType.includes('gồm');
+            const vatLabel = isPostVat ? 'Gồm VAT' : 'Chưa VAT';
+            let effectiveAmt = amt;
+            let totSl = qty;
+            let totalPre = 0;
+            let totalPost = 0;
+
             if (currentDocPreviewSubtab === 'quyet_dinh') {
                 let tableHtml = '';
                 if (currentDocInvoices && currentDocInvoices.length > 1) {
+                    totalPre = currentDocInvoices.reduce((a, b) => a + (b.pre_tax || 0), 0);
+                    totalPost = currentDocInvoices.reduce((a, b) => a + (b.post_tax || 0), 0);
+                    totSl = currentDocInvoices.reduce((a, b) => a + (b.qty || 0), 0);
+                    effectiveAmt = isPostVat ? totalPost : totalPre;
+
                     // BẢNG KÊ NHIỀU HÓA ĐƠN (6 CỘT)
                     let rowsHtml = currentDocInvoices.map((it, idx) => `
                         <tr>
                             <td style="border: 1px solid #111; padding: 5px 6px; text-align: center;">${idx + 1}</td>
                             <td style="border: 1px solid #111; padding: 5px 6px; font-size: 11px;">${it.content}</td>
-                            <td style="border: 1px solid #111; padding: 5px 6px; text-align: right; font-weight: bold;">${it.qty ? it.qty.toLocaleString('vi-VN') : ''}</td>
+                            <td style="border: 1px solid #111; padding: 5px 6px; text-align: right; font-weight: bold;">${(it.qty && it.qty > 0) ? it.qty.toLocaleString('vi-VN') : ''}</td>
                             <td style="border: 1px solid #111; padding: 5px 6px; text-align: right;">${new Intl.NumberFormat('vi-VN').format(it.pre_tax)}</td>
                             <td style="border: 1px solid #111; padding: 5px 6px; text-align: right; font-weight: bold; color: #dc2626;">${new Intl.NumberFormat('vi-VN').format(it.post_tax)}</td>
                             <td style="border: 1px solid #111; padding: 5px 6px; text-align: center; font-size: 11px;">${it.co_number || ''}</td>
                         </tr>
                     `).join('');
-
-                    const totalPre = currentDocInvoices.reduce((a, b) => a + (b.pre_tax || 0), 0);
-                    const totalPost = currentDocInvoices.reduce((a, b) => a + (b.post_tax || 0), 0);
 
                     tableHtml = `
                         <table style="width: 100%; border-collapse: collapse; margin: 12px 0 16px 0; font-size: 12px;">
@@ -3995,7 +4169,7 @@
                                 <tr style="font-weight: bold; background-color: #f8fafc;">
                                     <td style="border: 1px solid #111; padding: 6px 4px;"></td>
                                     <td style="border: 1px solid #111; padding: 6px 8px; text-align: center;">Total</td>
-                                    <td style="border: 1px solid #111; padding: 6px 4px; text-align: right;">${qty.toLocaleString('vi-VN')}</td>
+                                    <td style="border: 1px solid #111; padding: 6px 4px; text-align: right;">${(totSl && totSl > 0) ? totSl.toLocaleString('vi-VN') : ''}</td>
                                     <td style="border: 1px solid #111; padding: 6px 6px; text-align: right;">${new Intl.NumberFormat('vi-VN').format(totalPre)}</td>
                                     <td style="border: 1px solid #111; padding: 6px 6px; text-align: right; color: #dc2626;">${new Intl.NumberFormat('vi-VN').format(totalPost)}</td>
                                     <td style="border: 1px solid #111; padding: 6px 4px;"></td>
@@ -4042,12 +4216,12 @@
                             <tr>
                                 <td style="width: 48%; text-align: center; vertical-align: top; line-height: 1.3;">
                                     <div style="font-weight: bold; font-size: 12.5px;">CÔNG TY CỔ PHẦN KINGFOOD MARKET</div>
-                                    <div style="font-size: 11px; margin-top: 2px;">*****</div>
+                                    <div style="font-size: 11px; margin-top: 2px;">---------o0o---------</div>
                                 </td>
                                 <td style="width: 52%; text-align: center; vertical-align: top; line-height: 1.3;">
                                     <div style="font-weight: bold; font-size: 12.5px;">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</div>
                                     <div style="font-weight: bold; font-size: 11.5px;">Độc lập – Tự do – Hạnh phúc</div>
-                                    <div style="font-size: 10.5px;">********</div>
+                                    <div style="font-size: 10.5px;">---------o0o---------</div>
                                     <div style="font-style: italic; font-size: 11.5px; margin-top: 4px;">${dateText}</div>
                                 </td>
                             </tr>
@@ -4071,10 +4245,10 @@
                         ${tableHtml}
 
                         <div style="font-size: 12.5px; line-height: 1.45; margin: 10px 0; text-align: justify;">
-                            • Chi phí ${w} T${m}/${y} (${vatType.toLowerCase()}):<br>
-                            &nbsp;&nbsp;- Tổng giá trị chênh lệch kho: (${amt.toLocaleString('vi-VN')}) VNĐ (${vatType})<br>
+                            • Chi phí ${w} T${m}/${y} (${vatLabel.toLowerCase()}):<br>
+                            &nbsp;&nbsp;- Tổng giá trị chênh lệch kho: (${effectiveAmt.toLocaleString('vi-VN')}) VNĐ (${vatLabel})<br>
                             &nbsp;&nbsp;- Tỷ lệ quy trách nhiệm: DC (SCF) chịu 100% giá trị.<br>
-                            &nbsp;&nbsp;- Tổng GT truy thu SCF (100%): (${amt.toLocaleString('vi-VN')} VNĐ) (${vatType})<br>
+                            &nbsp;&nbsp;- Tổng GT truy thu SCF (100%): (${effectiveAmt.toLocaleString('vi-VN')} VNĐ) (${vatLabel})<br>
                             &nbsp;&nbsp;&nbsp;&nbsp;<em>(Bằng chữ: ${words})</em>
                         </div>
 
@@ -4102,6 +4276,10 @@
                     </div>
                 `;
             } else {
+                const wTitle = (w.includes('SEEDLOG') || w.includes('TỔNG') || w.includes('SLG')) ? 'SLG' : w;
+                const whDesc = (w.includes('SEEDLOG') || w.includes('TỔNG') || w.includes('SLG')) ? 'kho linker (DC)' : w;
+                const wordsNoDong = window.currentDocWordsNoDong || (words.endsWith(' đồng') ? words.slice(0, -5) : words);
+
                 container.innerHTML = `
                     <div style="max-width: 650px; margin: 0 auto; line-height: 1.45; font-size: 13px; color: #111;">
                         <table style="width: 100%; border: none; margin-bottom: 18px;">
@@ -4121,7 +4299,7 @@
 
                         <div style="text-align: center; margin: 18px 0 14px 0;">
                             <div style="font-weight: bold; font-size: 15.5px; text-transform: uppercase; letter-spacing: 0.5px;">ĐỀ NGHỊ THANH TOÁN</div>
-                            <div style="font-style: italic; font-size: 12.5px; margin-top: 4px;">V/v Đề nghị thanh toán tiền truy thu ${w} tháng ${m}/${y}</div>
+                            <div style="font-style: italic; font-size: 12.5px; margin-top: 4px;">V/v Đề nghị thanh toán tiền truy thu ${wTitle} – Hủy hàng tháng ${m}/${y}</div>
                         </div>
 
                         <div style="font-size: 13px; margin-bottom: 10px;">
@@ -4129,24 +4307,35 @@
                         </div>
 
                         <div style="font-size: 12.5px; line-height: 1.45; margin-bottom: 10px; text-align: justify;">
-                            - Căn cứ vào kết quả Hủy hàng tại ${w} trong tháng ${m} năm ${y}<br>
+                            - Căn cứ vào kết quả Hủy hàng tại ${whDesc} trong tháng ${m}/${y}<br>
                             - Căn cứ vào kết quả đối chiếu, kiểm tra chứng từ của KFM và SCF
                         </div>
 
                         <div style="font-size: 12.5px; line-height: 1.45; margin-bottom: 10px; text-align: justify;">
-                            Chúng tôi kính đề nghị quý Công ty thanh toán số tiền là: <strong>${amt.toLocaleString('vi-VN')} VNĐ (${vatType})</strong><br>
-                            <em>(Bằng chữ: ${words})</em>
+                            Chúng tôi kính đề nghị quý Công ty thanh toán số tiền là: <strong>${effectiveAmt.toLocaleString('vi-VN')} (${vatLabel})</strong><br>
+                            <em>(Bằng chữ: ${wordsNoDong}.)</em>
                         </div>
 
-                        <div style="font-size: 12.5px; line-height: 1.45; margin-bottom: 10px; text-align: justify;">
-                            Số tiền trên đề nghị chuyển vào tài khoản:<br>
-                            &nbsp;&nbsp;• <strong>Số tài khoản:</strong> 04001010091039<br>
-                            &nbsp;&nbsp;• <strong>Chủ tài khoản:</strong> CÔNG TY CỔ PHẦN KINGFOOD MARKET<br>
-                            &nbsp;&nbsp;• <strong>Mở tại ngân hàng:</strong> HANG HAI (MARITIMEBANK-MSB)
+                        <div style="font-size: 12.5px; line-height: 1.45; margin-bottom: 8px;">
+                            Số tiền trên đề nghị chuyển vào tài khoản:
                         </div>
+
+                        <!-- BẢNG THÔNG TIN TÀI KHOẢN NGÂN HÀNG CHUẨN THEO MẪU ẢNH 1 -->
+                        <table style="width: 100%; border-collapse: collapse; margin-bottom: 16px; font-size: 12px;">
+                            <tr>
+                                <td style="border: 1px solid #111; padding: 5px 8px; font-style: italic; width: 18%;">Số tài khoản:</td>
+                                <td style="border: 1px solid #111; padding: 5px 8px; width: 25%; font-family: monospace; font-size: 12.5px;">04001010091039</td>
+                                <td style="border: 1px solid #111; padding: 5px 8px; font-style: italic; width: 20%;">Chủ tài khoản:</td>
+                                <td style="border: 1px solid #111; padding: 5px 8px; width: 37%; font-weight: 500;">CÔNG TY CỔ PHẦN<br>KINGFOOD MARKET</td>
+                            </tr>
+                            <tr>
+                                <td style="border: 1px solid #111; padding: 5px 8px; font-style: italic;">Mở tại ngân hàng:</td>
+                                <td colspan="3" style="border: 1px solid #111; padding: 5px 8px; font-weight: 500;">HANG HAI (MARITIMEBANK-MSB)</td>
+                            </tr>
+                        </table>
 
                         <div style="font-size: 12.5px; line-height: 1.45; margin-bottom: 16px; text-align: justify;">
-                            Kính mong Quý Công ty vui lòng thanh toán đúng thời hạn số tiền trên.<br>
+                            Kính mong Quý Công ty vui lòng thanh toán đúng thời hạn số tiền trên.<br><br>
                             Trân trọng kính chào!
                         </div>
 

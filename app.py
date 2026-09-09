@@ -1260,7 +1260,8 @@ def api_num_to_words():
     from doc_generator import num_to_vietnamese_words
     return jsonify({
         'success': True,
-        'words': num_to_vietnamese_words(amount)
+        'words': num_to_vietnamese_words(amount, include_dong=True),
+        'words_no_dong': num_to_vietnamese_words(amount, include_dong=False)
     })
 
 
@@ -1271,6 +1272,121 @@ def api_sync_claim_invoices():
     from sheet_sync import sync_claim_invoices_from_sheet
     res = sync_claim_invoices_from_sheet(url)
     return jsonify(res)
+
+
+@app.route('/api/documents/drafts', methods=['GET', 'POST', 'DELETE'])
+def api_document_drafts():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS document_drafts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            draft_key TEXT UNIQUE,
+            warehouse_name TEXT,
+            month TEXT,
+            year TEXT,
+            doc_date TEXT,
+            total_qty REAL,
+            total_amount REAL,
+            vat_type TEXT,
+            representative_scf TEXT,
+            representative_kfm TEXT,
+            invoices_json TEXT,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    
+    if request.method == 'GET':
+        wh = request.args.get('warehouse', '').strip()
+        m = request.args.get('month', '').strip().zfill(2) if request.args.get('month') else ''
+        y = request.args.get('year', '').strip()
+        
+        if wh and m and y:
+            draft_key = f"{wh}_{m}_{y}"
+            cursor.execute("SELECT * FROM document_drafts WHERE draft_key = ?", (draft_key,))
+            row = cursor.fetchone()
+            conn.close()
+            if row:
+                d = dict(row)
+                import json
+                try:
+                    d['invoices'] = json.loads(d.get('invoices_json') or '[]')
+                except:
+                    d['invoices'] = []
+                return jsonify({'success': True, 'has_draft': True, 'draft': d})
+            return jsonify({'success': True, 'has_draft': False, 'draft': None})
+        else:
+            cursor.execute("SELECT * FROM document_drafts ORDER BY updated_at DESC")
+            rows = [dict(r) for r in cursor.fetchall()]
+            conn.close()
+            import json
+            for r in rows:
+                try:
+                    r['invoices'] = json.loads(r.get('invoices_json') or '[]')
+                except:
+                    r['invoices'] = []
+            return jsonify({'success': True, 'count': len(rows), 'drafts': rows})
+            
+    elif request.method == 'POST':
+        data = request.get_json(force=True, silent=True) or {}
+        wh = str(data.get('warehouse_name', '')).strip()
+        raw_m = str(data.get('month', '')).strip()
+        m = raw_m.zfill(2) if raw_m else ''
+        y = str(data.get('year', '')).strip()
+        if not wh or not m or not y:
+            conn.close()
+            return jsonify({'success': False, 'error': 'Thiếu thông tin kho, tháng, năm'}), 400
+        
+        draft_key = f"{wh}_{m}_{y}"
+        doc_date = data.get('doc_date', '')
+        total_qty = float(data.get('total_qty', 0) or 0)
+        total_amount = float(data.get('total_amount', 0) or 0)
+        vat_type = data.get('vat_type', 'Chưa VAT')
+        scf = data.get('representative_scf', '')
+        kfm = data.get('representative_kfm', '')
+        import json
+        inv_json = json.dumps(data.get('invoices', []), ensure_ascii=False)
+        now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        
+        cursor.execute("""
+            INSERT INTO document_drafts (
+                draft_key, warehouse_name, month, year, doc_date,
+                total_qty, total_amount, vat_type, representative_scf,
+                representative_kfm, invoices_json, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(draft_key) DO UPDATE SET
+                warehouse_name=excluded.warehouse_name,
+                month=excluded.month,
+                year=excluded.year,
+                doc_date=excluded.doc_date,
+                total_qty=excluded.total_qty,
+                total_amount=excluded.total_amount,
+                vat_type=excluded.vat_type,
+                representative_scf=excluded.representative_scf,
+                representative_kfm=excluded.representative_kfm,
+                invoices_json=excluded.invoices_json,
+                updated_at=excluded.updated_at
+        """, (draft_key, wh, m, y, doc_date, total_qty, total_amount, vat_type, scf, kfm, inv_json, now_str))
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True, 'draft_key': draft_key, 'saved_at': now_str})
+        
+    elif request.method == 'DELETE':
+        data = request.get_json(force=True, silent=True) or {}
+        draft_key = str(data.get('draft_key', '')).strip()
+        if not draft_key:
+            wh = str(data.get('warehouse_name', '')).strip()
+            raw_m = str(data.get('month', '')).strip()
+            m = raw_m.zfill(2) if raw_m else ''
+            y = str(data.get('year', '')).strip()
+            if wh and m and y:
+                draft_key = f"{wh}_{m}_{y}"
+        
+        if draft_key:
+            cursor.execute("DELETE FROM document_drafts WHERE draft_key = ?", (draft_key,))
+            conn.commit()
+        conn.close()
+        return jsonify({'success': True, 'deleted': draft_key})
 
 
 @app.route('/api/documents/invoices')
@@ -1290,9 +1406,16 @@ def api_get_claim_invoices():
             co_number TEXT,
             pre_tax REAL,
             post_tax REAL,
+            quantity REAL DEFAULT 0,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
+    # Ensure quantity column exists if table was created previously without it
+    try:
+        cursor.execute("ALTER TABLE warehouse_claim_invoices ADD COLUMN quantity REAL DEFAULT 0")
+    except Exception:
+        pass
+
     cursor.execute("SELECT COUNT(*) FROM warehouse_claim_invoices")
     cnt = cursor.fetchone()[0]
     
@@ -1305,14 +1428,14 @@ def api_get_claim_invoices():
 
     if month_filter:
         cursor.execute("""
-            SELECT id, month, warehouse_code, warehouse_name, invoice_date, content, invoice_number, co_number, pre_tax, post_tax
+            SELECT id, month, warehouse_code, warehouse_name, invoice_date, content, invoice_number, co_number, pre_tax, post_tax, quantity
             FROM warehouse_claim_invoices
             WHERE month = ?
             ORDER BY warehouse_code ASC, id ASC
         """, (month_filter.zfill(2),))
     else:
         cursor.execute("""
-            SELECT id, month, warehouse_code, warehouse_name, invoice_date, content, invoice_number, co_number, pre_tax, post_tax
+            SELECT id, month, warehouse_code, warehouse_name, invoice_date, content, invoice_number, co_number, pre_tax, post_tax, quantity
             FROM warehouse_claim_invoices
             ORDER BY month DESC, warehouse_code ASC, id ASC
         """)
@@ -1332,11 +1455,13 @@ def api_get_claim_invoices():
                 'warehouse_name': r['warehouse_name'],
                 'total_pre_tax': 0.0,
                 'total_post_tax': 0.0,
+                'total_quantity': 0.0,
                 'invoice_count': 0,
                 'invoices': []
             }
-        summary[key]['total_pre_tax'] += r['pre_tax']
-        summary[key]['total_post_tax'] += r['post_tax']
+        summary[key]['total_pre_tax'] += (r['pre_tax'] or 0.0)
+        summary[key]['total_post_tax'] += (r['post_tax'] or 0.0)
+        summary[key]['total_quantity'] += (r.get('quantity') or 0.0)
         summary[key]['invoice_count'] += 1
         summary[key]['invoices'].append(r)
 
@@ -1372,9 +1497,45 @@ def api_documents_auto_fill():
             co_number TEXT,
             pre_tax REAL,
             post_tax REAL,
+            quantity REAL DEFAULT 0,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
+    try:
+        cursor.execute("ALTER TABLE warehouse_claim_invoices ADD COLUMN quantity REAL DEFAULT 0")
+    except Exception:
+        pass
+
+    # Check if a saved draft exists first
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS document_drafts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            draft_key TEXT UNIQUE,
+            warehouse_name TEXT,
+            month TEXT,
+            year TEXT,
+            doc_date TEXT,
+            total_qty REAL,
+            total_amount REAL,
+            vat_type TEXT,
+            representative_scf TEXT,
+            representative_kfm TEXT,
+            invoices_json TEXT,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    draft_key = f"{warehouse}_{month}_{year}"
+    cursor.execute("SELECT * FROM document_drafts WHERE draft_key = ?", (draft_key,))
+    draft_row = cursor.fetchone()
+    saved_draft = None
+    if draft_row:
+        saved_draft = dict(draft_row)
+        import json
+        try:
+            saved_draft['invoices'] = json.loads(saved_draft.get('invoices_json') or '[]')
+        except:
+            saved_draft['invoices'] = []
+
     cursor.execute("SELECT COUNT(*) FROM warehouse_claim_invoices")
     if cursor.fetchone()[0] == 0:
         from sheet_sync import sync_claim_invoices_from_sheet
@@ -1389,16 +1550,16 @@ def api_documents_auto_fill():
         wh_cond = "(warehouse_code = 'SL' OR warehouse_name LIKE '%SEEDLOG%' OR warehouse_name LIKE '%TỔNG%' OR content LIKE '%SEEDLOG%' OR content LIKE '%HẬU KIỂM%' OR content LIKE '%SLG%')"
     elif "RAU" in wh_upper:
         wh_code = "RC"
-        wh_cond = "(warehouse_code = 'RC' OR warehouse_name LIKE '%RAU%' OR content LIKE '%RAU%')"
+        wh_cond = "(warehouse_code IN ('RC', 'KRC') OR warehouse_name LIKE '%RAU%' OR content LIKE '%RAU%')"
     elif "ĐÔNG" in wh_upper and "MÁT" not in wh_upper:
         wh_code = "KD"
-        wh_cond = "(warehouse_code IN ('KD', 'DM') OR warehouse_name LIKE '%ĐÔNG%' OR content LIKE '%ĐÔNG%' OR content LIKE '%ABA%')"
+        wh_cond = "(warehouse_code IN ('KD', 'FZ', 'DM') OR warehouse_name LIKE '%ĐÔNG%' OR content LIKE '%ĐÔNG%' OR content LIKE '%FROZEN%' OR content LIKE '%ABA%')"
     elif "MÁT" in wh_upper and "ĐÔNG" not in wh_upper:
         wh_code = "KM"
-        wh_cond = "(warehouse_code IN ('KM', 'DM') OR warehouse_name LIKE '%MÁT%' OR content LIKE '%MÁT%' OR content LIKE '%ABA%')"
+        wh_cond = "(warehouse_code IN ('KM', 'CL', 'DM') OR warehouse_name LIKE '%MÁT%' OR content LIKE '%MÁT%' OR content LIKE '%CHILL%' OR content LIKE '%ABA%')"
     elif "BÌNH TÂN" in wh_upper or "ĐÔNG MÁT" in wh_upper or "ABA" in wh_upper:
         wh_code = "DM"
-        wh_cond = "(warehouse_code = 'DM' OR warehouse_name LIKE '%ABA%' OR warehouse_name LIKE '%BÌNH TÂN%' OR content LIKE '%ABA%')"
+        wh_cond = "(warehouse_code IN ('DM', 'KD', 'KM', 'FZ', 'CL') OR warehouse_name LIKE '%ABA%' OR warehouse_name LIKE '%BÌNH TÂN%' OR content LIKE '%ABA%')"
     else:
         wh_code = "%"
         wh_cond = "(warehouse_name LIKE ? OR content LIKE ?)"
@@ -1406,14 +1567,14 @@ def api_documents_auto_fill():
     # Tìm kiếm theo tên kho và tháng trong bảng hóa đơn
     if wh_cond.count('?') == 2:
         cursor.execute(f"""
-            SELECT id, month, warehouse_code, warehouse_name, invoice_date, content, invoice_number, co_number, pre_tax, post_tax
+            SELECT id, month, warehouse_code, warehouse_name, invoice_date, content, invoice_number, co_number, pre_tax, post_tax, quantity
             FROM warehouse_claim_invoices
             WHERE {wh_cond} AND month = ?
             ORDER BY id ASC
         """, (f"%{warehouse}%", f"%{warehouse}%", month))
     else:
         cursor.execute(f"""
-            SELECT id, month, warehouse_code, warehouse_name, invoice_date, content, invoice_number, co_number, pre_tax, post_tax
+            SELECT id, month, warehouse_code, warehouse_name, invoice_date, content, invoice_number, co_number, pre_tax, post_tax, quantity
             FROM warehouse_claim_invoices
             WHERE {wh_cond} AND month = ?
             ORDER BY id ASC
@@ -1424,14 +1585,14 @@ def api_documents_auto_fill():
     if not inv_rows:
         if wh_cond.count('?') == 2:
             cursor.execute(f"""
-                SELECT id, month, warehouse_code, warehouse_name, invoice_date, content, invoice_number, co_number, pre_tax, post_tax
+                SELECT id, month, warehouse_code, warehouse_name, invoice_date, content, invoice_number, co_number, pre_tax, post_tax, quantity
                 FROM warehouse_claim_invoices
                 WHERE {wh_cond} AND month != ''
                 ORDER BY CAST(month AS INTEGER) DESC, id ASC
             """, (f"%{warehouse}%", f"%{warehouse}%"))
         else:
             cursor.execute(f"""
-                SELECT id, month, warehouse_code, warehouse_name, invoice_date, content, invoice_number, co_number, pre_tax, post_tax
+                SELECT id, month, warehouse_code, warehouse_name, invoice_date, content, invoice_number, co_number, pre_tax, post_tax, quantity
                 FROM warehouse_claim_invoices
                 WHERE {wh_cond} AND month != ''
                 ORDER BY CAST(month AS INTEGER) DESC, id ASC
@@ -1444,8 +1605,9 @@ def api_documents_auto_fill():
     from doc_generator import num_to_vietnamese_words
 
     if inv_rows:
-        tot_pre = sum(r['pre_tax'] for r in inv_rows)
-        tot_post = sum(r['post_tax'] for r in inv_rows)
+        tot_pre = sum(r['pre_tax'] or 0.0 for r in inv_rows)
+        tot_post = sum(r['post_tax'] or 0.0 for r in inv_rows)
+        sheet_qty = sum(r.get('quantity') or 0.0 for r in inv_rows)
         latest_date = max((r['invoice_date'] for r in inv_rows if r['invoice_date']), default=f"31/{month}/{year}")
         
         # Nhóm theo số hóa đơn để tạo danh sách biên bản chuẩn
@@ -1459,19 +1621,22 @@ def api_documents_auto_fill():
                     'invoice_number': r['invoice_number'],
                     'co_number': r['co_number'],
                     'date': r['invoice_date'],
-                    'qty': 0,
+                    'qty': r.get('quantity') or 0,
                     'pre_tax': 0.0,
                     'post_tax': 0.0
                 }
-            inv_grouped[inv_no]['pre_tax'] += r['pre_tax']
-            inv_grouped[inv_no]['post_tax'] += r['post_tax']
+            inv_grouped[inv_no]['pre_tax'] += (r['pre_tax'] or 0.0)
+            inv_grouped[inv_no]['post_tax'] += (r['post_tax'] or 0.0)
+            if r.get('quantity') and not inv_grouped[inv_no]['qty']:
+                inv_grouped[inv_no]['qty'] = r['quantity']
             if r['co_number'] and not inv_grouped[inv_no]['co_number']:
                 inv_grouped[inv_no]['co_number'] = r['co_number']
 
         invoices_list = list(inv_grouped.values())
         
-        # Gán số lượng mẫu theo chứng từ gốc
-        if "MEAT" in warehouse.upper():
+        if sheet_qty > 0:
+            total_qty = sheet_qty
+        elif "MEAT" in warehouse.upper():
             total_qty = 3191
         elif "SEEDLOG" in warehouse.upper() or "TỔNG" in warehouse.upper():
             total_qty = 3324
@@ -1501,6 +1666,8 @@ def api_documents_auto_fill():
             'total_post_tax': tot_post,
             'total_amount': target_amount,
             'suggested_date': latest_date,
+            'has_draft': bool(saved_draft),
+            'draft': saved_draft,
             'words': num_to_vietnamese_words(target_amount)
         })
 
@@ -1577,12 +1744,17 @@ def api_generate_documents():
     month = data.get('month', '08')
     year = data.get('year', '2026')
     total_qty = data.get('total_qty', 0)
-    total_amount = data.get('total_amount', 0)
     vat_type = data.get('vat_type', 'Chưa VAT')
     doc_date = data.get('doc_date', datetime.now().strftime('%d/%m/%Y'))
     representative_kfm = data.get('representative_kfm', 'NGUYỄN HOÀNG LÂM')
     representative_scf = data.get('representative_scf', 'Nguyễn Ngọc Xuân Quang')
     invoices = data.get('invoices', [])
+
+    if invoices and len(invoices) > 1:
+        tot_pre = sum(it.get('pre_tax', 0.0) for it in invoices)
+        tot_post = sum(it.get('post_tax', 0.0) for it in invoices)
+        is_post_vat = ('gồm' in str(vat_type).lower())
+        total_amount = tot_post if is_post_vat else tot_pre
 
     out_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'generated_docs')
     os.makedirs(out_dir, exist_ok=True)
