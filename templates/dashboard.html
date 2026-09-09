@@ -4269,9 +4269,6 @@
                 totalPre = tableItems.reduce((a, b) => a + b.pre, 0);
                 totalPost = tableItems.reduce((a, b) => a + b.post, 0);
 
-                const numRows = tableItems.length;
-                const fmtComma = (val) => new Intl.NumberFormat('en-US').format(Math.round(val || 0));
-
                 const isNoCoWh = ['RAU CỦ', 'RAU CU', 'MEATFISH', 'THỊT CÁ', 'THIT CA', 'ĐÔNG', 'DONG', 'MÁT', 'MAT'].some(k => whClean.toUpperCase().includes(k));
                 const hasCo = (!isNoCoWh) && tableItems.some(it => !!it.co);
 
