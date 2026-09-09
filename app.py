@@ -1752,6 +1752,7 @@ def api_generate_documents():
     representative_kfm = data.get('representative_kfm', 'NGUYỄN HOÀNG LÂM')
     representative_scf = data.get('representative_scf', 'Nguyễn Ngọc Xuân Quang')
     invoices = data.get('invoices', [])
+    total_amount = abs(float(data.get('total_amount', 0)))
 
     if invoices and len(invoices) > 1:
         tot_pre = sum(it.get('pre_tax', 0.0) for it in invoices)
@@ -1829,6 +1830,52 @@ def api_download_document(filename):
             mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         )
     return jsonify({'error': 'Tập tin không tồn tại'}), 404
+
+
+@app.route('/api/documents/templates', methods=['GET', 'POST'])
+def api_documents_templates():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS document_templates (
+            template_key TEXT PRIMARY KEY,
+            template_name TEXT,
+            content_json TEXT,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    if request.method == 'POST':
+        data = request.json or {}
+        key = data.get('template_key', 'de_nghi_thanh_toan')
+        name = data.get('template_name', 'Mẫu Đề Nghị Thanh Toán Chuẩn SCM')
+        import json
+        content = json.dumps(data.get('content', {}), ensure_ascii=False)
+        cursor.execute("""
+            INSERT INTO document_templates (template_key, template_name, content_json, updated_at)
+            VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(template_key) DO UPDATE SET
+                template_name = excluded.template_name,
+                content_json = excluded.content_json,
+                updated_at = CURRENT_TIMESTAMP
+        """, (key, name, content))
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True, 'message': f'Đã lưu mẫu {key} vào CSDL thành công!'})
+    
+    # GET
+    key = request.args.get('template_key', 'de_nghi_thanh_toan')
+    cursor.execute("SELECT * FROM document_templates WHERE template_key = ?", (key,))
+    row = cursor.fetchone()
+    conn.close()
+    if row:
+        import json
+        t_data = dict(row)
+        try:
+            t_data['content'] = json.loads(t_data.get('content_json') or '{}')
+        except:
+            t_data['content'] = {}
+        return jsonify({'success': True, 'template': t_data})
+    return jsonify({'success': False, 'message': 'Chưa có mẫu'}), 404
 
 
 @app.route('/api/cases/audit_status/update', methods=['POST'])

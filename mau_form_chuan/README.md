@@ -57,3 +57,35 @@ Tập tin Word mẫu đính kèm: **`QUYET_DINH_KHO_SEEDLOG_T07_2026_MAU_CHUAN.d
 ### Chữ ký 2 bên (Không viền):
 * **Đại diện SCF**: Nguyễn Ngọc Xuân Quang
 * **Đại diện KFM**: Nguyễn Hoàng Lâm
+
+---
+
+## 2. MẪU CHUẨN VĂN BẢN ĐỀ NGHỊ THANH TOÁN
+
+Tập tin Word mẫu đính kèm: **`DE_NGHI_THANH_TOAN_KHO_SEEDLOG_T07_2026_MAU_CHUAN.docx`**
+
+### Quy cách định dạng chuẩn (Đã lưu vào CSDL & áp dụng trên Web, file Word .docx):
+* **Header Trái**: `CÔNG TY CỔ PHẦN KINGFOOD MARKET` / `---------o0o---------`
+* **Header Phải**: `CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM` / `Độc Lập – Tự Do – Hạnh Phúc` / `---------o0o---------` / `TP.HCM, ngày 17 tháng 08 năm 2026` *(in nghiêng)*
+* **Tiêu đề**:
+  * **ĐỀ NGHỊ THANH TOÁN** *(In hoa, đậm, cỡ chữ 14, căn giữa)*
+  * **V/v Đề nghị thanh toán tiền truy thu {Tên kho} tháng {tháng}/{năm}** *(In đậm, cỡ chữ 11, căn giữa)*
+* **Kính gửi**: **Kính gửi: CÔNG TY CỔ PHẦN SEEDCOM FOOD** *(In đậm)*
+* **Căn cứ**:
+  * *- Căn cứ vào kết quả Hủy hàng tại {Tên kho} trong tháng {tháng} năm {năm}*
+  * *- Căn cứ vào kết quả đối chiếu, kiểm tra chứng từ của KFM và SCF*
+* **Đề nghị thanh toán**:
+  * Chúng tôi kính đề nghị quý Công ty thanh toán số tiền là: **{Số tiền} VNĐ (VAT)**
+  * *(Bằng chữ: {Số tiền bằng chữ})*
+* **Thông tin tài khoản nhận tiền** *(Dạng danh sách gạch đầu dòng bullet, không kẻ khung bảng)*:
+  * Số tiền trên đề nghị chuyển vào tài khoản:
+  * • Số tài khoản: 04001010091039
+  * • Chủ tài khoản: CÔNG TY CỔ PHẦN KINGFOOD MARKET
+  * • Mở tại ngân hàng: HANG HAI (MARITIMEBANK-MSB)
+* **Lời kết**:
+  * Kính mong Quý Công ty vui lòng thanh toán đúng thời hạn số tiền trên.
+  * Trân trọng kính chào!
+* **Chữ ký**:
+  * **TM. TỔNG GIÁM ĐỐC** *(Căn phải, in hoa, đậm)*
+  * (Khoảng trống ký tên)
+  * **NGUYỄN HOÀNG LÂM** *(In hoa, đậm)*

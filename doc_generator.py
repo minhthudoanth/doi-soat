@@ -34,6 +34,8 @@ def num_to_vietnamese_words(number, include_dong=True):
             res.append(f"{units[t]} mươi")
             if u == 1:
                 res.append("mốt")
+            elif u == 4:
+                res.append("tư")
             elif u == 5:
                 res.append("lăm")
             elif u > 0:
@@ -614,23 +616,22 @@ def generate_de_nghi_thanh_toan_docx(data, output_path):
             set_cell_border(cell)
 
     # 2. Tiêu đề ĐỀ NGHỊ THANH TOÁN
+    w_name = clean_warehouse_name(data.get('warehouse_name', 'KHO SEEDLOG'))
+    month = str(data.get('month', '07')).zfill(2)
+    year = str(data.get('year', '2026'))
+
     p_title = doc.add_paragraph()
     p_title.alignment = WD_ALIGN_PARAGRAPH.CENTER
     p_title.paragraph_format.space_before = Pt(14)
     p_title.paragraph_format.space_after = Pt(6)
     p_title.paragraph_format.line_spacing = 1.15
-    r_t1 = p_title.add_run("ĐỀ NGHỊ THANH TOÁN\n")
+    r_t1 = p_title.add_run("ĐỀ NGHỊ THANH TOÁN\n\n")
     r_t1.bold = True
-    r_t1.font.size = Pt(13.5)
+    r_t1.font.size = Pt(14)
     r_t1.font.name = "Times New Roman"
     
-    w_name = data.get('warehouse_name', 'KHO SEEDLOG').upper()
-    month = data.get('month', '07')
-    year = data.get('year', '2026')
-    w_title = "SLG" if ("SEEDLOG" in w_name or "TỔNG" in w_name or "SLG" in w_name) else w_name
-    
-    r_t2 = p_title.add_run(f"V/v Đề nghị thanh toán tiền truy thu {w_title} – Hủy hàng tháng {month}/{year}")
-    r_t2.font.italic = True
+    r_t2 = p_title.add_run(f"V/v Đề nghị thanh toán tiền truy thu {w_name} tháng {month}/{year}")
+    r_t2.bold = True
     r_t2.font.size = Pt(11)
     r_t2.font.name = "Times New Roman"
 
@@ -639,20 +640,30 @@ def generate_de_nghi_thanh_toan_docx(data, output_path):
     p_kg.paragraph_format.space_before = Pt(8)
     p_kg.paragraph_format.space_after = Pt(6)
     p_kg.paragraph_format.line_spacing = 1.15
-    r_kg_t = p_kg.add_run("Kính gửi: ")
-    r_kg_t.bold = True
-    r_kg_t.font.size = Pt(10.5)
-    r_kg_t.font.name = "Times New Roman"
-    r_kg = p_kg.add_run("CÔNG TY CỔ PHẦN SEEDCOM FOOD")
+    p_kg.alignment = WD_ALIGN_PARAGRAPH.LEFT
+    r_kg = p_kg.add_run("Kính gửi: CÔNG TY CỔ PHẦN SEEDCOM FOOD")
     r_kg.bold = True
     r_kg.font.size = Pt(10.5)
     r_kg.font.name = "Times New Roman"
 
-    # 4. Căn cứ & Đề nghị thanh toán
+    # 4. Căn cứ
+    p_cc = doc.add_paragraph()
+    p_cc.paragraph_format.space_before = Pt(4)
+    p_cc.paragraph_format.space_after = Pt(6)
+    p_cc.paragraph_format.line_spacing = 1.15
+    p_cc.alignment = WD_ALIGN_PARAGRAPH.LEFT
+    r_cc = p_cc.add_run(
+        f"- Căn cứ vào kết quả Hủy hàng tại {w_name} trong tháng {month} năm {year}\n"
+        f"- Căn cứ vào kết quả đối chiếu, kiểm tra chứng từ của KFM và SCF"
+    )
+    r_cc.font.size = Pt(10.5)
+    r_cc.font.name = "Times New Roman"
+
+    # 5. Đề nghị thanh toán
     inv_list = data.get('invoices', [])
     vat_type = data.get('vat_type', 'Chưa VAT')
-    is_post_vat = ('gồm' in vat_type.lower())
-    vat_label = 'Gồm VAT' if is_post_vat else 'Chưa VAT'
+    is_post_vat = ('gồm' in str(vat_type).lower())
+    vat_label = '(VAT)' if is_post_vat else '(Chưa VAT)'
 
     if inv_list and len(inv_list) > 1:
         tot_pre = sum(it.get('pre_tax', 0.0) for it in inv_list)
@@ -661,137 +672,67 @@ def generate_de_nghi_thanh_toan_docx(data, output_path):
     else:
         amt_val = abs(float(data.get('total_amount', 0)))
 
-    amt_str = f"{amt_val:,.0f}".replace(',', '.')
-    words_no_dong = num_to_vietnamese_words(amt_val, include_dong=False)
-    
-    wh_desc = "kho linker (DC)" if ("SEEDLOG" in w_name or "TỔNG" in w_name or "SLG" in w_name) else w_name
-    p_cc = doc.add_paragraph()
-    p_cc.paragraph_format.space_before = Pt(4)
-    p_cc.paragraph_format.space_after = Pt(6)
-    p_cc.paragraph_format.line_spacing = 1.15
-    p_cc.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-    r_cc = p_cc.add_run(
-        f"- Căn cứ vào kết quả Hủy hàng tại {wh_desc} trong tháng {month}/{year}\n"
-        f"- Căn cứ vào kết quả đối chiếu, kiểm tra chứng từ của KFM và SCF"
-    )
-    r_cc.font.size = Pt(10.5)
-    r_cc.font.name = "Times New Roman"
-    
+    amt_str = f"{amt_val:,.0f}"
+    words = num_to_vietnamese_words(amt_val, include_dong=True)
+
     p_req = doc.add_paragraph()
-    p_req.paragraph_format.space_before = Pt(4)
+    p_req.paragraph_format.space_before = Pt(6)
     p_req.paragraph_format.space_after = Pt(6)
     p_req.paragraph_format.line_spacing = 1.15
-    p_req.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+    p_req.alignment = WD_ALIGN_PARAGRAPH.LEFT
     
-    r_req1 = p_req.add_run("Chúng tôi kính đề nghị quý Công ty thanh toán số tiền là: ")
+    r_req1 = p_req.add_run(f"Chúng tôi kính đề nghị quý Công ty thanh toán số tiền là: {amt_str} VNĐ {vat_label}\n")
     r_req1.font.size = Pt(10.5)
     r_req1.font.name = "Times New Roman"
     
-    r_amt = p_req.add_run(f"{amt_str} ({vat_label})\n")
-    r_amt.bold = True
-    r_amt.font.size = Pt(10.5)
-    r_amt.font.name = "Times New Roman"
-    
-    r_words = p_req.add_run(f"(Bằng chữ: {words_no_dong}.)")
-    r_words.font.italic = True
+    r_words = p_req.add_run(f"(Bằng chữ: {words})")
     r_words.font.size = Pt(10.5)
     r_words.font.name = "Times New Roman"
-    
+
+    # 6. Thông tin chuyển khoản (Danh sách bullet, KHÔNG BẢNG)
     b_acc = data.get('bank_account', '04001010091039')
     b_owner = data.get('bank_owner', 'CÔNG TY CỔ PHẦN KINGFOOD MARKET')
     b_name = data.get('bank_name', 'HANG HAI (MARITIMEBANK-MSB)')
-    
+
     p_bank_intro = doc.add_paragraph()
-    p_bank_intro.paragraph_format.space_before = Pt(4)
-    p_bank_intro.paragraph_format.space_after = Pt(4)
+    p_bank_intro.paragraph_format.space_before = Pt(6)
+    p_bank_intro.paragraph_format.space_after = Pt(2)
     p_bank_intro.paragraph_format.line_spacing = 1.15
-    p_bank_intro.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+    p_bank_intro.alignment = WD_ALIGN_PARAGRAPH.LEFT
     r_bi = p_bank_intro.add_run("Số tiền trên đề nghị chuyển vào tài khoản:")
     r_bi.font.size = Pt(10.5)
     r_bi.font.name = "Times New Roman"
 
-    # Bảng thông tin tài khoản ngân hàng chuẩn 2 hàng, kẻ viền đen theo mẫu chuẩn Ảnh 1
-    table_bank = doc.add_table(rows=2, cols=4)
-    table_bank.alignment = WD_TABLE_ALIGNMENT.CENTER
-    table_bank.autofit = False
-    col_widths = [Inches(1.4), Inches(1.8), Inches(1.3), Inches(1.98)]
+    bank_lines = [
+        f"• Số tài khoản: {b_acc}",
+        f"• Chủ tài khoản: {b_owner}",
+        f"• Mở tại ngân hàng: {b_name}"
+    ]
+    for bl in bank_lines:
+        p_b = doc.add_paragraph()
+        p_b.paragraph_format.left_indent = Inches(0.15)
+        p_b.paragraph_format.space_before = Pt(1)
+        p_b.paragraph_format.space_after = Pt(1)
+        p_b.paragraph_format.line_spacing = 1.15
+        p_b.alignment = WD_ALIGN_PARAGRAPH.LEFT
+        r_b = p_b.add_run(bl)
+        r_b.font.size = Pt(10.5)
+        r_b.font.name = "Times New Roman"
 
-    # Hàng 1
-    c00 = table_bank.cell(0, 0)
-    c00.width = col_widths[0]
-    p00 = c00.paragraphs[0]
-    p00.paragraph_format.line_spacing = 1.15
-    r00 = p00.add_run("Số tài khoản:")
-    r00.font.italic = True
-    r00.font.size = Pt(10)
-    r00.font.name = "Times New Roman"
-
-    c01 = table_bank.cell(0, 1)
-    c01.width = col_widths[1]
-    p01 = c01.paragraphs[0]
-    p01.paragraph_format.line_spacing = 1.15
-    r01 = p01.add_run(str(b_acc))
-    r01.font.size = Pt(10)
-    r01.font.name = "Times New Roman"
-
-    c02 = table_bank.cell(0, 2)
-    c02.width = col_widths[2]
-    p02 = c02.paragraphs[0]
-    p02.paragraph_format.line_spacing = 1.15
-    r02 = p02.add_run("Chủ tài khoản:")
-    r02.font.italic = True
-    r02.font.size = Pt(10)
-    r02.font.name = "Times New Roman"
-
-    c03 = table_bank.cell(0, 3)
-    c03.width = col_widths[3]
-    p03 = c03.paragraphs[0]
-    p03.paragraph_format.line_spacing = 1.15
-    owner_str = "CÔNG TY CỔ PHẦN\nKINGFOOD MARKET" if "KINGFOOD MARKET" in b_owner else b_owner
-    r03 = p03.add_run(owner_str)
-    r03.font.size = Pt(10)
-    r03.font.name = "Times New Roman"
-
-    # Hàng 2: Mở tại ngân hàng: | HANG HAI (MARITIMEBANK-MSB)
-    c10 = table_bank.cell(1, 0)
-    c10.width = col_widths[0]
-    p10 = c10.paragraphs[0]
-    p10.paragraph_format.line_spacing = 1.15
-    r10 = p10.add_run("Mở tại ngân hàng:")
-    r10.font.italic = True
-    r10.font.size = Pt(10)
-    r10.font.name = "Times New Roman"
-
-    c11 = table_bank.cell(1, 1)
-    c13 = table_bank.cell(1, 3)
-    c_merged = c11.merge(c13)
-    p11 = c_merged.paragraphs[0]
-    p11.paragraph_format.line_spacing = 1.15
-    r11 = p11.add_run(b_name)
-    r11.font.size = Pt(10)
-    r11.font.name = "Times New Roman"
-
-    for r in table_bank.rows:
-        for c in r.cells:
-            set_cell_margins(c, top=60, bottom=60, left=70, right=70)
-            set_cell_border(c, top=dict(val='single', sz='4', color='000000'),
-                               bottom=dict(val='single', sz='4', color='000000'),
-                               left=dict(val='single', sz='4', color='000000'),
-                               right=dict(val='single', sz='4', color='000000'))
-
+    # 7. Lời kết
     p_close = doc.add_paragraph()
-    p_close.paragraph_format.space_before = Pt(4)
-    p_close.paragraph_format.space_after = Pt(12)
+    p_close.paragraph_format.space_before = Pt(6)
+    p_close.paragraph_format.space_after = Pt(16)
     p_close.paragraph_format.line_spacing = 1.15
-    p_close.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+    p_close.alignment = WD_ALIGN_PARAGRAPH.LEFT
     r_close = p_close.add_run(
-        f"Kính mong Quý Công ty vui lòng thanh toán đúng thời hạn số tiền trên.\n"
-        f"Trân trọng kính chào!"
+        "Kính mong Quý Công ty vui lòng thanh toán đúng thời hạn số tiền trên.\n"
+        "Trân trọng kính chào!"
     )
     r_close.font.size = Pt(10.5)
     r_close.font.name = "Times New Roman"
 
-    # 5. Chữ ký TM. TỔNG GIÁM ĐỐC (Dùng Table căn phải hoàn hảo, không lệch lề)
+    # 8. Chữ ký TM. TỔNG GIÁM ĐỐC (Căn phải chuẩn qua bảng 2 cột không viền)
     table_sign = doc.add_table(rows=1, cols=2)
     table_sign.alignment = WD_TABLE_ALIGNMENT.CENTER
     table_sign.autofit = False
@@ -804,13 +745,15 @@ def generate_de_nghi_thanh_toan_docx(data, output_path):
     ps1.paragraph_format.line_spacing = 1.15
     ps1.paragraph_format.space_after = Pt(0)
     
-    kfm_name = data.get('representative_kfm', 'NGUYỄN HOÀNG LÂM')
+    kfm_name = str(data.get('representative_kfm', 'NGUYỄN HOÀNG LÂM')).strip()
+    if not kfm_name:
+        kfm_name = 'NGUYỄN HOÀNG LÂM'
     r_sg_t = ps1.add_run("TM. TỔNG GIÁM ĐỐC\n\n\n\n\n")
     r_sg_t.bold = True
     r_sg_t.font.size = Pt(10.5)
     r_sg_t.font.name = "Times New Roman"
     
-    r_sg_n = ps1.add_run(f"{kfm_name}")
+    r_sg_n = ps1.add_run(kfm_name.upper())
     r_sg_n.bold = True
     r_sg_n.font.size = Pt(10.5)
     r_sg_n.font.name = "Times New Roman"

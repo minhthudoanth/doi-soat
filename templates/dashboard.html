@@ -4352,9 +4352,8 @@
                     </div>
                 `;
             } else {
-                const wTitle = (w.includes('SEEDLOG') || w.includes('TỔNG') || w.includes('SLG')) ? 'SLG' : w;
-                const whDesc = (w.includes('SEEDLOG') || w.includes('TỔNG') || w.includes('SLG')) ? 'kho linker (DC)' : w;
-                const wordsNoDong = window.currentDocWordsNoDong || (words.endsWith(' đồng') ? words.slice(0, -5) : words);
+                const whClean = cleanWarehouseName(w);
+                const vatStr = isPostVat ? '(VAT)' : '(Chưa VAT)';
 
                 container.innerHTML = `
                     <div style="max-width: 650px; margin: 0 auto; line-height: 1.45; font-size: 13px; color: #111;">
@@ -4375,44 +4374,37 @@
 
                         <div style="text-align: center; margin: 18px 0 14px 0;">
                             <div style="font-weight: bold; font-size: 15.5px; text-transform: uppercase; letter-spacing: 0.5px;">ĐỀ NGHỊ THANH TOÁN</div>
-                            <div style="font-style: italic; font-size: 12.5px; margin-top: 4px;">V/v Đề nghị thanh toán tiền truy thu ${wTitle} – Hủy hàng tháng ${m}/${y}</div>
+                            <div style="font-weight: bold; font-size: 12.5px; margin-top: 8px;">V/v Đề nghị thanh toán tiền truy thu ${whClean} tháng ${m}/${y}</div>
                         </div>
 
                         <div style="font-size: 13px; margin-bottom: 10px;">
                             <strong>Kính gửi:</strong> <strong>CÔNG TY CỔ PHẦN SEEDCOM FOOD</strong>
                         </div>
 
-                        <div style="font-size: 12.5px; line-height: 1.45; margin-bottom: 10px; text-align: justify;">
-                            - Căn cứ vào kết quả Hủy hàng tại ${whDesc} trong tháng ${m}/${y}<br>
-                            - Căn cứ vào kết quả đối chiếu, kiểm tra chứng từ của KFM và SCF
+                        <div style="font-size: 12.5px; line-height: 1.5; margin-bottom: 10px; text-align: justify;">
+                            <div>- Căn cứ vào kết quả Hủy hàng tại ${whClean} trong tháng ${m} năm ${y}</div>
+                            <div>- Căn cứ vào kết quả đối chiếu, kiểm tra chứng từ của KFM và SCF</div>
                         </div>
 
-                        <div style="font-size: 12.5px; line-height: 1.45; margin-bottom: 10px; text-align: justify;">
-                            Chúng tôi kính đề nghị quý Công ty thanh toán số tiền là: <strong>${effectiveAmt.toLocaleString('vi-VN')} (${vatLabel})</strong><br>
-                            <em>(Bằng chữ: ${wordsNoDong}.)</em>
+                        <div style="font-size: 12.5px; line-height: 1.5; margin-bottom: 10px; text-align: justify;">
+                            <div>Chúng tôi kính đề nghị quý Công ty thanh toán số tiền là: ${effectiveAmt.toLocaleString('vi-VN')} VNĐ ${vatStr}</div>
+                            <div>(Bằng chữ: ${words})</div>
                         </div>
 
-                        <div style="font-size: 12.5px; line-height: 1.45; margin-bottom: 8px;">
+                        <div style="font-size: 12.5px; line-height: 1.5; margin-bottom: 6px;">
                             Số tiền trên đề nghị chuyển vào tài khoản:
                         </div>
 
-                        <!-- BẢNG THÔNG TIN TÀI KHOẢN NGÂN HÀNG CHUẨN THEO MẪU ẢNH 1 -->
-                        <table style="width: 100%; border-collapse: collapse; margin-bottom: 16px; font-size: 12px;">
-                            <tr>
-                                <td style="border: 1px solid #111; padding: 5px 8px; font-style: italic; width: 18%;">Số tài khoản:</td>
-                                <td style="border: 1px solid #111; padding: 5px 8px; width: 25%; font-family: monospace; font-size: 12.5px;">04001010091039</td>
-                                <td style="border: 1px solid #111; padding: 5px 8px; font-style: italic; width: 20%;">Chủ tài khoản:</td>
-                                <td style="border: 1px solid #111; padding: 5px 8px; width: 37%; font-weight: 500;">CÔNG TY CỔ PHẦN<br>KINGFOOD MARKET</td>
-                            </tr>
-                            <tr>
-                                <td style="border: 1px solid #111; padding: 5px 8px; font-style: italic;">Mở tại ngân hàng:</td>
-                                <td colspan="3" style="border: 1px solid #111; padding: 5px 8px; font-weight: 500;">HANG HAI (MARITIMEBANK-MSB)</td>
-                            </tr>
-                        </table>
+                        <!-- DANH SÁCH BULLET THÔNG TIN TÀI KHOẢN NGÂN HÀNG CHUẨN 100% THEO MẪU ẢNH -->
+                        <div style="font-size: 12.5px; line-height: 1.6; margin-left: 12px; margin-bottom: 12px;">
+                            <div>&bull; Số tài khoản: 04001010091039</div>
+                            <div>&bull; Chủ tài khoản: CÔNG TY CỔ PHẦN KINGFOOD MARKET</div>
+                            <div>&bull; Mở tại ngân hàng: HANG HAI (MARITIMEBANK-MSB)</div>
+                        </div>
 
-                        <div style="font-size: 12.5px; line-height: 1.45; margin-bottom: 16px; text-align: justify;">
-                            Kính mong Quý Công ty vui lòng thanh toán đúng thời hạn số tiền trên.<br><br>
-                            Trân trọng kính chào!
+                        <div style="font-size: 12.5px; line-height: 1.5; margin-bottom: 16px; text-align: justify;">
+                            <div>Kính mong Quý Công ty vui lòng thanh toán đúng thời hạn số tiền trên.</div>
+                            <div style="margin-top: 4px;">Trân trọng kính chào!</div>
                         </div>
 
                         <table style="width: 100%; border: none; margin-top: 22px;">
@@ -4420,8 +4412,8 @@
                                 <td style="width: 50%;"></td>
                                 <td style="width: 50%; text-align: center; vertical-align: top; line-height: 1.3;">
                                     <div style="font-weight: bold; font-size: 13px;">TM. TỔNG GIÁM ĐỐC</div>
-                                    <div style="height: 52px;"></div>
-                                    <div style="font-weight: bold; font-size: 13px;">${kfm}</div>
+                                    <div style="height: 56px;"></div>
+                                    <div style="font-weight: bold; font-size: 13px;">${kfm.toUpperCase()}</div>
                                 </td>
                             </tr>
                         </table>
