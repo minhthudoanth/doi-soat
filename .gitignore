@@ -35,5 +35,9 @@ Thumbs.db
 scratch_*.py
 chunk.js
 static/generated_docs/
+static/generated_docs/**
 static/exports/
+static/exports/**
 cloudflared.exe
+*.xlsx
+*.docx
