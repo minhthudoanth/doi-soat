@@ -87,6 +87,8 @@ def add_header(response):
     response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
     response.headers['Pragma'] = 'no-cache'
     response.headers['Expires'] = '0'
+    response.headers.pop('X-Frame-Options', None)
+    response.headers['Content-Security-Policy'] = "frame-ancestors 'self' https://kayo.vn https://pro.kfm.vn http://localhost:3000 http://localhost:3001 https://app-scm.kfm.vn *"
     return response
 
 API_CACHE = {}
